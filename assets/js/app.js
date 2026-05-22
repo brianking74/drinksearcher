@@ -422,24 +422,53 @@ function renderCard(item, options = {}) {
   const type = options.type || 'generic';
   const cta = options.cta || '';
   const imageClass = options.portrait ? 'card-media portrait' : 'card-media';
+  const locationBits = String(item.area || '').split('·').map(part => part.trim()).filter(Boolean);
+  const primaryMeta = locationBits[0] || item.area || '';
+  const secondaryMeta = locationBits[1] || '';
+  const cardClasses = ['card', options.small ? 'small-card' : '', options.className || '', type === 'supplier' ? 'supplier-card' : '', type === 'venue' ? 'venue-card' : ''].filter(Boolean).join(' ');
+  const overline = type === 'supplier'
+    ? [item.tierLabel, primaryMeta].filter(Boolean).join(' · ')
+    : type === 'venue'
+      ? [primaryMeta, item.cuisine].filter(Boolean).join(' · ')
+      : '';
+  const detailTags = type === 'supplier'
+    ? [secondaryMeta, item.specialty].filter(Boolean)
+    : type === 'venue'
+      ? [item.specialty, item.booking].filter(Boolean)
+      : [];
+  const badgeTone = type === 'venue' ? 'pink' : 'gold';
+  const topBadges = [
+    item.tierLabel ? `<span class="badge ${badgeTone}">${item.tierLabel}</span>` : '',
+    item.type ? `<span class="badge pink">${item.type}</span>` : '',
+    type === 'supplier' && primaryMeta ? `<span class="badge supplier-location-badge">${primaryMeta}</span>` : '',
+    type === 'venue' && primaryMeta ? `<span class="badge venue-location-badge">${primaryMeta}</span>` : '',
+    type !== 'supplier' && type !== 'venue' && item.specialty ? `<span class="badge gold">${item.specialty}</span>` : ''
+  ].filter(Boolean).join('');
+  const fallbackMeta = (item.price || item.phone || item.booking)
+    ? `<div class="meta">${item.price ? `<span>${item.price}</span>` : ''}${item.phone ? `<span>${item.phone}</span>` : ''}${item.booking ? `<span>${item.booking}</span>` : ''}</div>`
+    : '';
+  const inlineMeta = type === 'supplier'
+    ? `<div class="card-inline-meta">${secondaryMeta ? `<span class="info-pill subtle-pill">${secondaryMeta}</span>` : ''}<span class="info-pill subtle-pill">Shop direct</span></div>`
+    : type === 'venue'
+      ? `<div class="card-inline-meta">${item.rating ? `<span class="info-pill rating-pill">★ ${item.rating}</span>` : ''}${item.specialty ? `<span class="info-pill">${item.specialty}</span>` : ''}</div>`
+      : fallbackMeta;
+
   return `
-    <article class="card ${options.small ? 'small-card' : ''} ${options.className || ''}">
+    <article class="${cardClasses}">
       <div class="${imageClass}">
         <img src="${item.image}" alt="${item.name}" />
         <div class="card-overlay"></div>
-        <div class="badge-row">
-          ${item.tierLabel ? `<span class="badge jade">${item.tierLabel}</span>` : ''}
-          ${item.type ? `<span class="badge pink">${item.type}</span>` : ''}
-          ${item.specialty ? `<span class="badge gold">${item.specialty}</span>` : ''}
-        </div>
+        <div class="badge-row">${topBadges}</div>
       </div>
       <div class="card-body">
-        <div class="meta">${item.area ? `<span>${item.area}</span>` : ''}${item.cuisine ? `<span>${item.cuisine}</span>` : ''}${item.rating ? `<span>★ ${item.rating}</span>` : ''}</div>
+        ${overline ? `<div class="card-kicker">${overline}</div>` : ''}
+        ${type === 'generic' ? `<div class="meta">${item.area ? `<span>${item.area}</span>` : ''}${item.cuisine ? `<span>${item.cuisine}</span>` : ''}${item.rating ? `<span>★ ${item.rating}</span>` : ''}</div>` : ''}
         <h3>${item.name}</h3>
-        ${item.description ? `<p class="muted">${item.description}</p>` : ''}
-        ${(item.price || item.phone) ? `<div class="meta">${item.price ? `<span>${item.price}</span>` : ''}${item.phone ? `<span>${item.phone}</span>` : ''}${item.booking ? `<span>${item.booking}</span>` : ''}</div>` : ''}
+        ${item.description ? `<p class="${type === 'supplier' ? 'muted supplier-card-copy' : type === 'venue' ? 'muted venue-card-copy' : 'muted'}">${item.description}</p>` : ''}
+        ${detailTags.length ? `<div class="card-tags">${detailTags.map(tag => `<span class="info-pill${type === 'supplier' ? ' subtle-pill' : ''}">${tag}</span>`).join('')}</div>` : ''}
+        ${inlineMeta}
       </div>
-      <div class="card-foot">
+      <div class="card-foot ${type === 'supplier' ? 'card-foot-stacked' : type === 'venue' ? 'venue-card-foot' : ''}">
         ${cta}
         ${saveButton({id:`${type}:${item.slug || slugify(item.name)}`, name:item.name, kind:type, href:options.href || '#', meta:item.area || item.type || ''})}
       </div>
@@ -471,10 +500,10 @@ function renderHomepage() {
     { name:'Opus One 2018', area:"Watson's Wine • Admiralty", type:'Wine', price:'HK$3,650', image:'https://sspark.genspark.ai/cfimages?u1=dw6iar7M%2F8kGHCzCgpyhoqT600wr0eJW%2BaNH5lHnOE9FlDlC3E2%2BrTVve8XGiyhDCIeglXCC31Ecnul3jStvyShHtHaWFmN%2BkEQjn9v7VgmiqtCUyJWvuCarZs3WYaq%2B&u2=prX1%2FMDbWvJ%2FCaou&width=1024', buy:'https://www.watsonswine.com/' }
   ];
   const featuredSuppliers = [
-    { slug:'watsons-wine', name:"Watson's Wine", area:'Central · 1,200+ listings', tierLabel:'Wine Merchant', image:'https://sspark.genspark.ai/cfimages?u1=obtQEBU36wbc5mBK9Tg%2FiebVk%2FuomsNMUhyF5wkURaS0ho%2BE%2F0P5oY769NOM8j6X1spyrI6dQ6utzeG5SqOz4NKYjclj5KRZq1M%3D&u2=DrU%2FvhT8zLT%2BPjgV&width=1024', description:'Established wine retailer with an extensive global portfolio and a strong footprint across Hong Kong.' },
-    { slug:'ponti', name:'Ponti Wine Cellars', area:'Central · 850+ listings', tierLabel:'Fine Wine', image:'https://sspark.genspark.ai/cfimages?u1=Mp4E39nBBWl%2FPaRggT4NOGVFfNxCnxMHldnqLMmau%2FWE%2BueYmOXiap0ygoHRxEwQ3zMZq1gs0z%2FnWmkkh98VYeBXPXv8xWGJm9S0aAHm%2BFmSAeBtKD4S1IOr%2BFZMY0Bv17dHQ5WiiwDPk%2BFITek%3D&u2=ZWL5Hiy7kCpWQSSN&width=1024', description:'Central-based specialist known for rare vintages, collector bottles, and a tightly curated premium cellar.' },
-    { slug:'sake-central-supplier', name:'Sake Central', area:'PMQ, Central · 400+ listings', tierLabel:'Sake Specialist', image:'https://sspark.genspark.ai/cfimages?u1=p%2B45Qq2b%2B%2FiPBkEWTVQC1zrpz2OvcjqQg3IZGJVwV61HgHIXwrTKGbNJOvbR0Es8xLvd9DgfWKyhE1EHPSAGim2BgBFbv7hOETXGnuGeuOQdPp%2FQS%2BR5jMF%2BimA%2BhS30kP%2F%2BGvRbe5TemCqelWa4d5TEvAEd%2B5QU3Ii4AWdj%2Bx8%3D&u2=F4aQQy%2FRGA7gCNi7&width=1024', description:"A design-led sake retail and tasting destination with one of Hong Kong's broadest craft sake selections." },
-    { slug:'young-master', name:'Young Master Ales', area:'Wong Chuk Hang · 45+ listings', tierLabel:'Craft Brewery', image:'https://sspark.genspark.ai/cfimages?u1=CR2Q3M%2Fkd%2FyEV1C%2BxGG9rF%2BH1B9QcAOHtFYCXLzLLzA4fY5JInm77euRtTjsZTqkYg3wMe8lrLIskF%2Fm3XSjs202NMQ2MU6E3Ue4NuF2qKTbv6e4IgnhgSqhcrV0lMQqJdgcBRb1J7Av3%2BItKBJsjgMXJ0FzZKXVWIpKHHqGJ%2BQ%3D&u2=z88egw86F9OPbT4S&width=1024', description:"Hong Kong's flagship independent brewery, bringing locally brewed beers and fresh small-batch releases to market." }
+    { slug:'watsons-wine', name:"Watson's Wine", area:'Central · 1,200+ listings', tierLabel:'Wine Merchant', specialty:'Global cellar', image:'https://sspark.genspark.ai/cfimages?u1=obtQEBU36wbc5mBK9Tg%2FiebVk%2FuomsNMUhyF5wkURaS0ho%2BE%2F0P5oY769NOM8j6X1spyrI6dQ6utzeG5SqOz4NKYjclj5KRZq1M%3D&u2=DrU%2FvhT8zLT%2BPjgV&width=1024', description:'Established wine retailer with an extensive global portfolio and a strong footprint across Hong Kong.' },
+    { slug:'ponti', name:'Ponti Wine Cellars', area:'Central · 850+ listings', tierLabel:'Fine Wine', specialty:'Collector bottles', image:'https://sspark.genspark.ai/cfimages?u1=Mp4E39nBBWl%2FPaRggT4NOGVFfNxCnxMHldnqLMmau%2FWE%2BueYmOXiap0ygoHRxEwQ3zMZq1gs0z%2FnWmkkh98VYeBXPXv8xWGJm9S0aAHm%2BFmSAeBtKD4S1IOr%2BFZMY0Bv17dHQ5WiiwDPk%2BFITek%3D&u2=ZWL5Hiy7kCpWQSSN&width=1024', description:'Central-based specialist known for rare vintages, collector bottles, and a tightly curated premium cellar.' },
+    { slug:'sake-central-supplier', name:'Sake Central', area:'PMQ, Central · 400+ listings', tierLabel:'Sake Specialist', specialty:'Tasting-led retail', image:'https://sspark.genspark.ai/cfimages?u1=p%2B45Qq2b%2B%2FiPBkEWTVQC1zrpz2OvcjqQg3IZGJVwV61HgHIXwrTKGbNJOvbR0Es8xLvd9DgfWKyhE1EHPSAGim2BgBFbv7hOETXGnuGeuOQdPp%2FQS%2BR5jMF%2BimA%2BhS30kP%2F%2BGvRbe5TemCqelWa4d5TEvAEd%2B5QU3Ii4AWdj%2Bx8%3D&u2=F4aQQy%2FRGA7gCNi7&width=1024', description:"A design-led sake retail and tasting destination with one of Hong Kong's broadest craft sake selections." },
+    { slug:'young-master', name:'Young Master Ales', area:'Wong Chuk Hang · 45+ listings', tierLabel:'Craft Brewery', specialty:'Fresh local releases', image:'https://sspark.genspark.ai/cfimages?u1=CR2Q3M%2Fkd%2FyEV1C%2BxGG9rF%2BH1B9QcAOHtFYCXLzLLzA4fY5JInm77euRtTjsZTqkYg3wMe8lrLIskF%2Fm3XSjs202NMQ2MU6E3Ue4NuF2qKTbv6e4IgnhgSqhcrV0lMQqJdgcBRb1J7Av3%2BItKBJsjgMXJ0FzZKXVWIpKHHqGJ%2BQ%3D&u2=z88egw86F9OPbT4S&width=1024', description:"Hong Kong's flagship independent brewery, bringing locally brewed beers and fresh small-batch releases to market." }
   ];
   const featuredVenues = [
     { slug:'the-old-man', name:'The Old Man', area:'Central', tierLabel:'Central Cocktail Bar', rating:'4.9', specialty:'Late-night favourite', image:'https://sspark.genspark.ai/cfimages?u1=9mYF8%2FKfAvKZ1cGt69P7HxtKZIa3lcSco6YPQhtGNPgn6kIPwWBcpN5Q%2FLbwu0mTg5r3qvpMjmUvntVO%2FMO3JQTHFAE%3D&u2=dZhlVzV2gY1bFJeU&width=1024', description:'A moody, Hemingway-inspired cocktail den with intimate lighting, serious drinks craft, and global best-bar credentials.', website:'https://www.theoldmanhk.com/' },
@@ -490,73 +519,73 @@ function renderHomepage() {
   ];
 
   app.innerHTML = `
-    <section class="hero">
+    <section class="hero homepage-hero">
       <div class="hero-media" style="background-image:url('${siteImages.hero}')"></div>
       <div class="container hero-grid">
         <div class="hero-copy">
           <span class="kicker">Hong Kong drinks discovery</span>
-          <h1>Discover <span class="text-jade">wine</span>, whisky, sake, craft beer, and more — right here in HK.</h1>
-          <p class="lead">Find bottles you can genuinely buy in Hong Kong, plus bars, restaurants, and tastings worth planning around.</p>
-          <div class="hero-actions">
-            <a class="btn btn-primary" href="drinks.html">Browse drinks</a>
-            <a class="btn btn-secondary" href="bars-restaurants.html">Explore bars & restaurants</a>
-          </div>
-          <div class="stats-row">
-            <div class="stat"><strong>12,000+</strong><span class="muted">Bottles indexed</span></div>
-            <div class="stat"><strong>220</strong><span class="muted">HK suppliers</span></div>
-            <div class="stat"><strong>180</strong><span class="muted">Bars & restaurants</span></div>
-          </div>
+          <h1>Every bottle in Hong Kong.<br><span class="text-jade headline-script">Finally findable.</span></h1>
+          <p class="lead">Discover wine, whisky, sake, craft beer, and more — from suppliers we verify are actually in stock, right here in HK.</p>
         </div>
-        <div class="search-shell">
+        <div class="search-shell homepage-search-shell">
           <div class="search-tabs">
-            <span class="search-tab active">Search</span>
-            <span class="search-tab">Bars</span>
-            <span class="search-tab">Events</span>
+            <span class="search-tab active">🍷 Drinks</span>
+            <span class="search-tab">🎉 Events</span>
+            <span class="search-tab">🥂 Bars & Restaurants</span>
           </div>
           <div class="search-box">
-            <input class="input" placeholder="Search bottles, bars, or tastings in Hong Kong" />
+            <input class="input" placeholder="Search Château Margaux, Yamazaki 12, Hibiki..." />
             <select class="select"><option>All Hong Kong</option><option>Central</option><option>Sheung Wan</option><option>Causeway Bay</option></select>
             <a class="btn btn-primary" href="drinks.html">Search</a>
           </div>
           <div style="margin-top:14px" class="chip-row">
-            <span class="chip">Margaux</span><span class="chip">Yamazaki 12</span><span class="chip">Champagne brunch</span><span class="chip">Sake tasting</span><span class="chip">Central bars</span><span class="chip">Non-alcoholic</span>
+            <span class="chip">Margaux</span><span class="chip">Yamazaki 12</span><span class="chip">Champagne Brunch</span><span class="chip">Sake Tasting</span><span class="chip">Central Bars</span><span class="chip">Non-Alcoholic</span>
+          </div>
+        </div>
+        <div class="stats-row homepage-stats">
+          <div class="stat"><strong>12,000+</strong><span class="muted">Bottles indexed</span></div>
+          <div class="stat"><strong>220</strong><span class="muted">HK suppliers</span></div>
+          <div class="stat"><strong>180</strong><span class="muted">Bars & restaurants</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section homepage-bottles-section">
+      <div class="container">
+        <div class="section-head carousel-head"><div><span class="eyebrow">Popular in Hong Kong</span><h2>Featured bottles available now.</h2><p class="lead" style="margin-top:14px;">A tighter edit of the labels people are actually hunting for right now — designed to feel more like a premium shortlist than a product wall.</p></div><div class="carousel-controls"><button class="carousel-arrow" type="button" data-carousel-target="featured-bottles" data-dir="-1" aria-label="Scroll bottles left">←</button><button class="carousel-arrow" type="button" data-carousel-target="featured-bottles" data-dir="1" aria-label="Scroll bottles right">→</button><a class="btn btn-ghost" href="drinks.html">See all drinks</a></div></div>
+        <div class="carousel-shell"><div class="carousel-track bottles-carousel" id="featured-bottles">${featuredDrinks.map(d => renderCard({...d, tierLabel:d.type}, {type:'drink', portrait:true, href:'drinks.html', className:'homepage-bottle-card', cta:`<a class="btn btn-primary btn-small" href="${d.buy}" ${String(d.buy).startsWith('http') ? 'target="_blank" rel="noreferrer"' : ''}>View bottle</a>`})).join('')}</div></div>
+      </div>
+    </section>
+
+    <section class="section homepage-suppliers-section">
+      <div class="container">
+        <div class="section-head section-head-center"><div><span class="eyebrow">Directory</span><h2>Premium <span class="text-gold headline-script">suppliers</span></h2><p class="lead" style="margin-top:14px;">Merchants, specialists, and local producers presented more like an editorial shortlist than a generic directory grid.</p></div></div>
+        <div class="grid grid-4">${featuredSuppliers.map(s => renderCard(s, {type:'supplier', href:`supplier-template.html?slug=${s.slug}`, cta:`<a class="btn btn-primary btn-small" href="supplier-template.html?slug=${s.slug}">View supplier</a>`})).join('')}</div>
+      </div>
+    </section>
+
+    <section class="section promise-section">
+      <div class="container">
+        <div class="promise-shell">
+          <div class="promise-photo"><img src="assets/images/sommelier.jpg" alt="Sommelier pouring wine"></div>
+          <div class="promise-copy">
+            <span class="eyebrow">Why Drinksearcher.hk</span>
+            <h2>The <span class="text-jade headline-script">Hong Kong</span> Promise</h2>
+            <p class="lead" style="margin-top:16px;">We built this platform to solve the “phantom inventory” problem. No more finding a great bottle only to realise it ships from overseas and is out of stock.</p>
+            <div class="promise-points">
+              <div class="promise-point"><div class="promise-icon">✓</div><div><h3>Verified Local Stock</h3><p class="muted">Every listing is confirmed available with a Hong Kong supplier right now.</p></div></div>
+              <div class="promise-point"><div class="promise-icon">◎</div><div><h3>Honest HK Pricing</h3><p class="muted">Prices include local availability — no misleading international listings that triple at checkout.</p></div></div>
+              <div class="promise-point"><div class="promise-icon">↗</div><div><h3>Direct to Supplier</h3><p class="muted">Click straight through to the supplier’s store or venue booking page. We are the bridge, not the middleman.</p></div></div>
+            </div>
           </div>
         </div>
       </div>
     </section>
 
-    <section class="section">
+    <section class="section homepage-venues-section">
       <div class="container">
-        <div class="section-head carousel-head"><div><span class="eyebrow">Popular in Hong Kong</span><h2>Featured bottles available now.</h2></div><div class="carousel-controls"><button class="carousel-arrow" type="button" data-carousel-target="featured-bottles" data-dir="-1" aria-label="Scroll bottles left">←</button><button class="carousel-arrow" type="button" data-carousel-target="featured-bottles" data-dir="1" aria-label="Scroll bottles right">→</button><a class="btn btn-ghost" href="drinks.html">See all drinks</a></div></div>
-        <div class="carousel-shell"><div class="carousel-track bottles-carousel" id="featured-bottles">${featuredDrinks.map(d => renderCard({...d, tierLabel:d.type}, {type:'drink', portrait:true, href:'drinks.html', className:'homepage-bottle-card', cta:`<a class="btn btn-primary btn-small" href="${d.buy}" ${String(d.buy).startsWith('http') ? 'target="_blank" rel="noreferrer"' : ''}>View bottle</a>`})).join('')}</div></div>
-      </div>
-    </section>
-
-    <section class="section">
-      <div class="container">
-        <div class="section-head"><div><span class="eyebrow">Suppliers</span><h2>Standout merchants with bottles worth buying.</h2><p class="lead" style="margin-top:14px;">Browse trusted Hong Kong wine merchants, bottle shops, breweries, and specialists with direct paths to shop locally.</p></div><a class="btn btn-ghost" href="suppliers.html">View supplier directory</a></div>
-        <div class="grid grid-4">${featuredSuppliers.map(s => renderCard(s, {type:'supplier', href:`supplier-template.html?slug=${s.slug}`, cta:`<a class="btn btn-primary btn-small" href="supplier-template.html?slug=${s.slug}">View supplier</a>`})).join('')}</div>
-      </div>
-    </section>
-
-    <section class="section">
-      <div class="container grid grid-2">
-        <div>
-          <span class="eyebrow">Why Drinksearcher.hk</span>
-          <h2>The <span class="text-jade">Hong Kong</span> Promise</h2>
-          <p class="lead" style="margin-top:16px;">We built this platform to solve the phantom inventory problem — no more finding a great bottle, only to realise it ships from overseas and is out of stock locally.</p>
-        </div>
-        <div class="grid" style="gap:16px;">
-          <div class="panel"><h3>Verified local stock</h3><p class="muted">Every listing is tied to a Hong Kong supplier with live local availability.</p></div>
-          <div class="panel"><h3>Honest HK pricing</h3><p class="muted">Prices reflect local reality, not misleading international listings that spike at checkout.</p></div>
-          <div class="panel"><h3>Direct to supplier</h3><p class="muted">Click straight through to the supplier or venue — we are the bridge, not the middleman.</p></div>
-        </div>
-      </div>
-    </section>
-
-    <section class="section">
-      <div class="container">
-        <div class="section-head"><div><span class="eyebrow">Venues</span><h2>Bars and restaurants worth planning a night around.</h2><p class="lead" style="margin-top:14px;">From destination cocktail bars to rooftops, hotel lounges, and neighbourhood favourites across Hong Kong.</p></div><a class="btn btn-ghost" href="bars-restaurants.html">View venue directory</a></div>
+        <div class="section-head section-head-center"><div><span class="eyebrow">Venue discovery</span><h2>Where Hong Kong <span class="text-pink headline-script">drinks</span></h2><p class="lead" style="margin-top:14px;">Cocktail bars, rooftops, hotel lounges, and neighbourhood favourites arranged with more contrast, hierarchy, and breathing room.</p></div></div>
+        <div class="chip-row section-filter-pills"><span class="chip chip-active">All Venues</span><span class="chip">Cocktail Bars</span><span class="chip">Wine Bars</span><span class="chip">Rooftop</span><span class="chip">Hidden Speakeasies</span></div>
         <div class="grid grid-4">${featuredVenues.map(v => renderCard(v, {type:'venue', href:`venue-template.html?slug=${v.slug}`, cta:`<a class="btn btn-secondary btn-small" href="venue-template.html?slug=${v.slug}">View venue</a><a class="btn btn-ghost btn-small" href="${v.website}" target="_blank" rel="noreferrer">Book table</a>`})).join('')}</div>
       </div>
     </section>
@@ -602,7 +631,7 @@ function renderHomepage() {
 function renderVenueDirectory() {
   const app = $('#app');
   app.innerHTML = `
-    <section class="hero" style="min-height:60vh;"><div class="hero-media" style="background-image:url('${siteImages.rooftop}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Bars & Restaurants</span><h1>Find the right Hong Kong venue for your next <span class="text-pink">night out</span>.</h1><p class="lead">Browse cocktail bars, rooftops, hotel lounges, wine-led restaurants, and tasting spots with useful detail before you book.</p></div><div class="search-shell"><div class="search-tabs"><span class="search-tab active">Filter venues</span></div><div class="filter-bar" style="margin-bottom:0;"><select id="venue-area" class="select"><option value="all">All locations</option></select><select id="venue-type" class="select"><option value="all">All venue types</option></select><select id="venue-tier" class="select"><option value="all">All tiers</option><option value="enhanced">Enhanced</option><option value="featured">Featured</option><option value="standard">Standard</option></select><button id="venue-reset" class="btn btn-ghost">Reset</button></div></div></div></section>
+    <section class="hero" style="min-height:60vh;"><div class="hero-media" style="background-image:url('${siteImages.rooftop}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Bars & Restaurants</span><h1>Where Hong Kong <span class="text-pink headline-script">drinks</span>.</h1><p class="lead">Browse cocktail bars, rooftops, hotel lounges, wine-led restaurants, and tasting spots with useful detail before you book.</p></div><div class="search-shell"><div class="search-tabs"><span class="search-tab active">Filter venues</span></div><div class="filter-bar" style="margin-bottom:0;"><select id="venue-area" class="select"><option value="all">All locations</option></select><select id="venue-type" class="select"><option value="all">All venue types</option></select><select id="venue-tier" class="select"><option value="all">All tiers</option><option value="enhanced">Enhanced</option><option value="featured">Featured</option><option value="standard">Standard</option></select><button id="venue-reset" class="btn btn-ghost">Reset</button></div></div></div></section>
     <section class="section"><div class="container"><div class="section-head"><div><span class="eyebrow">Featured venues</span><h2>Standout places for date nights, celebrations, and serious drinks.</h2><p class="lead" style="margin-top:14px;">Start with the venues people most often search for when they want atmosphere, strong drinks, and an easy booking path.</p></div></div><div id="venue-enhanced" class="grid grid-4"></div></div></section>
     <section class="section-tight"><div class="container"><div class="section-head"><div><span class="eyebrow">More to explore</span><h2>More bars, dining rooms, and drinking spots across Hong Kong.</h2><p class="lead" style="margin-top:14px;">Use the directory to compare neighbourhoods, styles, and drinks focus before you decide where to go.</p></div></div><div id="venue-featured" class="grid grid-5"></div></div></section>
     <section class="section" id="join-venues"><div class="container"><div class="section-head"><div><span class="eyebrow">All venues</span><h2>Explore the wider Hong Kong venue directory.</h2><p class="lead" style="margin-top:14px;">Filter by neighbourhood, venue style, or drinks focus to plan the right evening faster.</p></div></div><div class="list-panel"><div class="table-head"><div>Venue</div><div>Location</div><div>Phone</div><div>Food type</div></div><div id="venue-standard"></div></div><div class="pagination"><button id="venue-prev" class="btn btn-ghost btn-small">Previous</button><span id="venue-page" class="muted"></span><button id="venue-next" class="btn btn-ghost btn-small">Next</button></div></div></section>`;
@@ -646,7 +675,7 @@ function renderVenueDirectory() {
 function renderSupplierDirectory() {
   const app = $('#app');
   app.innerHTML = `
-    <section class="hero" style="min-height:60vh;"><div class="hero-media" style="background-image:url('${siteImages.shop}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Supplier directory</span><h1>Where to buy great bottles in Hong Kong.</h1><p class="lead">Browse wine merchants, sake specialists, craft breweries, whisky retailers, and importers with direct store links and useful local context.</p></div><div class="search-shell"><div class="search-tabs"><span class="search-tab active">Filter suppliers</span></div><div class="filter-bar" style="margin-bottom:0;"><select id="supplier-area" class="select"><option value="all">All locations</option></select><select id="supplier-type" class="select"><option value="all">All specialties</option></select><select id="supplier-tier" class="select"><option value="all">All tiers</option><option value="enhanced">Enhanced</option><option value="featured">Featured</option><option value="standard">Standard</option></select><button id="supplier-reset" class="btn btn-ghost">Reset</button></div></div></div></section>
+    <section class="hero" style="min-height:60vh;"><div class="hero-media" style="background-image:url('${siteImages.shop}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Supplier directory</span><h1>Where Hong Kong <span class="text-gold headline-script">buys</span>.</h1><p class="lead">Browse wine merchants, sake specialists, craft breweries, whisky retailers, and importers with direct store links and useful local context.</p></div><div class="search-shell"><div class="search-tabs"><span class="search-tab active">Filter suppliers</span></div><div class="filter-bar" style="margin-bottom:0;"><select id="supplier-area" class="select"><option value="all">All locations</option></select><select id="supplier-type" class="select"><option value="all">All specialties</option></select><select id="supplier-tier" class="select"><option value="all">All tiers</option><option value="enhanced">Enhanced</option><option value="featured">Featured</option><option value="standard">Standard</option></select><button id="supplier-reset" class="btn btn-ghost">Reset</button></div></div></div></section>
     <section class="section"><div class="container"><div class="section-head"><div><span class="eyebrow">Featured suppliers</span><h2>Reliable merchants and specialists to check first.</h2><p class="lead" style="margin-top:14px;">Good for premium bottles, gift buys, cellar hunting, and everyday favourites from trusted Hong Kong sellers.</p></div></div><div id="supplier-enhanced" class="grid grid-4"></div></div></section>
     <section class="section-tight"><div class="container"><div class="section-head"><div><span class="eyebrow">More suppliers</span><h2>More wine shops, breweries, and spirits specialists across Hong Kong.</h2><p class="lead" style="margin-top:14px;">Compare by category and location, then head straight to the supplier site when something fits.</p></div></div><div id="supplier-featured" class="grid grid-5"></div></div></section>
     <section class="section" id="join-trade"><div class="container"><div class="section-head"><div><span class="eyebrow">Full directory</span><h2>Browse the wider Hong Kong supplier list.</h2><p class="lead" style="margin-top:14px;">Use the directory to compare merchants by area, specialty, and shopping route before you click through to buy.</p></div></div><div class="list-panel"><div class="table-head"><div>Supplier</div><div>Location</div><div>Phone</div><div>Specialty</div></div><div id="supplier-standard"></div></div></div></section>`;
