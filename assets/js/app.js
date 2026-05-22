@@ -290,6 +290,38 @@ function slugify(text) {
   return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 }
 
+function hasUsableHref(url) {
+  const value = String(url || '').trim();
+  return !!value && value !== '#' && !/^javascript:/i.test(value);
+}
+
+function externalLinkAttrs(url) {
+  return /^https?:\/\//i.test(String(url || '')) ? 'target="_blank" rel="noreferrer"' : '';
+}
+
+function ctaLink(label, url, className = 'btn btn-ghost btn-small', fallbackLabel = 'Coming soon') {
+  return hasUsableHref(url)
+    ? `<a class="${className}" href="${url}" ${externalLinkAttrs(url)}>${label}</a>`
+    : `<span class="${className} is-disabled" aria-disabled="true">${fallbackLabel}</span>`;
+}
+
+function normalizedText(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function matchesSearch(fields, query) {
+  const q = normalizedText(query);
+  if (!q) return true;
+  return fields.some(field => normalizedText(field).includes(q));
+}
+
+function buildSearchHref(base, query = '', area = '') {
+  const params = new URLSearchParams();
+  if (String(query || '').trim()) params.set('q', String(query).trim());
+  if (String(area || '').trim()) params.set('area', String(area).trim());
+  return `${base}${params.toString() ? `?${params.toString()}` : ''}`;
+}
+
 function navHTML(active = '') {
   const links = [
     ['index.html','Home'],
@@ -301,7 +333,7 @@ function navHTML(active = '') {
   ];
   const user = storage.getCurrentUser();
   const authActions = user
-    ? `<a class="btn btn-ghost btn-small" href="account.html">${user.name || 'Account'}</a><a class="btn btn-ghost btn-small" href="dashboard.html">Dashboard</a><a class="btn btn-ghost btn-small" href="admin.html">Founder Admin</a><button class="btn btn-secondary btn-small" id="signout-btn" type="button">Sign Out</button>`
+    ? `<a class="btn btn-ghost btn-small" href="account.html">${user.name || 'Account'}</a><a class="btn btn-ghost btn-small" href="dashboard.html">Dashboard</a><button class="btn btn-secondary btn-small" id="signout-btn" type="button">Sign Out</button>`
     : `<a class="btn btn-ghost btn-small" href="signin.html">Sign In</a><a class="btn btn-secondary btn-small" href="signup.html">Sign Up</a>`;
   return `
     <div class="container nav-inner">
@@ -343,7 +375,6 @@ function footerHTML() {
             <a href="events.html">Promote an event</a>
             <a href="pricing.html">Membership pricing</a>
             <a href="dashboard.html">Business dashboard</a>
-            <a href="admin.html">Founder admin</a>
           </div>
         </div>
         <div>
@@ -425,24 +456,29 @@ function renderCard(item, options = {}) {
   const locationBits = String(item.area || '').split('·').map(part => part.trim()).filter(Boolean);
   const primaryMeta = locationBits[0] || item.area || '';
   const secondaryMeta = locationBits[1] || '';
-  const cardClasses = ['card', options.small ? 'small-card' : '', options.className || '', type === 'supplier' ? 'supplier-card' : '', type === 'venue' ? 'venue-card' : ''].filter(Boolean).join(' ');
+  const cardClasses = ['card', options.small ? 'small-card' : '', options.className || '', type === 'supplier' ? 'supplier-card' : '', type === 'venue' ? 'venue-card' : '', type === 'event' ? 'event-card' : ''].filter(Boolean).join(' ');
   const overline = type === 'supplier'
     ? [item.tierLabel, primaryMeta].filter(Boolean).join(' · ')
     : type === 'venue'
       ? [primaryMeta, item.cuisine].filter(Boolean).join(' · ')
-      : '';
+      : type === 'event'
+        ? [item.tierLabel || item.type, primaryMeta].filter(Boolean).join(' · ')
+        : '';
   const detailTags = type === 'supplier'
     ? [secondaryMeta, item.specialty].filter(Boolean)
     : type === 'venue'
       ? [item.specialty, item.booking].filter(Boolean)
-      : [];
-  const badgeTone = type === 'venue' ? 'pink' : 'gold';
+      : type === 'event'
+        ? [item.venue, item.date].filter(Boolean)
+        : [];
+  const badgeTone = type === 'venue' ? 'pink' : type === 'event' ? 'jade' : 'gold';
   const topBadges = [
     item.tierLabel ? `<span class="badge ${badgeTone}">${item.tierLabel}</span>` : '',
-    item.type ? `<span class="badge pink">${item.type}</span>` : '',
+    item.type && type !== 'event' ? `<span class="badge pink">${item.type}</span>` : '',
     type === 'supplier' && primaryMeta ? `<span class="badge supplier-location-badge">${primaryMeta}</span>` : '',
     type === 'venue' && primaryMeta ? `<span class="badge venue-location-badge">${primaryMeta}</span>` : '',
-    type !== 'supplier' && type !== 'venue' && item.specialty ? `<span class="badge gold">${item.specialty}</span>` : ''
+    type === 'event' && item.date ? `<span class="badge event-date-badge">${item.date}</span>` : '',
+    type !== 'supplier' && type !== 'venue' && type !== 'event' && item.specialty ? `<span class="badge gold">${item.specialty}</span>` : ''
   ].filter(Boolean).join('');
   const fallbackMeta = (item.price || item.phone || item.booking)
     ? `<div class="meta">${item.price ? `<span>${item.price}</span>` : ''}${item.phone ? `<span>${item.phone}</span>` : ''}${item.booking ? `<span>${item.booking}</span>` : ''}</div>`
@@ -451,7 +487,9 @@ function renderCard(item, options = {}) {
     ? `<div class="card-inline-meta">${secondaryMeta ? `<span class="info-pill subtle-pill">${secondaryMeta}</span>` : ''}<span class="info-pill subtle-pill">Shop direct</span></div>`
     : type === 'venue'
       ? `<div class="card-inline-meta">${item.rating ? `<span class="info-pill rating-pill">★ ${item.rating}</span>` : ''}${item.specialty ? `<span class="info-pill">${item.specialty}</span>` : ''}</div>`
-      : fallbackMeta;
+      : type === 'event'
+        ? `<div class="card-inline-meta">${item.venue ? `<span class="info-pill subtle-pill">${item.venue}</span>` : ''}${item.date ? `<span class="info-pill subtle-pill">${item.date}</span>` : ''}</div>`
+        : fallbackMeta;
 
   return `
     <article class="${cardClasses}">
@@ -464,13 +502,13 @@ function renderCard(item, options = {}) {
         ${overline ? `<div class="card-kicker">${overline}</div>` : ''}
         ${type === 'generic' ? `<div class="meta">${item.area ? `<span>${item.area}</span>` : ''}${item.cuisine ? `<span>${item.cuisine}</span>` : ''}${item.rating ? `<span>★ ${item.rating}</span>` : ''}</div>` : ''}
         <h3>${item.name}</h3>
-        ${item.description ? `<p class="${type === 'supplier' ? 'muted supplier-card-copy' : type === 'venue' ? 'muted venue-card-copy' : 'muted'}">${item.description}</p>` : ''}
-        ${detailTags.length ? `<div class="card-tags">${detailTags.map(tag => `<span class="info-pill${type === 'supplier' ? ' subtle-pill' : ''}">${tag}</span>`).join('')}</div>` : ''}
+        ${item.description ? `<p class="${type === 'supplier' ? 'muted supplier-card-copy' : type === 'venue' ? 'muted venue-card-copy' : type === 'event' ? 'muted event-card-copy' : 'muted'}">${item.description}</p>` : ''}
+        ${detailTags.length ? `<div class="card-tags">${detailTags.map(tag => `<span class="info-pill${type === 'supplier' || type === 'event' ? ' subtle-pill' : ''}">${tag}</span>`).join('')}</div>` : ''}
         ${inlineMeta}
       </div>
-      <div class="card-foot ${type === 'supplier' ? 'card-foot-stacked' : type === 'venue' ? 'venue-card-foot' : ''}">
+      <div class="card-foot ${type === 'supplier' ? 'card-foot-stacked' : type === 'venue' ? 'venue-card-foot' : type === 'event' ? 'event-card-foot' : ''}">
         ${cta}
-        ${saveButton({id:`${type}:${item.slug || slugify(item.name)}`, name:item.name, kind:type, href:options.href || '#', meta:item.area || item.type || ''})}
+        ${saveButton({id:`${type}:${item.slug || slugify(item.name)}`, name:item.name, kind:type, href:options.href || currentPagePath(), meta:item.area || item.type || ''})}
       </div>
     </article>`;
 }
@@ -512,10 +550,10 @@ function renderHomepage() {
     { slug:'quinary', name:'Quinary', area:'Central', tierLabel:'Iconic Cocktails', rating:'4.7', specialty:'Date night', image:'https://sspark.genspark.ai/cfimages?u1=lApsHk%2FhfJ7ym0CyS1YfXXb0Ulhd4MOpTqtgwdhicGk4irRqJgfZgYTTi3ZxaJo7qmrv9o%2Bpo%2B8%2BS0nK%2FvaFcWG1QGe9%2FI%2BIA2lXBg%3D%3D&u2=fIj5D6EdutCnyZ1%2B&width=1024', description:"Antonio Lai's multisensory cocktail institution, blending theatrical presentation, texture, and precision in one of HK's most recognisable bars.", website:'https://www.quinary.hk/' }
   ];
   const events = [
-    { name:'Burgundy Grand Cru Masterclass', venue:'Mandarin Oriental, Central', date:'Nov 18', type:'Masterclass' },
-    { name:'Japanese Whisky Flight Night', venue:'Quinary, Central', date:'Nov 22', type:'Whisky' },
-    { name:'Natural Wine Tasting', venue:'La Cabane, Soho', date:'Nov 25', type:'Wine' },
-    { name:'Zero-Proof Cocktail Lab', venue:'PMQ, Central', date:'Dec 02', type:'Non-Alcoholic' }
+    { name:'Burgundy Grand Cru Masterclass', venue:'Mandarin Oriental, Central', date:'Nov 18', type:'Masterclass', image:siteImages.event },
+    { name:'Japanese Whisky Flight Night', venue:'Quinary, Central', date:'Nov 22', type:'Whisky', image:siteImages.rooftop },
+    { name:'Natural Wine Tasting', venue:'La Cabane, Soho', date:'Nov 25', type:'Wine', image:siteImages.hero },
+    { name:'Zero-Proof Cocktail Lab', venue:'PMQ, Central', date:'Dec 02', type:'Non-Alcoholic', image:siteImages.trio }
   ];
 
   app.innerHTML = `
@@ -528,18 +566,18 @@ function renderHomepage() {
           <p class="lead">Discover wine, whisky, sake, craft beer, and more — from suppliers we verify are actually in stock, right here in HK.</p>
         </div>
         <div class="search-shell homepage-search-shell">
-          <div class="search-tabs">
-            <span class="search-tab active">🍷 Drinks</span>
-            <span class="search-tab">🎉 Events</span>
-            <span class="search-tab">🥂 Bars & Restaurants</span>
+          <div class="search-tabs" id="home-search-tabs">
+            <button class="search-tab active" type="button" data-home-search-type="drinks">🍷 Drinks</button>
+            <button class="search-tab" type="button" data-home-search-type="events">🎉 Events</button>
+            <button class="search-tab" type="button" data-home-search-type="venues">🥂 Bars & Restaurants</button>
           </div>
           <div class="search-box">
-            <input class="input" placeholder="Search Château Margaux, Yamazaki 12, Hibiki..." />
-            <select class="select"><option>All Hong Kong</option><option>Central</option><option>Sheung Wan</option><option>Causeway Bay</option></select>
-            <a class="btn btn-primary" href="drinks.html">Search</a>
+            <input class="input" id="home-search-input" placeholder="Search Château Margaux, Yamazaki 12, Hibiki..." />
+            <select class="select" id="home-search-location"><option value="">All Hong Kong</option><option>Central</option><option>Sheung Wan</option><option>Causeway Bay</option></select>
+            <button class="btn btn-primary" id="home-search-submit" type="button">Search</button>
           </div>
           <div style="margin-top:14px" class="chip-row">
-            <span class="chip">Margaux</span><span class="chip">Yamazaki 12</span><span class="chip">Champagne Brunch</span><span class="chip">Sake Tasting</span><span class="chip">Central Bars</span><span class="chip">Non-Alcoholic</span>
+            <button class="chip" type="button" data-home-chip="Margaux">Margaux</button><button class="chip" type="button" data-home-chip="Yamazaki 12">Yamazaki 12</button><button class="chip" type="button" data-home-chip="Champagne Brunch">Champagne Brunch</button><button class="chip" type="button" data-home-chip="Sake Tasting">Sake Tasting</button><button class="chip" type="button" data-home-chip="Central Bars">Central Bars</button><button class="chip" type="button" data-home-chip="Non-Alcoholic">Non-Alcoholic</button>
           </div>
         </div>
         <div class="stats-row homepage-stats">
@@ -553,7 +591,7 @@ function renderHomepage() {
     <section class="section homepage-bottles-section">
       <div class="container">
         <div class="section-head carousel-head"><div><span class="eyebrow">Popular in Hong Kong</span><h2>Featured bottles available now.</h2><p class="lead" style="margin-top:14px;">A tighter edit of the labels people are actually hunting for right now — designed to feel more like a premium shortlist than a product wall.</p></div><div class="carousel-controls"><button class="carousel-arrow" type="button" data-carousel-target="featured-bottles" data-dir="-1" aria-label="Scroll bottles left">←</button><button class="carousel-arrow" type="button" data-carousel-target="featured-bottles" data-dir="1" aria-label="Scroll bottles right">→</button><a class="btn btn-ghost" href="drinks.html">See all drinks</a></div></div>
-        <div class="carousel-shell"><div class="carousel-track bottles-carousel" id="featured-bottles">${featuredDrinks.map(d => renderCard({...d, tierLabel:d.type}, {type:'drink', portrait:true, href:'drinks.html', className:'homepage-bottle-card', cta:`<a class="btn btn-primary btn-small" href="${d.buy}" ${String(d.buy).startsWith('http') ? 'target="_blank" rel="noreferrer"' : ''}>View bottle</a>`})).join('')}</div></div>
+        <div class="carousel-shell"><div class="carousel-track bottles-carousel" id="featured-bottles">${featuredDrinks.map(d => renderCard({...d, tierLabel:d.type}, {type:'drink', portrait:true, href:buildSearchHref('drinks.html', d.name), className:'homepage-bottle-card', cta:ctaLink('View bottle', d.buy || buildSearchHref('drinks.html', d.name), 'btn btn-primary btn-small', 'View details')})).join('')}</div></div>
       </div>
     </section>
 
@@ -586,14 +624,14 @@ function renderHomepage() {
       <div class="container">
         <div class="section-head section-head-center"><div><span class="eyebrow">Venue discovery</span><h2>Where Hong Kong <span class="text-pink headline-script">drinks</span></h2><p class="lead" style="margin-top:14px;">Cocktail bars, rooftops, hotel lounges, and neighbourhood favourites arranged with more contrast, hierarchy, and breathing room.</p></div></div>
         <div class="chip-row section-filter-pills"><span class="chip chip-active">All Venues</span><span class="chip">Cocktail Bars</span><span class="chip">Wine Bars</span><span class="chip">Rooftop</span><span class="chip">Hidden Speakeasies</span></div>
-        <div class="grid grid-4">${featuredVenues.map(v => renderCard(v, {type:'venue', href:`venue-template.html?slug=${v.slug}`, cta:`<a class="btn btn-secondary btn-small" href="venue-template.html?slug=${v.slug}">View venue</a><a class="btn btn-ghost btn-small" href="${v.website}" target="_blank" rel="noreferrer">Book table</a>`})).join('')}</div>
+        <div class="grid grid-4">${featuredVenues.map(v => renderCard(v, {type:'venue', href:`venue-template.html?slug=${v.slug}`, cta:`${ctaLink('View venue', `venue-template.html?slug=${v.slug}`, 'btn btn-secondary btn-small')}${ctaLink('Book table', v.website, 'btn btn-ghost btn-small', 'View venue')}`})).join('')}</div>
       </div>
     </section>
 
     <section class="section">
       <div class="container">
         <div class="section-head"><div><span class="eyebrow">Calendar</span><h2>Upcoming <em>Events</em></h2></div><a class="btn btn-ghost" href="events.html">Open events page</a></div>
-        <div class="grid grid-4">${events.map(evt => `<article class="card small-card"><div class="card-body"><div class="badge-row"><span class="badge jade">${evt.date}</span></div><h3>${evt.name}</h3><p class="muted">${evt.venue}</p><div class="card-foot"><a class="btn btn-secondary btn-small" href="events.html">See details</a></div></div></article>`).join('')}</div>
+        <div class="grid grid-4">${events.map(evt => renderCard({name:evt.name, area:'Hong Kong', venue:evt.venue, date:evt.date, image:evt.image, description:evt.venue, tierLabel:evt.type}, {type:'event', className:'event-card', href:buildSearchHref('events.html', evt.name), cta:ctaLink('See details', buildSearchHref('events.html', evt.name), 'btn btn-secondary btn-small')})).join('')}</div>
       </div>
     </section>
 
@@ -626,16 +664,55 @@ function renderHomepage() {
     </section>`;
   bindSaveButtons(app);
   bindCarouselButtons(app);
+
+  const searchState = { type: 'drinks' };
+  const searchTabs = $$('[data-home-search-type]', app);
+  const searchInput = $('#home-search-input', app);
+  const searchLocation = $('#home-search-location', app);
+  const runHomepageSearch = () => {
+    const pageMap = {
+      drinks: 'drinks.html',
+      events: 'events.html',
+      venues: 'bars-restaurants.html'
+    };
+    const params = new URLSearchParams();
+    const q = String(searchInput?.value || '').trim();
+    const area = String(searchLocation?.value || '').trim();
+    if (q) params.set('q', q);
+    if (area) params.set('area', area);
+    params.set('source', 'home-search');
+    const target = pageMap[searchState.type] || 'drinks.html';
+    window.location.href = `${target}${params.toString() ? `?${params.toString()}` : ''}`;
+  };
+  searchTabs.forEach(tab => tab.addEventListener('click', () => {
+    searchState.type = tab.dataset.homeSearchType;
+    searchTabs.forEach(node => node.classList.toggle('active', node === tab));
+    const placeholderMap = {
+      drinks: 'Search Château Margaux, Yamazaki 12, Hibiki...',
+      events: 'Search tastings, launches, guest shifts...',
+      venues: 'Search rooftop bars, wine bars, Central venues...'
+    };
+    if (searchInput) searchInput.placeholder = placeholderMap[searchState.type] || placeholderMap.drinks;
+  }));
+  $('#home-search-submit', app)?.addEventListener('click', runHomepageSearch);
+  searchInput?.addEventListener('keydown', event => {
+    if (event.key === 'Enter') runHomepageSearch();
+  });
+  $$('[data-home-chip]', app).forEach(chip => chip.addEventListener('click', () => {
+    if (searchInput) searchInput.value = chip.dataset.homeChip || '';
+    runHomepageSearch();
+  }));
 }
 
 function renderVenueDirectory() {
   const app = $('#app');
   app.innerHTML = `
-    <section class="hero" style="min-height:60vh;"><div class="hero-media" style="background-image:url('${siteImages.rooftop}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Bars & Restaurants</span><h1>Where Hong Kong <span class="text-pink headline-script">drinks</span>.</h1><p class="lead">Browse cocktail bars, rooftops, hotel lounges, wine-led restaurants, and tasting spots with useful detail before you book.</p></div><div class="search-shell"><div class="search-tabs"><span class="search-tab active">Filter venues</span></div><div class="filter-bar" style="margin-bottom:0;"><select id="venue-area" class="select"><option value="all">All locations</option></select><select id="venue-type" class="select"><option value="all">All venue types</option></select><select id="venue-tier" class="select"><option value="all">All tiers</option><option value="enhanced">Enhanced</option><option value="featured">Featured</option><option value="standard">Standard</option></select><button id="venue-reset" class="btn btn-ghost">Reset</button></div></div></div></section>
+    <section class="hero" style="min-height:60vh;"><div class="hero-media" style="background-image:url('${siteImages.rooftop}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Bars & Restaurants</span><h1>Where Hong Kong <span class="text-pink headline-script">drinks</span>.</h1><p class="lead">Browse cocktail bars, rooftops, hotel lounges, wine-led restaurants, and tasting spots with useful detail before you book.</p></div><div class="search-shell"><div class="search-tabs"><span class="search-tab active">Filter venues</span></div><div class="filter-bar" style="margin-bottom:0;"><input id="venue-query" class="input" placeholder="Search venues, bars, rooftops..." /><select id="venue-area" class="select"><option value="all">All locations</option></select><select id="venue-type" class="select"><option value="all">All venue types</option></select><select id="venue-tier" class="select"><option value="all">All tiers</option><option value="enhanced">Enhanced</option><option value="featured">Featured</option><option value="standard">Standard</option></select><button id="venue-reset" class="btn btn-ghost">Reset</button></div><div id="venue-results-note"></div></div></div></section>
     <section class="section"><div class="container"><div class="section-head"><div><span class="eyebrow">Featured venues</span><h2>Standout places for date nights, celebrations, and serious drinks.</h2><p class="lead" style="margin-top:14px;">Start with the venues people most often search for when they want atmosphere, strong drinks, and an easy booking path.</p></div></div><div id="venue-enhanced" class="grid grid-4"></div></div></section>
     <section class="section-tight"><div class="container"><div class="section-head"><div><span class="eyebrow">More to explore</span><h2>More bars, dining rooms, and drinking spots across Hong Kong.</h2><p class="lead" style="margin-top:14px;">Use the directory to compare neighbourhoods, styles, and drinks focus before you decide where to go.</p></div></div><div id="venue-featured" class="grid grid-5"></div></div></section>
     <section class="section" id="join-venues"><div class="container"><div class="section-head"><div><span class="eyebrow">All venues</span><h2>Explore the wider Hong Kong venue directory.</h2><p class="lead" style="margin-top:14px;">Filter by neighbourhood, venue style, or drinks focus to plan the right evening faster.</p></div></div><div class="list-panel"><div class="table-head"><div>Venue</div><div>Location</div><div>Phone</div><div>Food type</div></div><div id="venue-standard"></div></div><div class="pagination"><button id="venue-prev" class="btn btn-ghost btn-small">Previous</button><span id="venue-page" class="muted"></span><button id="venue-next" class="btn btn-ghost btn-small">Next</button></div></div></section>`;
 
+  const queryInput = $('#venue-query');
   const areaSelect = $('#venue-area');
   const typeSelect = $('#venue-type');
   const tierSelect = $('#venue-tier');
@@ -643,30 +720,38 @@ function renderVenueDirectory() {
   const types = [...new Set([...venueListings.enhanced, ...venueListings.featured].map(v => v.cuisine).concat(venueListings.standard.map(v => v[3])))];
   areas.sort().forEach(a => areaSelect.insertAdjacentHTML('beforeend', `<option value="${a}">${a}</option>`));
   types.sort().forEach(t => typeSelect.insertAdjacentHTML('beforeend', `<option value="${t}">${t}</option>`));
+  const requestedArea = queryParam('area');
+  const requestedQuery = queryParam('q') || '';
+  if (requestedArea && areas.includes(requestedArea)) areaSelect.value = requestedArea;
+  if (queryInput) queryInput.value = requestedQuery;
 
   let page = 1; const perPage = 6;
-  function filterMatch(itemArea, itemType, tier) {
+  function filterMatch(itemArea, itemType, tier, searchFields = []) {
     const matchArea = areaSelect.value === 'all' || itemArea === areaSelect.value;
     const matchType = typeSelect.value === 'all' || itemType === typeSelect.value;
     const matchTier = tierSelect.value === 'all' || tier === tierSelect.value;
-    return matchArea && matchType && matchTier;
+    const matchQuery = matchesSearch(searchFields, queryInput?.value || '');
+    return matchArea && matchType && matchTier && matchQuery;
   }
   function render() {
-    const enhanced = venueListings.enhanced.filter(v => filterMatch(v.area, v.cuisine, 'enhanced')).slice(0, 12);
-    const featured = venueListings.featured.filter(v => filterMatch(v.area, v.cuisine, 'featured')).slice(0, 20);
-    const standard = venueListings.standard.filter(v => filterMatch(v[1], v[3], 'standard'));
-    $('#venue-enhanced').innerHTML = enhanced.length ? enhanced.map(v => renderCard({...v, tierLabel:'Enhanced'}, {type:'venue', href:`venue-template.html?slug=${v.slug}`, cta:`<a class="btn btn-secondary btn-small" href="venue-template.html?slug=${v.slug}">View venue</a><a class="btn btn-ghost btn-small" href="${v.website}" target="_blank" rel="noreferrer">Book table</a>`})).join('') : '<div class="empty-state">No enhanced venues match these filters yet.</div>';
-    $('#venue-featured').innerHTML = featured.length ? featured.map(v => renderCard({...v, tierLabel:'Featured'}, {type:'venue', small:true, href:'#', cta:`<span class="btn btn-ghost btn-small">Featured listing</span>`})).join('') : '<div class="empty-state">No featured venues match these filters.</div>';
+    const enhanced = venueListings.enhanced.filter(v => filterMatch(v.area, v.cuisine, 'enhanced', [v.name, v.area, v.cuisine, v.specialty, v.booking])).slice(0, 12);
+    const featured = venueListings.featured.filter(v => filterMatch(v.area, v.cuisine, 'featured', [v.name, v.area, v.cuisine])).slice(0, 20);
+    const standard = venueListings.standard.filter(v => filterMatch(v[1], v[3], 'standard', [v[0], v[1], v[3]]));
+    $('#venue-enhanced').innerHTML = enhanced.length ? enhanced.map(v => renderCard({...v, tierLabel:'Enhanced'}, {type:'venue', href:`venue-template.html?slug=${v.slug}`, cta:`${ctaLink('View venue', `venue-template.html?slug=${v.slug}`, 'btn btn-secondary btn-small')}${ctaLink('Book table', v.website, 'btn btn-ghost btn-small', 'Details soon')}`})).join('') : '<div class="empty-state">No enhanced venues match these filters yet.</div>';
+    $('#venue-featured').innerHTML = featured.length ? featured.map(v => renderCard({...v, tierLabel:'Featured'}, {type:'venue', small:true, href:buildSearchHref('bars-restaurants.html', v.name, v.area), cta:ctaLink('View listing', buildSearchHref('bars-restaurants.html', v.name, v.area), 'btn btn-ghost btn-small')})).join('') : '<div class="empty-state">No featured venues match these filters.</div>';
     const totalPages = Math.max(1, Math.ceil(standard.length / perPage));
     page = Math.min(page, totalPages);
     const slice = standard.slice((page - 1) * perPage, page * perPage);
     $('#venue-standard').innerHTML = slice.length ? slice.map(row => `<div class="list-row"><div><strong>${row[0]}</strong></div><div>${row[1]}</div><div>${row[2]}</div><div>${row[3]}</div></div>`).join('') : '<div class="empty-state">No standard venues match these filters.</div>';
+    const totalMatches = enhanced.length + featured.length + standard.length;
     $('#venue-page').textContent = `Page ${page} of ${totalPages}`;
+    $('#venue-results-note').innerHTML = `<div class="notice">Showing <strong>${totalMatches}</strong> matching venues${queryInput?.value ? ` for “${queryInput.value}”` : ''}${areaSelect.value !== 'all' ? ` in ${areaSelect.value}` : ''}.</div>`;
     $('#venue-prev').disabled = page <= 1; $('#venue-next').disabled = page >= totalPages;
     bindSaveButtons(app);
   }
   [areaSelect, typeSelect, tierSelect].forEach(el => el.addEventListener('change', () => { page = 1; render(); }));
-  $('#venue-reset').addEventListener('click', () => { areaSelect.value = 'all'; typeSelect.value = 'all'; tierSelect.value = 'all'; page = 1; render(); });
+  queryInput?.addEventListener('input', () => { page = 1; render(); });
+  $('#venue-reset').addEventListener('click', () => { if (queryInput) queryInput.value = ''; areaSelect.value = 'all'; typeSelect.value = 'all'; tierSelect.value = 'all'; page = 1; render(); });
   $('#venue-prev').addEventListener('click', () => { if (page > 1) { page--; render(); } });
   $('#venue-next').addEventListener('click', () => { page++; render(); });
   render();
@@ -675,42 +760,57 @@ function renderVenueDirectory() {
 function renderSupplierDirectory() {
   const app = $('#app');
   app.innerHTML = `
-    <section class="hero" style="min-height:60vh;"><div class="hero-media" style="background-image:url('${siteImages.shop}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Supplier directory</span><h1>Where Hong Kong <span class="text-gold headline-script">buys</span>.</h1><p class="lead">Browse wine merchants, sake specialists, craft breweries, whisky retailers, and importers with direct store links and useful local context.</p></div><div class="search-shell"><div class="search-tabs"><span class="search-tab active">Filter suppliers</span></div><div class="filter-bar" style="margin-bottom:0;"><select id="supplier-area" class="select"><option value="all">All locations</option></select><select id="supplier-type" class="select"><option value="all">All specialties</option></select><select id="supplier-tier" class="select"><option value="all">All tiers</option><option value="enhanced">Enhanced</option><option value="featured">Featured</option><option value="standard">Standard</option></select><button id="supplier-reset" class="btn btn-ghost">Reset</button></div></div></div></section>
+    <section class="hero" style="min-height:60vh;"><div class="hero-media" style="background-image:url('${siteImages.shop}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Supplier directory</span><h1>Where Hong Kong <span class="text-gold headline-script">buys</span>.</h1><p class="lead">Browse wine merchants, sake specialists, craft breweries, whisky retailers, and importers with direct store links and useful local context.</p></div><div class="search-shell"><div class="search-tabs"><span class="search-tab active">Filter suppliers</span></div><div class="filter-bar" style="margin-bottom:0;"><input id="supplier-query" class="input" placeholder="Search merchants, sake, whisky, wine..." /><select id="supplier-area" class="select"><option value="all">All locations</option></select><select id="supplier-type" class="select"><option value="all">All specialties</option></select><select id="supplier-tier" class="select"><option value="all">All tiers</option><option value="enhanced">Enhanced</option><option value="featured">Featured</option><option value="standard">Standard</option></select><button id="supplier-reset" class="btn btn-ghost">Reset</button></div><div id="supplier-results-note"></div></div></div></section>
     <section class="section"><div class="container"><div class="section-head"><div><span class="eyebrow">Featured suppliers</span><h2>Reliable merchants and specialists to check first.</h2><p class="lead" style="margin-top:14px;">Good for premium bottles, gift buys, cellar hunting, and everyday favourites from trusted Hong Kong sellers.</p></div></div><div id="supplier-enhanced" class="grid grid-4"></div></div></section>
     <section class="section-tight"><div class="container"><div class="section-head"><div><span class="eyebrow">More suppliers</span><h2>More wine shops, breweries, and spirits specialists across Hong Kong.</h2><p class="lead" style="margin-top:14px;">Compare by category and location, then head straight to the supplier site when something fits.</p></div></div><div id="supplier-featured" class="grid grid-5"></div></div></section>
     <section class="section" id="join-trade"><div class="container"><div class="section-head"><div><span class="eyebrow">Full directory</span><h2>Browse the wider Hong Kong supplier list.</h2><p class="lead" style="margin-top:14px;">Use the directory to compare merchants by area, specialty, and shopping route before you click through to buy.</p></div></div><div class="list-panel"><div class="table-head"><div>Supplier</div><div>Location</div><div>Phone</div><div>Specialty</div></div><div id="supplier-standard"></div></div></div></section>`;
-  const area = $('#supplier-area'); const type = $('#supplier-type'); const tier = $('#supplier-tier');
-  [...new Set([...supplierListings.enhanced, ...supplierListings.featured].map(s => s.area).concat(supplierListings.standard.map(s => s[1])))].sort().forEach(v => area.insertAdjacentHTML('beforeend', `<option value="${v}">${v}</option>`));
-  [...new Set([...supplierListings.enhanced, ...supplierListings.featured].map(s => s.specialty).concat(supplierListings.standard.map(s => s[3])))].sort().forEach(v => type.insertAdjacentHTML('beforeend', `<option value="${v}">${v}</option>`));
-  function match(a, t, tierName) { return (area.value === 'all' || a === area.value) && (type.value === 'all' || t === type.value) && (tier.value === 'all' || tier.value === tierName); }
+  const queryInput = $('#supplier-query'); const area = $('#supplier-area'); const type = $('#supplier-type'); const tier = $('#supplier-tier');
+  const supplierAreas = [...new Set([...supplierListings.enhanced, ...supplierListings.featured].map(s => s.area).concat(supplierListings.standard.map(s => s[1])))].sort();
+  const supplierTypes = [...new Set([...supplierListings.enhanced, ...supplierListings.featured].map(s => s.specialty).concat(supplierListings.standard.map(s => s[3])))].sort();
+  supplierAreas.forEach(v => area.insertAdjacentHTML('beforeend', `<option value="${v}">${v}</option>`));
+  supplierTypes.forEach(v => type.insertAdjacentHTML('beforeend', `<option value="${v}">${v}</option>`));
+  const requestedArea = queryParam('area');
+  const requestedQuery = queryParam('q') || '';
+  if (requestedArea && supplierAreas.includes(requestedArea)) area.value = requestedArea;
+  if (queryInput) queryInput.value = requestedQuery;
+  function match(a, t, tierName, searchFields = []) { return (area.value === 'all' || a === area.value) && (type.value === 'all' || t === type.value) && (tier.value === 'all' || tier.value === tierName) && matchesSearch(searchFields, queryInput?.value || ''); }
   function render() {
-    const enhanced = supplierListings.enhanced.filter(s => match(s.area, s.specialty, 'enhanced'));
-    const featured = supplierListings.featured.filter(s => match(s.area, s.specialty, 'featured'));
-    const standard = supplierListings.standard.filter(s => match(s[1], s[3], 'standard'));
+    const enhanced = supplierListings.enhanced.filter(s => match(s.area, s.specialty, 'enhanced', [s.name, s.area, s.specialty]));
+    const featured = supplierListings.featured.filter(s => match(s.area, s.specialty, 'featured', [s.name, s.area, s.specialty]));
+    const standard = supplierListings.standard.filter(s => match(s[1], s[3], 'standard', [s[0], s[1], s[3]]));
     $('#supplier-enhanced').innerHTML = enhanced.length ? enhanced.map(s => renderCard({...s, tierLabel:'Enhanced'}, {type:'supplier', href:`supplier-template.html?slug=${s.slug}`, cta:`<a class="btn btn-primary btn-small" href="supplier-template.html?slug=${s.slug}">View supplier</a>`})).join('') : '<div class="empty-state">No enhanced suppliers match these filters.</div>';
-    $('#supplier-featured').innerHTML = featured.length ? featured.map(s => renderCard({...s, tierLabel:'Featured'}, {type:'supplier', small:true, href:s.website, cta:`<a class="btn btn-ghost btn-small" href="${s.website}" target="_blank" rel="noreferrer">Visit website</a>`})).join('') : '<div class="empty-state">No featured suppliers match these filters.</div>';
+    $('#supplier-featured').innerHTML = featured.length ? featured.map(s => renderCard({...s, tierLabel:'Featured'}, {type:'supplier', small:true, href:hasUsableHref(s.website) ? s.website : buildSearchHref('suppliers.html', s.name, s.area), cta:hasUsableHref(s.website) ? ctaLink('Visit website', s.website, 'btn btn-ghost btn-small') : ctaLink('View listing', buildSearchHref('suppliers.html', s.name, s.area), 'btn btn-ghost btn-small')})).join('') : '<div class="empty-state">No featured suppliers match these filters.</div>';
     $('#supplier-standard').innerHTML = standard.length ? standard.map(row => `<div class="list-row"><div><strong>${row[0]}</strong></div><div>${row[1]}</div><div>${row[2]}</div><div>${row[3]}</div></div>`).join('') : '<div class="empty-state">No standard suppliers match these filters.</div>';
+    const totalMatches = enhanced.length + featured.length + standard.length;
+    $('#supplier-results-note').innerHTML = `<div class="notice">Showing <strong>${totalMatches}</strong> matching suppliers${queryInput?.value ? ` for “${queryInput.value}”` : ''}${area.value !== 'all' ? ` in ${area.value}` : ''}.</div>`;
     bindSaveButtons(app);
   }
   [area, type, tier].forEach(el => el.addEventListener('change', render));
-  $('#supplier-reset').addEventListener('click', () => { area.value='all'; type.value='all'; tier.value='all'; render(); });
+  queryInput?.addEventListener('input', render);
+  $('#supplier-reset').addEventListener('click', () => { if (queryInput) queryInput.value=''; area.value='all'; type.value='all'; tier.value='all'; render(); });
   render();
 }
 
 function renderDrinksPage() {
   const app = $('#app');
+  const query = queryParam('q') || '';
+  const area = queryParam('area') || '';
+  const filteredDrinks = drinksInventory.filter(d => matchesSearch([d.name, d.supplier, d.type, d.area], query) && (!area || d.area === area));
   app.innerHTML = `
-    <section class="hero" style="min-height:56vh;"><div class="hero-media" style="background-image:url('${siteImages.trio}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Drinks</span><h1>Bottles actually available in Hong Kong.</h1><p class="lead">From cellar icons to sake, Champagne, beer, spirits, and no-alcohol discoveries — all routed to local suppliers.</p></div><div class="search-shell"><div class="search-tabs"><span class="search-tab active">What you'll find</span></div><div class="panel" style="padding:18px; background:transparent; border:none; box-shadow:none;"><div class="muted" style="display:grid; gap:10px;"><span>Direct links to local supplier stores</span><span>HK pricing and neighbourhood context</span><span>A mix of discovery bottles and everyday favourites</span></div></div></div></div></section>
-    <section class="section"><div class="container"><div class="section-head"><div><span class="eyebrow">Featured bottles</span><h2>Popular drinks from Hong Kong suppliers.</h2></div></div><div class="grid grid-4">${drinksInventory.map(d => renderCard({...d, tierLabel:d.tier==='enhanced' ? 'Available now' : 'Featured'}, {type:'drink', portrait:true, href:'drinks.html', cta:d.tier==='enhanced' ? `<a class="btn btn-primary btn-small" href="${d.buy || '#'}" target="_blank" rel="noreferrer">Buy online</a>` : '<span class="btn btn-ghost btn-small">View supplier</span>'})).join('')}</div></div></section>`;
+    <section class="hero" style="min-height:56vh;"><div class="hero-media" style="background-image:url('${siteImages.trio}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Drinks</span><h1>Bottles actually available in Hong Kong.</h1><p class="lead">From cellar icons to sake, Champagne, beer, spirits, and no-alcohol discoveries — all routed to local suppliers.</p></div><div class="search-shell"><div class="search-tabs"><span class="search-tab active">Search results</span></div><div class="notice">Showing <strong>${filteredDrinks.length}</strong> drinks${query ? ` for “${query}”` : ''}${area ? ` in ${area}` : ''}.</div><div class="panel" style="padding:18px; background:transparent; border:none; box-shadow:none;"><div class="muted" style="display:grid; gap:10px;"><span>Direct links to local supplier stores</span><span>HK pricing and neighbourhood context</span><span>A mix of discovery bottles and everyday favourites</span></div></div></div></div></section>
+    <section class="section"><div class="container"><div class="section-head"><div><span class="eyebrow">Featured bottles</span><h2>Popular drinks from Hong Kong suppliers.</h2></div></div>${filteredDrinks.length ? `<div class="grid grid-4">${filteredDrinks.map(d => renderCard({...d, tierLabel:d.tier==='enhanced' ? 'Available now' : 'Featured'}, {type:'drink', portrait:true, href:buildSearchHref('drinks.html', d.name, d.area), cta:d.tier==='enhanced' ? ctaLink('Buy online', d.buy || (d.supplier ? buildSearchHref('suppliers.html', d.supplier, d.area) : buildSearchHref('drinks.html', d.name, d.area)), 'btn btn-primary btn-small', 'View supplier') : ctaLink('View supplier', d.supplier ? buildSearchHref('suppliers.html', d.supplier, d.area) : buildSearchHref('drinks.html', d.name, d.area), 'btn btn-ghost btn-small')})).join('')}</div>` : '<div class="empty-state">No drinks match that search yet. Try a broader bottle name, category, or area.</div>'}</div></section>`;
   bindSaveButtons(app);
 }
 
 function renderEventsPage() {
   const app = $('#app');
-  const cards = eventsData.length ? `<div class="grid grid-3">${eventsData.map(e => renderCard({...e, description:`${e.venue} · ${e.date}`, tierLabel:e.type}, {type:'event', href:'events.html', cta:`<a class="btn btn-secondary btn-small" href="${e.url}">Event details</a>`})).join('')}</div>` : '<div class="empty-state">No current events at the moment — check back soon.</div>';
+  const query = queryParam('q') || '';
+  const area = queryParam('area') || '';
+  const filteredEvents = eventsData.filter(e => matchesSearch([e.name, e.venue, e.type, e.area], query) && (!area || e.area === area));
+  const cards = filteredEvents.length ? `<div class="grid grid-3">${filteredEvents.map(e => renderCard({...e, description:`${e.venue} · ${e.date}`, tierLabel:e.type}, {type:'event', className:'event-card', href:buildSearchHref('events.html', e.name, e.area), cta:ctaLink('Event details', hasUsableHref(e.url) ? e.url : buildSearchHref('events.html', e.name, e.area), 'btn btn-secondary btn-small', 'Details soon')})).join('')}</div>` : '<div class="empty-state">No current events match that search yet — try a venue, event type, or a broader area.</div>';
   app.innerHTML = `
-    <section class="hero" style="min-height:56vh;"><div class="hero-media" style="background-image:url('${siteImages.event}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Events</span><h1>Tastings, launches, guest shifts, and social nights.</h1><p class="lead">Masterclasses, pairings, cocktail takeovers, launch nights, and zero-proof happenings around Hong Kong.</p></div><div class="search-shell"><div class="search-tabs"><span class="search-tab active">Plan your next night out</span></div><p class="muted">From hotel tastings to bar collabs and community-led pours.</p></div></div></section>
-    <section class="section"><div class="container"><div class="section-head"><div><span class="eyebrow">Upcoming events</span><h2>What's on around Hong Kong.</h2></div></div>${cards}</div></section>`;
+    <section class="hero" style="min-height:56vh;"><div class="hero-media" style="background-image:url('${siteImages.event}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Events</span><h1>Tastings, launches, guest shifts, and social nights.</h1><p class="lead">Masterclasses, pairings, cocktail takeovers, launch nights, and zero-proof happenings around Hong Kong.</p></div><div class="search-shell"><div class="search-tabs"><span class="search-tab active">Plan your next night out</span></div><div class="notice">Showing <strong>${filteredEvents.length}</strong> events${query ? ` for “${query}”` : ''}${area ? ` in ${area}` : ''}.</div><p class="muted">From hotel tastings to bar collabs and community-led pours.</p></div></div></section>
+    <section class="section"><div class="container"><div class="section-head"><div><span class="eyebrow">Upcoming events</span><h2>What's on around Hong Kong.</h2><p class="lead" style="margin-top:14px;">A more visual event board for tastings, launches, guest shifts, and social nights across the city.</p></div></div>${cards}</div></section>`;
   bindSaveButtons(app);
 }
 
@@ -909,8 +1009,8 @@ function renderLeadCapturePage() {
     ? `<div class="notice">Signed in as ${user.email}. Your details are prefilled and any submission will appear in your account dashboard.</div>`
     : `<div class="notice">Have an account already? <a class="text-jade" href="signin.html">Sign in</a> to prefill your details and track submissions.</div>`;
   app.innerHTML = `
-    <section class="hero" style="min-height:62vh;"><div class="hero-media" style="background-image:url('${requestedType === 'venue' ? siteImages.rooftop : siteImages.shop}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">List your business / Claim your venue</span><h1>${requestedType === 'venue' ? 'Claim your venue and start turning visibility into bookings.' : 'List your business and start turning discovery into sales.'}</h1><p class="lead">Tell us about your business and we'll help match you with the right listing, profile, and visibility options.</p><div class="hero-actions"><a class="btn btn-primary" href="pricing.html">Back to pricing</a><a class="btn btn-ghost" href="account.html">My account</a></div></div><div class="search-shell"><span class="eyebrow">Application form</span>${signedInNote}<form id="lead-form" class="form-grid" style="margin-top:14px;"><select class="select full" name="listingType"><option value="merchant" ${requestedType === 'merchant' ? 'selected' : ''}>Supplier / Merchant</option><option value="venue" ${requestedType === 'venue' ? 'selected' : ''}>Bar / Restaurant / Venue</option></select><select class="select full" id="plan-select" name="planInterest"></select><input class="input" name="businessName" placeholder="Business name" required /><input class="input" name="contactName" placeholder="Contact name" value="${user?.name || ''}" required /><input class="input" name="email" type="email" placeholder="Email" value="${user?.email || ''}" required /><input class="input" name="phone" placeholder="Phone number" required /><input class="input" name="district" placeholder="Primary district / location" value="${user?.city || ''}" required /><input class="input" name="website" placeholder="Website / booking URL" /><input class="input full" name="social" placeholder="Instagram / social URL" /><textarea class="input full" name="notes" rows="5" placeholder="Tell us what you want to list, what plan you are interested in, and what makes the business special."></textarea><button class="btn btn-primary full" type="submit">Send enquiry</button></form><div id="lead-notice"></div></div></div></section>
-    <section class="section"><div class="container grid grid-2"><div class="panel"><span class="eyebrow">What happens next</span><h2 style="margin:14px 0;">What happens next.</h2><div class="muted" style="display:grid; gap:12px;"><span>• We review your application and listing details.</span><span>• If you're signed in, your account information pre-fills automatically.</span><span>• We confirm the right plan, profile type, and any featured add-ons.</span><span>• Once approved, your business can appear across the directory, profile pages, and relevant discovery sections.</span></div></div><div class="panel"><span class="eyebrow">Why this matters</span><h2 style="margin:14px 0;">Why list on drinksearcher.hk.</h2><p class="muted">This is where suppliers and venues move from browsing to joining — with a clear path into profiles, product visibility, featured placements, and direct customer discovery.</p></div></div></section>`;
+    <section class="hero" style="min-height:62vh;"><div class="hero-media" style="background-image:url('${requestedType === 'venue' ? siteImages.rooftop : siteImages.shop}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">List your business / Claim your venue</span><h1>${requestedType === 'venue' ? 'Claim your venue and start turning visibility into bookings.' : 'List your business and start turning discovery into sales.'}</h1><p class="lead">Tell us about your business and we'll help match you with the right listing, profile, and visibility options.</p><div class="hero-actions"><a class="btn btn-primary" href="pricing.html">Back to pricing</a><a class="btn btn-ghost" href="${user ? 'account.html' : 'signin.html'}">${user ? 'My account' : 'Sign in'}</a></div></div><div class="search-shell"><span class="eyebrow">Application form</span>${signedInNote}<div class="notice">Start with the right listing and we’ll organise the details you need for profile, visibility, and next-step setup.</div><form id="lead-form" class="form-grid" style="margin-top:14px;"><select class="select full" name="listingType"><option value="merchant" ${requestedType === 'merchant' ? 'selected' : ''}>Supplier / Merchant</option><option value="venue" ${requestedType === 'venue' ? 'selected' : ''}>Bar / Restaurant / Venue</option></select><select class="select full" id="plan-select" name="planInterest"></select><input class="input" name="businessName" placeholder="Business name" required /><input class="input" name="contactName" placeholder="Contact name" value="${user?.name || ''}" required /><input class="input" name="email" type="email" placeholder="Email" value="${user?.email || ''}" required /><input class="input" name="phone" placeholder="Phone number" required /><input class="input" name="district" placeholder="Primary district / location" value="${user?.city || ''}" required /><input class="input" name="website" placeholder="Website / booking URL" /><input class="input full" name="social" placeholder="Instagram / social URL" /><textarea class="input full" name="notes" rows="5" placeholder="Tell us what you want to list, what plan you are interested in, and what makes the business special."></textarea><button class="btn btn-primary full" type="submit">Send enquiry</button></form><div id="lead-notice"></div></div></div></section>
+    <section class="section"><div class="container grid grid-2"><div class="panel"><span class="eyebrow">What happens next</span><h2 style="margin:14px 0;">What happens next.</h2><div class="muted" style="display:grid; gap:12px;"><span>• We review your application and listing details.</span><span>• If you're signed in, your account information pre-fills automatically.</span><span>• We confirm the right plan, profile type, and any featured add-ons.</span><span>• Once approved, your business can appear across the directory, profile pages, and relevant discovery sections.</span></div></div><div class="panel"><span class="eyebrow">Why this matters</span><h2 style="margin:14px 0;">Why list on drinksearcher.hk.</h2><p class="muted">This is where suppliers and venues move from browsing to joining — with a clear path into profiles, product visibility, featured placements, and direct customer discovery.</p><div class="inline-actions" style="margin-top:18px;"><a class="btn btn-ghost btn-small" href="suppliers.html">View supplier directory</a><a class="btn btn-ghost btn-small" href="bars-restaurants.html">View venue directory</a></div></div></div></section>`;
 
   const typeField = $('[name="listingType"]', app);
   const planField = $('#plan-select', app);
@@ -959,7 +1059,7 @@ function renderVenueProfile() {
     <section id="overview" class="section"><div class="container split"><div><span class="eyebrow">Overview</span><h2>Everything you want to know before you go.</h2><p class="lead" style="margin-top:16px;">See the mood, signature serves, upcoming events, and the practical details that help you decide whether this venue fits the night you have in mind.</p><div class="inline-actions" style="margin-top:18px;">${profile.highlights.map(h => `<span class="chip">${h}</span>`).join('')}</div></div><div class="panel"><h3>Why people go</h3><p class="muted" style="margin-top:12px;">Use this page to judge atmosphere, drinks style, and booking fit quickly — without jumping between tabs.</p></div></div></section>
     <section id="drinks" class="section-tight"><div class="container"><div class="section-head"><div><span class="eyebrow">Signature drinks</span><h2>What to order first.</h2><p class="lead" style="margin-top:14px;">A quick look at the serves and menu highlights that help define the venue.</p></div></div><div class="grid grid-3">${profile.drinks.map(d => renderCard({name:d[0], area:profile.area, description:d[2], price:d[1], image:siteImages.trio, type:'Signature serve'}, {type:'drink', cta:'<span class="btn btn-ghost btn-small">Menu highlight</span>'})).join('')}</div></div></section>
     <section id="gallery" class="section"><div class="container"><div class="section-head"><div><span class="eyebrow">Gallery</span><h2>Inside the venue.</h2><p class="lead" style="margin-top:14px;">A visual feel for the room, energy, and style before you decide to book.</p></div></div><div class="gallery-grid"><img src="${siteImages.rooftop}" alt="Venue gallery"><img src="${siteImages.event}" alt="Venue gallery"><img src="${siteImages.hero}" alt="Venue gallery"></div></div></section>
-    <section id="events" class="section-tight"><div class="container"><div class="section-head"><div><span class="eyebrow">Upcoming events</span><h2>What's happening soon.</h2><p class="lead" style="margin-top:14px;">Guest shifts, special menus, and tasting nights that give you another reason to visit.</p></div></div><div class="grid grid-3">${profile.events.map(evt => renderCard({name:evt[0], area:profile.area, description:evt[1], image:siteImages.event, type:'Event'}, {type:'event', small:true, cta:'<span class="btn btn-ghost btn-small">Event highlight</span>'})).join('')}</div></div></section>
+    <section id="events" class="section-tight"><div class="container"><div class="section-head"><div><span class="eyebrow">Upcoming events</span><h2>What's happening soon.</h2><p class="lead" style="margin-top:14px;">Guest shifts, special menus, and tasting nights that give you another reason to visit.</p></div></div><div class="grid grid-3">${profile.events.map((evt, index) => renderCard({name:evt[0], area:profile.area, venue:profile.name, date:evt[1], description:evt[1], image:[siteImages.event, siteImages.rooftop, siteImages.hero][index % 3], tierLabel:'Event'}, {type:'event', className:'event-card', cta:'<span class="btn btn-ghost btn-small">Event highlight</span>'})).join('')}</div></div></section>
     <section id="reviews" class="section"><div class="container grid grid-3">${profile.reviews.map(r => `<div class="panel"><span class="eyebrow">Guest review</span><p style="margin-top:14px; font-size:1.05rem;">${r[0]}</p><p class="muted" style="margin-top:14px;">— ${r[1]}</p></div>`).join('')}</div></section>
     <section id="location" class="section"><div class="container grid grid-2"><div class="panel"><span class="eyebrow">Location & Hours</span><h3 style="margin:14px 0;">Plan your visit.</h3><div class="muted" style="display:grid; gap:10px;"><span>${profile.address}</span><span>${profile.phone}</span>${profile.hours.map(h => `<span>${h}</span>`).join('')}</div></div><div class="panel"><span class="eyebrow">Claim your venue</span><h3 style="margin:14px 0;">Want this page for your own bar or restaurant?</h3><p class="muted">Add direct booking links, better imagery, and promoted event placement so guests have a clearer reason to choose you.</p><div class="inline-actions" style="margin-top:18px;"><a class="btn btn-primary" href="pricing.html">View venue pricing</a><a class="btn btn-ghost" href="list-your-business.html?type=venue&plan=venue-enhanced">Claim your venue</a></div></div></div></section>`;
   bindSaveButtons(app);
@@ -974,7 +1074,7 @@ function renderSupplierProfile() {
     <div class="anchor-nav"><div class="container"><a class="anchor-link active" href="#overview">Overview</a><a class="anchor-link" href="#catalogue">Catalogue</a><a class="anchor-link" href="#events">Events</a><a class="anchor-link" href="#reviews">Reviews</a><a class="anchor-link" href="#contact">Contact</a></div></div>
     <section id="overview" class="section"><div class="container split"><div><span class="eyebrow">Overview</span><h2>Why shoppers use this supplier.</h2><p class="lead" style="margin-top:16px;">Get a quick sense of what this merchant does best, the bottle categories they are known for, and the easiest route to browse or buy locally.</p></div><div class="panel"><div class="muted" style="display:grid; gap:12px;">${profile.sellingPoints.map(i => `<span>• ${i}</span>`).join('')}</div></div></div></section>
     <section id="catalogue" class="section-tight"><div class="container"><div class="section-head"><div><span class="eyebrow">Catalogue</span><h2>Bottles and categories to start with.</h2><p class="lead" style="margin-top:14px;">A quick sample of what this supplier is known for before you click through to the full shop.</p></div></div><div class="grid grid-3">${profile.catalogue.map(item => renderCard({name:item[0], area:profile.area, price:item[1], image:siteImages.shop, type:profile.specialty, description:'Sample bottle from this supplier'}, {type:'drink', cta:`<a class="btn btn-primary btn-small" href="${profile.website}">Buy from supplier</a>`})).join('')}</div></div></section>
-    <section id="events" class="section"><div class="container grid grid-2">${profile.events.map(evt => `<div class="panel"><span class="eyebrow">Supplier event</span><h3 style="margin:14px 0;">${evt[0]}</h3><p class="muted">${evt[1]}</p></div>`).join('')}</div></section>
+    <section id="events" class="section"><div class="container"><div class="section-head"><div><span class="eyebrow">Supplier events</span><h2>Tastings and activations worth watching.</h2><p class="lead" style="margin-top:14px;">A more visual event section so supplier tastings and launches feel like premium programming, not plain text.</p></div></div><div class="grid grid-2">${profile.events.map((evt, index) => renderCard({name:evt[0], area:profile.area, venue:profile.name, date:evt[1], description:evt[1], image:[siteImages.event, siteImages.shop, siteImages.rooftop][index % 3], tierLabel:'Supplier event'}, {type:'event', className:'event-card', cta:`<a class="btn btn-primary btn-small" href="${profile.website}">Visit supplier</a>`})).join('')}</div></div></section>
     <section id="reviews" class="section-tight"><div class="container grid grid-2">${profile.reviews.map(r => `<div class="panel"><span class="eyebrow">Customer feedback</span><p style="margin-top:14px; font-size:1.05rem;">${r[0]}</p><p class="muted" style="margin-top:14px;">— ${r[1]}</p></div>`).join('')}</div></section>
     <section id="contact" class="section"><div class="container grid grid-2"><div class="panel"><span class="eyebrow">Contact</span><h3 style="margin:14px 0;">Ready to browse or buy?</h3><div class="muted" style="display:grid; gap:10px;"><span>${profile.address}</span><span>${profile.phone}</span><span><a href="${profile.website}">${profile.website}</a></span></div></div><div class="panel"><span class="eyebrow">Own this supplier listing?</span><h3 style="margin:14px 0;">Get your profile live</h3><p class="muted">Add your story, catalogue, and store links so shoppers can move from discovery to purchase more easily.</p><div class="inline-actions" style="margin-top:18px;"><a class="btn btn-primary btn-small" href="list-your-business.html?type=merchant&plan=merchant-enhanced">List your business</a></div></div></div></section>`;
   bindSaveButtons(app);
@@ -1028,7 +1128,7 @@ function renderAccountPage() {
   }
   app.innerHTML = `
     <section class="hero" style="min-height:48vh;"><div class="hero-media" style="background-image:url('${siteImages.rooftop}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">My account</span><h1>${user.name || 'Your account'} <span class="text-jade">dashboard</span>.</h1><p class="lead">Manage your profile, keep a shortlist of drinks and venues, and stay on top of your enquiries and saved discoveries.</p></div><div class="search-shell"><span class="eyebrow">Profile details</span><form id="account-form" class="form-grid" style="margin-top:14px;"><input class="input" name="name" value="${user.name || ''}" placeholder="Full name" required /><input class="input" name="city" value="${user.city || ''}" placeholder="Preferred district" required /><input class="input full" value="${user.email}" disabled /><button class="btn btn-primary full" type="submit">Update profile</button></form><div id="account-notice"></div></div></div></section>
-    <section class="section"><div class="container grid grid-2"><div class="panel"><span class="eyebrow">Saved items</span><h2 style="margin:14px 0;">Your shortlist</h2><div id="saved-items"></div></div><div class="panel"><span class="eyebrow">Account actions</span><h2 style="margin:14px 0;">Keep track of what matters.</h2><div class="muted" style="display:grid; gap:12px;"><span>• Save bottles, bars, and events for later.</span><span>• Review your enquiries and listing requests.</span><span>• Access your business dashboard if you manage a supplier or venue profile.</span></div><div class="inline-actions" style="margin-top:18px;"><a class="btn btn-ghost" href="drinks.html">Save more drinks</a><a class="btn btn-secondary" href="list-your-business.html">List your business</a><a class="btn btn-primary" href="dashboard.html">Open business dashboard</a><a class="btn btn-ghost" href="admin.html">Founder admin</a></div></div></div></section>
+    <section class="section"><div class="container grid grid-2"><div class="panel"><span class="eyebrow">Saved items</span><h2 style="margin:14px 0;">Your shortlist</h2><div id="saved-items"></div></div><div class="panel"><span class="eyebrow">Account actions</span><h2 style="margin:14px 0;">Keep track of what matters.</h2><div class="muted" style="display:grid; gap:12px;"><span>• Save bottles, bars, and events for later.</span><span>• Review your enquiries and listing requests.</span><span>• Access your business dashboard if you manage a supplier or venue profile.</span></div><div class="inline-actions" style="margin-top:18px;"><a class="btn btn-ghost" href="drinks.html">Save more drinks</a><a class="btn btn-secondary" href="list-your-business.html">List your business</a><a class="btn btn-primary" href="dashboard.html">Open business dashboard</a></div></div></div></section>
     <section class="section-tight"><div class="container"><div class="panel"><span class="eyebrow">My business enquiries</span><h2 style="margin:14px 0;">Submitted lead capture forms</h2><div id="account-leads"></div></div></div></section>`;
   $('#account-form').addEventListener('submit', e => {
     e.preventDefault();
@@ -1044,7 +1144,7 @@ function renderAccountSaved() {
   const holder = $('#saved-items');
   if (!holder) return;
   const saved = storage.getSaved();
-  holder.innerHTML = saved.length ? `<div class="saved-grid">${saved.map(item => `<div class="panel"><div class="eyebrow">${item.kind}</div><h3 style="margin:12px 0;">${item.name}</h3><p class="muted">${item.meta || ''}</p><div class="inline-actions" style="margin-top:16px;"><a class="btn btn-ghost btn-small" href="${item.href}">Open</a><button class="btn btn-secondary btn-small" data-remove="${item.id}">Remove</button></div></div>`).join('')}</div>` : '<div class="empty-state">You have not saved any drinks, events, suppliers, or venues yet.</div>';
+  holder.innerHTML = saved.length ? `<div class="saved-grid">${saved.map(item => `<div class="panel"><div class="eyebrow">${item.kind}</div><h3 style="margin:12px 0;">${item.name}</h3><p class="muted">${item.meta || ''}</p><div class="inline-actions" style="margin-top:16px;">${ctaLink('Open', item.href, 'btn btn-ghost btn-small', 'Saved item')}<button class="btn btn-secondary btn-small" data-remove="${item.id}">Remove</button></div></div>`).join('')}</div>` : '<div class="empty-state">You have not saved any drinks, events, suppliers, or venues yet.</div>';
   $$('[data-remove]', holder).forEach(btn => btn.addEventListener('click', () => {
     storage.setSaved(storage.getSaved().filter(item => item.id !== btn.dataset.remove));
     renderAccountSaved();
@@ -1191,7 +1291,7 @@ function renderBusinessDashboardPage() {
               <label class="dashboard-field"><span>Supplier ecommerce URL</span><input class="input" id="scan-site-url" placeholder="https://supplier-site.hk" /></label>
               <label class="dashboard-field"><span>Platform type</span><select class="select" id="scan-site-platform"><option value="Mixed">Mixed</option><option value="Shopify">Shopify</option><option value="WooCommerce">WooCommerce</option><option value="Custom">Custom</option></select></label>
               <label class="dashboard-field"><span>Founder note</span><textarea class="input" rows="4" id="scan-site-notes" placeholder="Optional notes about collections, categories, or important product pages"></textarea></label>
-              <div class="admin-inline"><button class="btn btn-secondary" id="scan-site-btn" type="button">Queue scan request</button><a class="btn btn-ghost" href="admin.html">Open founder admin</a></div>
+              <div class="admin-inline"><button class="btn btn-secondary" id="scan-site-btn" type="button">Queue scan request</button></div>
               <div class="small-note">Website scan requests are queued into Founder Admin for review. Shopify, WooCommerce, sitemap, feed, and structured-data connectors can be added as the next production step.</div>
               <div id="scan-site-notice"></div>
             </div>
@@ -1218,7 +1318,6 @@ function renderBusinessDashboardPage() {
               <div class="inline-actions" style="margin-top:18px;">
                 <a class="btn btn-ghost" href="account.html">Back to account</a>
                 <a class="btn btn-secondary" href="list-your-business.html?type=${role === 'merchant' ? 'merchant' : 'venue'}">Edit enquiry</a>
-                <a class="btn btn-ghost" href="admin.html">Founder admin</a>
               </div>
             </div>
           </div>
