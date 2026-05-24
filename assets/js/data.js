@@ -1,5 +1,5 @@
 const siteImages = {
-  hero: 'assets/images/hero-hk.jpg',
+  hero: 'assets/images/hongkong-view.jpg',
   rooftop: 'assets/images/rooftop-bar.jpg',
   shop: 'assets/images/wine-shop.jpg',
   trio: 'assets/images/drink-trio.jpg',
