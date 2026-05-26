@@ -24,6 +24,7 @@ const storage = {
       name: String(data.name || '').trim(),
       email,
       password: String(data.password || ''),
+      role: data.role || 'searcher',
       city: String(data.city || '').trim(),
       createdAt: new Date().toISOString()
     };
@@ -271,7 +272,7 @@ const storage = {
       this.setCurrentUser(email);
       return { ok: true, user: existing, existed: true };
     }
-    var user = { name: name || email.split('@')[0], email: email, password: password, city: (opts && opts.city) || '', createdAt: new Date().toISOString() };
+    var user = { name: name || email.split('@')[0], email: email, password: password, role: 'merchant', city: (opts && opts.city) || '', createdAt: new Date().toISOString() };
     users.push(user);
     this.setUsers(users);
     this.setCurrentUser(email);
@@ -360,7 +361,9 @@ function navHTML(active = '') {
   ];
   const user = storage.getCurrentUser();
   const authActions = user
-    ? `<a class="btn btn-ghost btn-small" href="account.html">${user.name || 'Account'}</a><a class="btn btn-ghost btn-small" href="dashboard.html">Dashboard</a><button class="btn btn-primary btn-small" id="signout-btn" type="button">Sign Out</button>`
+    ? (user.role === 'merchant' || user.role === 'venue'
+      ? `<a class="btn btn-ghost btn-small" href="dashboard.html">${user.name || 'Dashboard'}</a><button class="btn btn-primary btn-small" id="signout-btn" type="button">Sign Out</button>`
+      : `<a class="btn btn-ghost btn-small" href="account.html">${user.name || 'Account'}</a><button class="btn btn-primary btn-small" id="signout-btn" type="button">Sign Out</button>`)
     : `<a class="btn btn-primary btn-small" href="searcher-account.html">Searcher Account</a>`;
   return `
     <div class="container nav-inner">
@@ -1140,14 +1143,15 @@ function renderSearcherAccountPage() {
   const hasPending = !!storage.getPendingSave() || new URLSearchParams(window.location.search).get('intent') === 'save';
   if (user) {
     app.innerHTML = `
-      <section class="hero" style="min-height:50vh;"><div class="hero-media" style="background-image:url('${siteImages.hero}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Searcher Account</span><h1>Welcome back, ${user.name || 'friend'}.</h1><p class="lead">Your account is already active. Head to your account to manage saved drinks, events, and venues.</p></div><div class="search-shell"><div class="inline-actions"><a class="btn btn-primary btn-block" href="account.html">Go to account</a><button id="inline-signout" class="btn btn-ghost btn-block" type="button">Sign out</button></div></div></div></section>`;
+      <section class="hero" style="min-height:50vh;"><div class="hero-media" style="background-image:url('${siteImages.hero}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Searcher Account</span><h1>Welcome back, ${user.name || 'friend'}.</h1><p class="lead">Your account is already active. Head to your account to manage saved drinks, events, and venues.</p></div><div class="search-shell"><div class="inline-actions"><a class="btn btn-primary btn-block" href="${user.role === 'merchant' || user.role === 'venue' ? 'dashboard.html' : 'account.html'}">${user.role === 'merchant' || user.role === 'venue' ? 'Go to dashboard' : 'Go to account'}</a><button id="inline-signout" class="btn btn-ghost btn-block" type="button">Sign out</button></div></div></div></section>`;
     var so = document.getElementById('inline-signout');
     if (so) so.addEventListener('click', function() { storage.signOut(); window.location.reload(); });
     return;
   }
   app.innerHTML = `
     <section class="hero" style="min-height:62vh;"><div class="hero-media" style="background-image:url('${siteImages.hero}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Searcher Account</span><h1>Your HK drinks shortlist, anywhere.</h1><p class="lead">Save bottles, venues, and events. Track your finds. One account for everything.</p></div></div></section>
-    <section class="section"><div class="container grid grid-2"><div class="search-shell"><span class="eyebrow">Welcome back</span><h3 style="margin:10px 0 4px;">Sign in</h3>${hasPending ? '<div class="notice">Sign in to finish saving the item you just selected.</div>' : ''}<form id="sa-signin-form" class="form-grid" style="margin-top:14px;"><input class="input full" name="email" type="email" placeholder="Email" required /><input class="input full" name="password" type="password" placeholder="Password" required /><button class="btn btn-primary full" type="submit">Sign In</button></form><div id="sa-signin-notice"></div></div><div class="search-shell"><span class="eyebrow">New here</span><h3 style="margin:10px 0 4px;">Create account</h3><form id="sa-signup-form" class="form-grid" style="margin-top:14px;"><input class="input" name="name" placeholder="Full name" required /><input class="input full" name="email" type="email" placeholder="Email" required /><input class="input full" name="password" type="password" placeholder="Create password" required /><button class="btn btn-primary full" type="submit">Create Account</button></form><div id="sa-signup-notice"></div></div></div></section>`;
+    <section class="section"><div class="container grid grid-2"><div class="search-shell"><span class="eyebrow">Welcome back</span><h3 style="margin:10px 0 4px;">Sign in</h3>${hasPending ? '<div class="notice">Sign in to finish saving the item you just selected.</div>' : ''}<form id="sa-signin-form" class="form-grid" style="margin-top:14px;"><input class="input full" name="email" type="email" placeholder="Email" required /><input class="input full" name="password" type="password" placeholder="Password" required /><button class="btn btn-primary full" type="submit">Sign In</button></form><div id="sa-signin-notice"></div></div><div class="search-shell"><span class="eyebrow">New here</span><h3 style="margin:10px 0 4px;">Create account</h3><form id="sa-signup-form" class="form-grid" style="margin-top:14px;"><input class="input" name="name" placeholder="Full name" required /><input class="input full" name="email" type="email" placeholder="Email" required /><input class="input full" name="password" type="password" placeholder="Create password" required /><button class="btn btn-primary full" type="submit">Create Account</button></form><div id="sa-signup-notice"></div></div></div></section>
+    <section class="section-tight"><div class="container"><div class="panel" style="max-width:600px; margin:0 auto; text-align:center;"><span class="kicker">For businesses</span><h3 style="margin:10px 0 4px;">Supplier / Venue account</h3><p class="muted\">List your products or claim your venue. Manage inventory, pricing, and visibility from your business dashboard.</p><div class="search-shell" style="margin-top:20px;"><form id="sa-biz-form" class="form-grid"><input class="input" name="bizname" placeholder="Business name" required /><div class="grid grid-2" style="gap:12px;"><input class="input" name="email" type="email" placeholder="Email" required /><input class="input" name="password" type="password" placeholder="Create password" required /><input class="input" name="phone" type="tel" placeholder="Phone (e.g. +852...)" /><select class="input" name="district"><option value="">Select district</option><option>Central</option><option>Sheung Wan</option><option>Wan Chai</option><option>Causeway Bay</option><option>Tsim Sha Tsui</option><option>Mong Kok</option><option>Kowloon City</option><option>Sai Kung</option><option>Discovery Bay</option><option>Hong Kong-wide</option></select></div><div class="inline-actions" style="margin-top:10px;"><button class="btn btn-primary" type="submit">Create Business Account</button></div></form><div id="sa-biz-notice"></div></div></div></div></section>`;
   var signinForm = document.getElementById('sa-signin-form');
   if (signinForm) signinForm.addEventListener('submit', function(e) {
     e.preventDefault();
@@ -1160,7 +1164,7 @@ function renderSearcherAccountPage() {
       if (result.ok) { storage.clearPostAuthRedirect(); window.location.href = 'dashboard.html'; return; }
     }
     document.getElementById('sa-signin-notice').innerHTML = result.ok ? '<div class="notice">Signed in successfully. Taking you to your account…</div>' : '<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">' + result.message + '</div>';
-    if (result.ok) setTimeout(function() { finishAuthFlow('account.html'); }, 300);
+    if (result.ok) { var _role = (result.user.role === 'merchant' || result.user.role === 'venue') ? 'dashboard.html' : 'account.html'; setTimeout(function() { finishAuthFlow(_role); }, 300); }
   });
   var signupForm = document.getElementById('sa-signup-form');
   if (signupForm) signupForm.addEventListener('submit', function(e) {
@@ -1170,6 +1174,59 @@ function renderSearcherAccountPage() {
     document.getElementById('sa-signup-notice').innerHTML = result.ok ? '<div class="notice">Account created successfully. Taking you to your profile…</div>' : '<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">' + result.message + '</div>';
     if (result.ok) setTimeout(function() { finishAuthFlow('account.html'); }, 300);
   });
+  var bizForm = document.getElementById('sa-biz-form');
+  if (bizForm) bizForm.addEventListener('submit', function(e) {
+    e.preventDefault();
+    var form = new FormData(e.currentTarget);
+    var bizname = form.get('bizname');
+    var email = form.get('email');
+    var password = form.get('password');
+    var phone = form.get('phone');
+    var district = form.get('district') || 'Central';
+    var result = storage.signUp({ name: bizname, email: email, password: password, role: 'merchant' });
+    if (result.ok) {
+      storage.setDashboardState({
+        activeRole: 'merchant',
+        merchant: {
+          membership: 'Merchant Enhanced',
+          billing: 'Monthly',
+          featuredSupplier: false,
+          featuredEvent: false,
+          extraProducts: true,
+          listingName: bizname + ' Listing',
+          website: 'https://',
+          description: bizname + ' — premium spirits and beverages supplier in Hong Kong.',
+          contactEmail: email,
+          phone: phone || '',
+          inventory: [],
+          addOnProducts: [],
+          billingEmail: email,
+          billingPhone: phone || '',
+          billingAddress: district + ', Hong Kong'
+        },
+        venue: {
+          membership: 'Venue Enhanced',
+          billing: 'Monthly',
+          featuredVenue: false,
+          featuredEvent: false,
+          listingName: bizname,
+          website: 'https://',
+          description: '',
+          contactEmail: email,
+          phone: phone || '',
+          facebook: '',
+          instagram: '',
+          events: [],
+          collaboratorInvites: [],
+          billingEmail: email,
+          billingPhone: phone || '',
+          billingAddress: district + ', Hong Kong'
+        }
+      });
+    }
+    document.getElementById('sa-biz-notice').innerHTML = result.ok ? '<div class="notice">Business account created successfully. Taking you to your dashboard…</div>' : '<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">' + result.message + '</div>';
+    if (result.ok) setTimeout(function() { window.location.href = 'dashboard.html'; }, 300);
+  });
 }
 
 function renderSignInPage() {
@@ -1178,7 +1235,7 @@ function renderSignInPage() {
   const hasPending = !!storage.getPendingSave() || new URLSearchParams(window.location.search).get('intent') === 'save';
   if (currentUser) {
     app.innerHTML = `
-      <section class="hero" style="min-height:50vh;"><div class="hero-media" style="background-image:url('${siteImages.hero}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Already signed in</span><h1>Welcome back, ${currentUser.name || 'friend'}.</h1><p class="lead">Your account is already active in this browser. Head to your dashboard to manage saved drinks, events, and venues.</p></div><div class="search-shell"><div class="inline-actions"><a class="btn btn-primary btn-block" href="account.html">Go to account</a><button id="inline-signout" class="btn btn-ghost btn-block" type="button">Sign out first</button></div></div></div></section>`;
+      <section class="hero" style="min-height:50vh;"><div class="hero-media" style="background-image:url('${siteImages.hero}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Already signed in</span><h1>Welcome back, ${currentUser.name || 'friend'}.</h1><p class="lead">Your account is already active in this browser. Head to your dashboard to manage saved drinks, events, and venues.</p></div><div class="search-shell"><div class="inline-actions"><a class="btn btn-primary btn-block" href="${currentUser.role === 'merchant' || currentUser.role === 'venue' ? 'dashboard.html' : 'account.html'}">${currentUser.role === 'merchant' || currentUser.role === 'venue' ? 'Go to dashboard' : 'Go to account'}</a><button id="inline-signout" class="btn btn-ghost btn-block" type="button">Sign out first</button></div></div></div></section>`;
     $('#inline-signout').addEventListener('click', () => { storage.signOut(); window.location.reload(); });
     return;
   }
@@ -1189,7 +1246,7 @@ function renderSignInPage() {
     const form = new FormData(e.currentTarget);
     const result = storage.signIn(form.get('email'), form.get('password'));
     $('#signin-notice').innerHTML = result.ok ? '<div class="notice">Signed in successfully. Taking you to your account…</div>' : `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">${result.message}</div>`;
-    if (result.ok) setTimeout(() => finishAuthFlow('account.html'), 300);
+    if (result.ok) { var _rt = (result.user.role === 'merchant' || result.user.role === 'venue') ? 'dashboard.html' : 'account.html'; setTimeout(() => finishAuthFlow(_rt), 300); }
   });
 }
 
@@ -1206,8 +1263,8 @@ function renderSignUpPage() {
     const form = new FormData(e.currentTarget);
     const result = storage.signUp({ name: form.get('name'), city: form.get('city'), email: form.get('email'), password: form.get('password') });
     $('#signup-notice').innerHTML = result.ok ? '<div class="notice">Account created successfully. Taking you to your profile…</div>' : `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">${result.message}</div>`;
-    if (result.ok) setTimeout(() => finishAuthFlow('account.html'), 300);
-  });
+    if (result.ok) { var _ut = (result.user.role === 'merchant' || result.user.role === 'venue') ? 'dashboard.html' : 'account.html'; setTimeout(() => finishAuthFlow(_ut), 300); }
+});
 }
 
 function renderAccountPage() {
@@ -1216,6 +1273,10 @@ function renderAccountPage() {
   if (!user) {
     storage.setPostAuthRedirect('account.html');
     window.location.href = 'searcher-account.html';
+    return;
+  }
+  if (user.role === 'merchant' || user.role === 'venue') {
+    window.location.href = 'dashboard.html';
     return;
   }
   app.innerHTML = `
