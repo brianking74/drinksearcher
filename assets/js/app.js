@@ -334,7 +334,7 @@ function navHTML(active = '') {
   const user = storage.getCurrentUser();
   const authActions = user
     ? `<a class="btn btn-ghost btn-small" href="account.html">${user.name || 'Account'}</a><a class="btn btn-ghost btn-small" href="dashboard.html">Dashboard</a><button class="btn btn-primary btn-small" id="signout-btn" type="button">Sign Out</button>`
-    : `<a class="btn btn-ghost btn-small" href="signin.html">Sign In</a><a class="btn btn-primary btn-small" href="signup.html">Sign Up</a>`;
+    : `<a class="btn btn-primary btn-small" href="searcher-account.html">Searcher Account</a>`;
   return `
     <div class="container nav-inner">
       <a class="logo" href="index.html">drinksearcher<span>.hk</span></a>
@@ -408,7 +408,7 @@ function saveItem(item) {
   if (!storage.getCurrentUser()) {
     storage.setPendingSave(item);
     storage.setPostAuthRedirect(currentPagePath());
-    window.location.href = 'signin.html?intent=save';
+    window.location.href = 'searcher-account.html?intent=save';
     return;
   }
   const saved = storage.getSaved();
@@ -1003,9 +1003,9 @@ function renderLeadCapturePage() {
   const selectedPlans = plans[requestedType] || plans.merchant;
   const signedInNote = user
     ? `<div class="notice">Signed in as ${user.email}. Your details are prefilled and any submission will appear in your account dashboard.</div>`
-    : `<div class="notice">Have an account already? <a class="text-jade" href="signin.html">Sign in</a> to prefill your details and track submissions.</div>`;
+    : `<div class="notice">Have an account already? <a class="text-jade" href="searcher-account.html">Sign in</a> to prefill your details and track submissions.</div>`;
   app.innerHTML = `
-    <section class="hero" style="min-height:62vh;"><div class="hero-media" style="background-image:url('${requestedType === 'venue' ? siteImages.rooftop : siteImages.shop}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">List your business / Claim your venue</span><h1>${requestedType === 'venue' ? 'Claim your venue and start turning visibility into bookings.' : 'List your business and start turning discovery into sales.'}</h1><p class="lead">Tell us about your business and we'll help match you with the right listing, profile, and visibility options.</p><div class="hero-actions"><a class="btn btn-primary" href="pricing.html">Back to pricing</a><a class="btn btn-ghost" href="${user ? 'account.html' : 'signin.html'}">${user ? 'My account' : 'Sign in'}</a></div></div><div class="search-shell"><span class="eyebrow">Application form</span>${signedInNote}<div class="notice">Start with the right listing and we’ll organise the details you need for profile, visibility, and next-step setup.</div><form id="lead-form" class="form-grid" style="margin-top:14px;"><select class="select full" name="listingType"><option value="merchant" ${requestedType === 'merchant' ? 'selected' : ''}>Supplier / Merchant</option><option value="venue" ${requestedType === 'venue' ? 'selected' : ''}>Bar / Restaurant / Venue</option></select><select class="select full" id="plan-select" name="planInterest"></select><input class="input" name="businessName" placeholder="Business name" required /><input class="input" name="contactName" placeholder="Contact name" value="${user?.name || ''}" required /><input class="input" name="email" type="email" placeholder="Email" value="${user?.email || ''}" required /><input class="input" name="phone" placeholder="Phone number" required /><input class="input" name="district" placeholder="Primary district / location" value="${user?.city || ''}" required /><input class="input" name="website" placeholder="Website / booking URL" /><input class="input full" name="social" placeholder="Instagram / social URL" /><textarea class="input full" name="notes" rows="5" placeholder="Tell us what you want to list, what plan you are interested in, and what makes the business special."></textarea><button class="btn btn-primary full" type="submit">Send enquiry</button></form><div id="lead-notice"></div></div></div></section>
+    <section class="hero" style="min-height:62vh;"><div class="hero-media" style="background-image:url('${requestedType === 'venue' ? siteImages.rooftop : siteImages.shop}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">List your business / Claim your venue</span><h1>${requestedType === 'venue' ? 'Claim your venue and start turning visibility into bookings.' : 'List your business and start turning discovery into sales.'}</h1><p class="lead">Tell us about your business and we'll help match you with the right listing, profile, and visibility options.</p><div class="hero-actions"><a class="btn btn-primary" href="pricing.html">Back to pricing</a><a class="btn btn-ghost" href="${user ? 'account.html' : 'searcher-account.html'}">${user ? 'My account' : 'Sign in'}</a></div></div><div class="search-shell"><span class="eyebrow">Application form</span>${signedInNote}<div class="notice">Start with the right listing and we’ll organise the details you need for profile, visibility, and next-step setup.</div><form id="lead-form" class="form-grid" style="margin-top:14px;"><select class="select full" name="listingType"><option value="merchant" ${requestedType === 'merchant' ? 'selected' : ''}>Supplier / Merchant</option><option value="venue" ${requestedType === 'venue' ? 'selected' : ''}>Bar / Restaurant / Venue</option></select><select class="select full" id="plan-select" name="planInterest"></select><input class="input" name="businessName" placeholder="Business name" required /><input class="input" name="contactName" placeholder="Contact name" value="${user?.name || ''}" required /><input class="input" name="email" type="email" placeholder="Email" value="${user?.email || ''}" required /><input class="input" name="phone" placeholder="Phone number" required /><input class="input" name="district" placeholder="Primary district / location" value="${user?.city || ''}" required /><input class="input" name="website" placeholder="Website / booking URL" /><input class="input full" name="social" placeholder="Instagram / social URL" /><textarea class="input full" name="notes" rows="5" placeholder="Tell us what you want to list, what plan you are interested in, and what makes the business special."></textarea><button class="btn btn-primary full" type="submit">Send enquiry</button></form><div id="lead-notice"></div></div></div></section>
     <section class="section"><div class="container grid grid-2"><div class="panel"><span class="eyebrow">What happens next</span><h2 style="margin:14px 0;">What happens next.</h2><div class="muted" style="display:grid; gap:12px;"><span>• We review your application and listing details.</span><span>• If you're signed in, your account information pre-fills automatically.</span><span>• We confirm the right plan, profile type, and any featured add-ons.</span><span>• Once approved, your business can appear across the directory, profile pages, and relevant discovery sections.</span></div></div><div class="panel"><span class="eyebrow">Why this matters</span><h2 style="margin:14px 0;">Why list on drinksearcher.hk.</h2><p class="muted">This is where suppliers and venues move from browsing to joining — with a clear path into profiles, product visibility, featured placements, and direct customer discovery.</p><div class="inline-actions" style="margin-top:18px;"><a class="btn btn-ghost btn-small" href="suppliers.html">View supplier directory</a><a class="btn btn-ghost btn-small" href="bars-restaurants.html">View venue directory</a></div></div></div></section>`;
 
   const typeField = $('[name="listingType"]', app);
@@ -1078,6 +1078,38 @@ function renderSupplierProfile() {
   }
 }
 
+function renderSearcherAccountPage() {
+  const app = $('#app');
+  const user = storage.getCurrentUser();
+  const hasPending = !!storage.getPendingSave() || new URLSearchParams(window.location.search).get('intent') === 'save';
+  if (user) {
+    app.innerHTML = `
+      <section class="hero" style="min-height:50vh;"><div class="hero-media" style="background-image:url('${siteImages.hero}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Searcher Account</span><h1>Welcome back, ${user.name || 'friend'}.</h1><p class="lead">Your account is already active. Head to your account to manage saved drinks, events, and venues.</p></div><div class="search-shell"><div class="inline-actions"><a class="btn btn-primary btn-block" href="account.html">Go to account</a><button id="inline-signout" class="btn btn-ghost btn-block" type="button">Sign out</button></div></div></div></section>`;
+    var so = document.getElementById('inline-signout');
+    if (so) so.addEventListener('click', function() { storage.signOut(); window.location.reload(); });
+    return;
+  }
+  app.innerHTML = `
+    <section class="hero" style="min-height:62vh;"><div class="hero-media" style="background-image:url('${siteImages.hero}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Searcher Account</span><h1>Your HK drinks shortlist, anywhere.</h1><p class="lead">Save bottles, venues, and events. Track your finds. One account for everything.</p></div></div></section>
+    <section class="section"><div class="container grid grid-2"><div class="search-shell"><span class="eyebrow">Welcome back</span><h3 style="margin:10px 0 4px;">Sign in</h3>${hasPending ? '<div class="notice">Sign in to finish saving the item you just selected.</div>' : ''}<form id="sa-signin-form" class="form-grid" style="margin-top:14px;"><input class="input full" name="email" type="email" placeholder="Email" required /><input class="input full" name="password" type="password" placeholder="Password" required /><button class="btn btn-primary full" type="submit">Sign In</button></form><div id="sa-signin-notice"></div></div><div class="search-shell"><span class="eyebrow">New here</span><h3 style="margin:10px 0 4px;">Create account</h3><form id="sa-signup-form" class="form-grid" style="margin-top:14px;"><input class="input" name="name" placeholder="Full name" required /><input class="input" name="city" placeholder="Preferred district" required /><input class="input full" name="email" type="email" placeholder="Email" required /><input class="input full" name="password" type="password" placeholder="Create password" required /><button class="btn btn-primary full" type="submit">Create Account</button></form><div id="sa-signup-notice"></div></div></div></section>`;
+  var signinForm = document.getElementById('sa-signin-form');
+  if (signinForm) signinForm.addEventListener('submit', function(e) {
+    e.preventDefault();
+    var form = new FormData(e.currentTarget);
+    var result = storage.signIn(form.get('email'), form.get('password'));
+    document.getElementById('sa-signin-notice').innerHTML = result.ok ? '<div class="notice">Signed in successfully. Taking you to your account…</div>' : '<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">' + result.message + '</div>';
+    if (result.ok) setTimeout(function() { finishAuthFlow('account.html'); }, 300);
+  });
+  var signupForm = document.getElementById('sa-signup-form');
+  if (signupForm) signupForm.addEventListener('submit', function(e) {
+    e.preventDefault();
+    var form = new FormData(e.currentTarget);
+    var result = storage.signUp({ name: form.get('name'), city: form.get('city'), email: form.get('email'), password: form.get('password') });
+    document.getElementById('sa-signup-notice').innerHTML = result.ok ? '<div class="notice">Account created successfully. Taking you to your profile…</div>' : '<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">' + result.message + '</div>';
+    if (result.ok) setTimeout(function() { finishAuthFlow('account.html'); }, 300);
+  });
+}
+
 function renderSignInPage() {
   const app = $('#app');
   const currentUser = storage.getCurrentUser();
@@ -1106,7 +1138,7 @@ function renderSignUpPage() {
     return;
   }
   app.innerHTML = `
-    <section class="hero" style="min-height:58vh;"><div class="hero-media" style="background-image:url('${siteImages.event}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Create account</span><h1>Create your account.</h1><p class="lead">Create an account to save bottles, venues, and events, track enquiries, and manage your business profile in one place.</p></div><div class="search-shell"><span class="eyebrow">Sign up</span><form id="signup-form" class="form-grid" style="margin-top:14px;"><input class="input" name="name" placeholder="Full name" required /><input class="input" name="city" placeholder="Preferred district" required /><input class="input full" name="email" type="email" placeholder="Email" required /><input class="input full" name="password" type="password" placeholder="Create password" required /><button class="btn btn-primary full" type="submit">Create account</button></form><div id="signup-notice"></div><p class="muted" style="margin-top:16px;">Already have an account? <a class="text-jade" href="signin.html">Sign in</a></p></div></div></section>`;
+    <section class="hero" style="min-height:58vh;"><div class="hero-media" style="background-image:url('${siteImages.event}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Create account</span><h1>Create your account.</h1><p class="lead">Create an account to save bottles, venues, and events, track enquiries, and manage your business profile in one place.</p></div><div class="search-shell"><span class="eyebrow">Sign up</span><form id="signup-form" class="form-grid" style="margin-top:14px;"><input class="input" name="name" placeholder="Full name" required /><input class="input" name="city" placeholder="Preferred district" required /><input class="input full" name="email" type="email" placeholder="Email" required /><input class="input full" name="password" type="password" placeholder="Create password" required /><button class="btn btn-primary full" type="submit">Create account</button></form><div id="signup-notice"></div><p class="muted" style="margin-top:16px;">Already have an account? <a class="text-jade" href="searcher-account.html">Sign in</a></p></div></div></section>`;
   $('#signup-form').addEventListener('submit', e => {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
@@ -1121,7 +1153,7 @@ function renderAccountPage() {
   const user = storage.getCurrentUser();
   if (!user) {
     storage.setPostAuthRedirect('account.html');
-    window.location.href = 'signin.html';
+    window.location.href = 'searcher-account.html';
     return;
   }
   app.innerHTML = `
@@ -1162,7 +1194,7 @@ function renderBusinessDashboardPage() {
   const user = storage.getCurrentUser();
   if (!user) {
     storage.setPostAuthRedirect(currentPagePath());
-    window.location.href = 'signin.html';
+    window.location.href = 'searcher-account.html';
     return;
   }
   const state = storage.getDashboardState();
@@ -1591,7 +1623,7 @@ function renderAdminDashboardPage() {
   const user = storage.getCurrentUser();
   if (!user) {
     storage.setPostAuthRedirect('admin.html');
-    window.location.href = 'signin.html';
+    window.location.href = 'searcher-account.html';
     return;
   }
   const state = storage.getAdminState();
@@ -1876,7 +1908,7 @@ document.addEventListener('DOMContentLoaded', () => {
     lead: '',
     dashboard: '',
     admin: '',
-    signin: '',
+    'searcher-account': '',
     signup: '',
     account: '',
     'venue-profile': 'Bars & Restaurants',
@@ -1894,6 +1926,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (page === 'admin') renderAdminDashboardPage();
   if (page === 'venue-profile') renderVenueProfile();
   if (page === 'supplier-profile') renderSupplierProfile();
+  if (page === 'searcher-account') renderSearcherAccountPage();
   if (page === 'signin') renderSignInPage();
   if (page === 'signup') renderSignUpPage();
   if (page === 'account') renderAccountPage();
