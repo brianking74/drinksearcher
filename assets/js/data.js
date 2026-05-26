@@ -88,7 +88,17 @@ const drinksInventory = [
   {name:'Junmai Flight Box', supplier:'Sake no Wa', supplierSlug:null, area:'Central', type:'Sake', price:'HK$420', image:'assets/images/sake.jpg', tier:'featured'},
   {name:'Botanical Gin Discovery Set', supplier:'Ginsanity', supplierSlug:'ginsanity', area:'Central', type:'Gin', price:'HK$760', image:'assets/images/gin-bar.jpg', tier:'enhanced', buy:'#'},
   {name:'Alcohol-Free Aperitif Bundle', supplier:'NoLo Bottles', supplierSlug:null, area:'Sheung Wan', type:'Non-Alcoholic', price:'HK$310', image:'assets/images/cocktail-bar.jpg', tier:'featured'},
-  {name:'Bordeaux Discovery Case', supplier:'La Cabane', supplierSlug:'lacabane', area:'Sheung Wan', type:'Wine', price:'HK$1,180', image:'assets/images/wine-bar.jpg', tier:'enhanced', buy:'#'}
+  {name:'Bordeaux Discovery Case', supplier:'La Cabane', supplierSlug:'lacabane', area:'Sheung Wan', type:'Wine', price:'HK$1,180', image:'assets/images/wine-bar.jpg', tier:'enhanced', buy:'#'},
+  {name:'Cincoro Silver Tequila', supplier:'HK Drinks', supplierSlug:'hkdrinks', area:'Central', type:'Tequila', price:'HK$998', image:'assets/images/cocktail-bar.jpg', tier:'enhanced', buy:'https://www.hkdrinks.shop/'},
+  {name:'Cincoro Reposado Tequila', supplier:'HK Drinks', supplierSlug:'hkdrinks', area:'Central', type:'Tequila', price:'HK$1,280', image:'assets/images/cocktail-bar.jpg', tier:'enhanced', buy:'https://www.hkdrinks.shop/'},
+  {name:'Cincoro Añejo Tequila', supplier:'HK Drinks', supplierSlug:'hkdrinks', area:'Central', type:'Tequila', price:'HK$1,480', image:'assets/images/cocktail-bar.jpg', tier:'enhanced', buy:'https://www.hkdrinks.shop/'},
+  {name:'Cincoro Extra Añejo Tequila', supplier:'HK Drinks', supplierSlug:'hkdrinks', area:'Central', type:'Tequila', price:'HK$2,680', image:'assets/images/cocktail-bar.jpg', tier:'enhanced', buy:'https://www.hkdrinks.shop/'},
+  {name:'Clase Azul Reposado Tequila', supplier:'HK Drinks', supplierSlug:'hkdrinks', area:'Central', type:'Tequila', price:'HK$2,380', image:'assets/images/cocktail-bar.jpg', tier:'featured'},
+  {name:'Clase Azul Añejo Tequila', supplier:'HK Drinks', supplierSlug:'hkdrinks', area:'Central', type:'Tequila', price:'HK$3,280', image:'assets/images/cocktail-bar.jpg', tier:'featured'},
+  {name:'Clase Azul Ultra Tequila', supplier:'HK Drinks', supplierSlug:'hkdrinks', area:'Central', type:'Tequila', price:'HK$8,880', image:'assets/images/cocktail-bar.jpg', tier:'enhanced', buy:'https://www.hkdrinks.shop/'},
+  {name:'Alfred GIRAUD Blanco Tequila', supplier:'HK Drinks', supplierSlug:'hkdrinks', area:'Central', type:'Tequila', price:'HK$1,180', image:'assets/images/cocktail-bar.jpg', tier:'enhanced', buy:'https://www.hkdrinks.shop/'},
+  {name:'Alfred GIRAUD Reposado Tequila', supplier:'HK Drinks', supplierSlug:'hkdrinks', area:'Central', type:'Tequila', price:'HK$1,480', image:'assets/images/cocktail-bar.jpg', tier:'featured'},
+  {name:'Alfred GIRAUD Añejo Tequila', supplier:'HK Drinks', supplierSlug:'hkdrinks', area:'Central', type:'Tequila', price:'HK$1,780', image:'assets/images/cocktail-bar.jpg', tier:'featured'}
 ];
 
 const eventsData = [
