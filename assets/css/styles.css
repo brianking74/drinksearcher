@@ -618,7 +618,7 @@ textarea:focus-visible {
 .carousel-track::-webkit-scrollbar { display: none; }
 .bottles-carousel > .card { flex: 0 0 calc((100% - 56px) / 5); min-width: 0; scroll-snap-align: start; }
 .homepage-bottle-card { min-height: auto; }
-.homepage-bottle-card .card-media { aspect-ratio: 1 / 1; }
+.homepage-bottle-card .card-media { aspect-ratio: 3 / 4; }
 .homepage-bottle-card .card-body { padding: 14px; gap: 8px; }
 .homepage-bottle-card .card-foot { padding: 0 14px 14px; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; }
 .homepage-bottle-card .card-foot .btn-primary { min-height: 46px; width: 100%; padding: 10px 12px; font-size: .8rem; }
