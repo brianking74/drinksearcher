@@ -556,7 +556,7 @@ function renderCard(item, options = {}) {
         ${overline ? `<div class="card-kicker">${overline}</div>` : ''}
         ${type === 'generic' ? `<div class="meta">${item.area ? `<span>${item.area}</span>` : ''}${item.cuisine ? `<span>${item.cuisine}</span>` : ''}${item.rating ? `<span>★ ${item.rating}</span>` : ''}</div>` : ''}
         <h3>${item.name}</h3>
-        ${item.description ? `<p class="${type === 'supplier' ? 'muted supplier-card-copy' : type === 'venue' ? 'muted venue-card-copy' : type === 'event' ? 'muted event-card-copy' : 'muted'}">${item.description}</p>` : ''}
+        ${item.description && type !== 'drink' ? `<p class="${type === 'supplier' ? 'muted supplier-card-copy' : type === 'venue' ? 'muted venue-card-copy' : type === 'event' ? 'muted event-card-copy' : 'muted'}">${item.description}</p>` : ''}
         ${detailTags.length ? `<div class="card-tags">${detailTags.map(tag => `<span class="info-pill${type === 'supplier' || type === 'event' ? ' subtle-pill' : ''}">${tag}</span>`).join('')}</div>` : ''}
         ${inlineMeta}
       </div>
@@ -1141,15 +1141,17 @@ function renderProductPage() {
         <div class="product-hero">
           <div class="product-hero-image"><img src="${img}" alt="${product.name}"></div>
           <div class="product-hero-info">
-            <span class="kicker">Product details</span>
             <h1>${product.name}</h1>
-            <p class="product-meta">${product.type}${product.abv ? ' · ' + product.abv : ''} · ${product.origin || ''}</p>
             <p class="muted">Available from <strong>${uniqueSuppliers}</strong> supplier${uniqueSuppliers > 1 ? 's' : ''}</p>
           </div>
         </div>
+        ${product.description ? `
+        <section class="product-description-section">
+          <div class="section-head"><div><span class="eyebrow">About this drink</span><h2>Product description</h2></div></div>
+          <p class="product-description">${product.description}</p>
+        </section>` : ''}
         <section class="product-details">
-          <div class="section-head"><div><span class="eyebrow">About this drink</span><h2>Product details</h2></div></div>
-          <p class="product-description">${product.description || ''}</p>
+          <div class="section-head"><div><span class="eyebrow">Specifications</span><h2>Product details</h2></div></div>
           <div class="info-strip">
             <div class="info-chip"><div class="muted">Origin</div><strong>${product.origin || '—'}</strong></div>
             <div class="info-chip"><div class="muted">ABV</div><strong>${product.abv || '—'}</strong></div>
