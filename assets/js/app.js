@@ -557,14 +557,7 @@ function bindCarouselButtons(scope = document) {
 
 function renderHomepage() {
   const app = $('#app');
-  const featuredDrinks = [
-    { name:'Château Margaux 2015', area:"Watson's Wine • Central", type:'Wine', price:'HK$7,980', image:'https://sspark.genspark.ai/cfimages?u1=HYxuWUXvNjTUE%2BBOamMTeKCBwd8J%2BjAwHV4s%2FCpJ%2BLNSoYykNK%2BiPnxLmM5iV2UPQS0lD7H%2F5nN1WNm3qrtwD7v6ER0KZqL%2FWdW%2FRk%2BaZNAo5ak2&u2=%2FcMqBkMC5B1mB%2Bxe&width=1024', buy:'https://www.watsonswine.com/' },
-    { name:'Yamazaki 12 Year Old', area:'Whisky & Words • Sheung Wan', type:'Whisky', price:'HK$1,880', image:'https://sspark.genspark.ai/cfimages?u1=WbIGltlVOd1X45AK9eKZBfejwnAXDcsGNmVNIOSxiu1j0K6%2FtC7MgBcqoQzcBDlagI%2B765Yi%2FG049O8eS%2Fea8emJW9qMQkjEkup4hEBScqC4i5A13PO8a%2Fva47O7xiOip%2F19Gnf6Fx5RrcFEWL0OM8wYpKp8azfTR7MJAlmhfGZW2g%3D%3D&u2=nvQ8W8yLHbrvJhe1&width=1024', buy:'drinks.html' },
-    { name:'Dassai 23 Junmai Daiginjo', area:'Sake Central • PMQ', type:'Sake', price:'HK$880', image:'https://sspark.genspark.ai/cfimages?u1=AE49xLLfrbNwJ2Hn99fzIsI2wpcYRrMO7Vh0EUINFqa5cAZHT7EHUwnDiW4YRnvbxJfcZMuyBruvXXDlYOaI0mnny4X8zax6SA%3D%3D&u2=ENcGQUtXVehEL91S&width=1024', buy:'https://www.sakecentral.com.hk/' },
-    { name:'Krug Grande Cuvée 170ème', area:'Ponti Wine Cellars • Causeway Bay', type:'Champagne', price:'HK$1,950', image:'https://sspark.genspark.ai/cfimages?u1=hiLjsS7vf1zio1tiogadllJHJZSp%2B5i11TTezkVAO6i15UxTnQSEmVJ9xdb3khHtvQGQwgy%2BXIiBkexIWpIK4BwLfP73i3iHPlSfDiPtoSHUhQ%3D%3D&u2=BMiemw7K6wPHZig5&width=1024', buy:'https://www.pontiwinecellars.com.hk/' },
-    { name:'Dom Pérignon Vintage 2013', area:'Berry Bros. & Rudd HK • Central', type:'Champagne', price:'HK$1,680', image:'https://sspark.genspark.ai/cfimages?u1=glilOzQhYhiLp5sLyes770i7e4DwLvbBeVsiLRMzjyfJO3ovkoNNSW6LrcYodXcOHMPZgBOXNxfrgygd2DdclrJyWrAtJDoTK2mHDHq8rTVgcIiM&u2=z2%2F7R4JbSxEZxb2q&width=1024', buy:'drinks.html' },
-    { name:'Opus One 2018', area:"Watson's Wine • Admiralty", type:'Wine', price:'HK$3,650', image:'https://sspark.genspark.ai/cfimages?u1=dw6iar7M%2F8kGHCzCgpyhoqT600wr0eJW%2BaNH5lHnOE9FlDlC3E2%2BrTVve8XGiyhDCIeglXCC31Ecnul3jStvyShHtHaWFmN%2BkEQjn9v7VgmiqtCUyJWvuCarZs3WYaq%2B&u2=prX1%2FMDbWvJ%2FCaou&width=1024', buy:'https://www.watsonswine.com/' }
-  ];
+  const featuredDrinks = drinksInventory.filter(d => d.supplier === 'HK Drinks').slice(0, 12).map(d => ({...d, area: d.supplier + ' · ' + d.area}));
   const featuredSuppliers = [
     { slug:'watsons-wine', name:"Watson's Wine", area:'Central · 1,200+ listings', tierLabel:'Wine Merchant', specialty:'Global cellar', image:'assets/images/watsons-wine.jpg', description:'Established wine retailer with an extensive global portfolio and a strong footprint across Hong Kong.' },
     { slug:'ponti', name:'Ponti Wine Cellars', area:'Central · 850+ listings', tierLabel:'Fine Wine', specialty:'Collector bottles', image:'assets/images/wine-shop.jpg', description:'Central-based specialist known for rare vintages, collector bottles, and a tightly curated premium cellar.' },
