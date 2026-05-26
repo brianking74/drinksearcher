@@ -327,9 +327,7 @@ function navHTML(active = '') {
     ['index.html','Home'],
     ['drinks.html','Drinks'],
     ['events.html','Events'],
-    ['bars-restaurants.html','Bars & Restaurants'],
-    ['suppliers.html','Suppliers'],
-    ['pricing.html','Pricing']
+    ['bars-restaurants.html','Bars & Restaurants']
   ];
   const user = storage.getCurrentUser();
   const authActions = user
