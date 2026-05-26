@@ -797,10 +797,12 @@ function renderDrinksPage() {
   app.innerHTML = `
     <section class="hero" style="min-height:56vh;"><div class="hero-media" style="background-image:url('${siteImages.trio}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Drinks</span><h1>Bottles actually available in Hong Kong.</h1><p class="lead">From cellar icons to sake, Champagne, beer, spirits, and no-alcohol discoveries — all routed to local suppliers.</p></div><div class="search-shell"><div class="search-tabs"><span class="search-tab active">Search results</span></div><div class="notice">Showing <strong>${filteredDrinks.length}</strong> drinks${query ? ` for “${query}”` : ''}${area ? ` in ${area}` : ''}.</div><div class="panel" style="padding:18px; background:transparent; border:none; box-shadow:none;"><div class="muted" style="display:grid; gap:10px;"><span>Direct links to local supplier stores</span><span>HK pricing and neighbourhood context</span><span>A mix of discovery bottles and everyday favourites</span></div></div></div></div></section>
     <section class="section"><div class="container"><div class="section-head"><div><span class="eyebrow">Featured bottles</span><h2>Popular drinks from Hong Kong suppliers.</h2></div></div>${filteredDrinks.length ? `<div class="grid grid-4">${filteredDrinks.map(d => renderCard({...d, tierLabel:d.tier==='enhanced' ? 'Available now' : 'Featured'}, {type:'drink', portrait:true, href:buildSearchHref('drinks.html', d.name, d.area), cta:d.tier==='enhanced' ? ctaLink('Buy online', d.buy || (d.supplier ? buildSearchHref('suppliers.html', d.supplier, d.area) : buildSearchHref('drinks.html', d.name, d.area)), 'btn btn-primary btn-small', 'View supplier') : ctaLink('View', d.supplier ? buildSearchHref('suppliers.html', d.supplier, d.area) : buildSearchHref('drinks.html', d.name, d.area), 'btn btn-ghost btn-small')})).join('')}</div>` : '<div class="empty-state">No drinks match that search yet. Try a broader bottle name, category, or area.</div>'}</div></section>`;
-  bindSaveButtons(app);
-}
-
-function renderEventsPage() {
+    bindSaveButtons(app);
+  if (typeof supplierSheetSources !== 'undefined' && supplierSheetSources[slug]) {
+    var el = document.getElementById('sheet-inventory-' + slug);
+    if (el) fetchAndRenderSheetInventory(slug, el);
+  }
+}function renderEventsPage() {
   const app = $('#app');
   const query = queryParam('q') || '';
   const area = queryParam('area') || '';
@@ -1069,9 +1071,10 @@ function renderSupplierProfile() {
   const app = $('#app');
   app.innerHTML = `
     <section class="profile-hero"><div class="hero-media" style="background-image:url('${profile.hero}')"></div><div class="container profile-content"><div><span class="kicker">Featured supplier</span><h1>${profile.name}</h1><p class="lead" style="margin-top:16px;">${profile.summary}</p><div class="info-strip"><div class="info-chip"><div class="muted">Area</div><strong>${profile.area}</strong></div><div class="info-chip"><div class="muted">Specialty</div><strong>${profile.specialty}</strong></div><div class="info-chip"><div class="muted">Website</div><strong>Online store</strong></div><div class="info-chip"><div class="muted">Listing</div><strong>Verified profile</strong></div></div></div><div class="panel"><span class="eyebrow">Quick actions</span><div class="inline-actions" style="margin-top:16px;"><a class="btn btn-primary" href="${profile.website}">Visit supplier website</a>${saveButton({id:`supplier:${slug}`, name:profile.name, kind:'supplier', href:`supplier-template.html?slug=${slug}`, meta:profile.area})}</div><hr class="sep"><div class="muted" style="display:grid; gap:8px;"><span>${profile.address}</span><span>${profile.phone}</span><span>${profile.specialty}</span></div></div></div></section>
-    <div class="anchor-nav"><div class="container"><a class="anchor-link active" href="#overview">Overview</a><a class="anchor-link" href="#catalogue">Catalogue</a><a class="anchor-link" href="#events">Events</a><a class="anchor-link" href="#reviews">Reviews</a><a class="anchor-link" href="#contact">Contact</a></div></div>
+    <div class="anchor-nav"><div class="container"><a class="anchor-link active" href="#overview">Overview</a><a class="anchor-link" href="#catalogue">Catalogue</a><a class="anchor-link" href="#inventory">Inventory</a><a class="anchor-link" href="#events">Events</a><a class="anchor-link" href="#reviews">Reviews</a><a class="anchor-link" href="#contact">Contact</a></div></div>
     <section id="overview" class="section"><div class="container split"><div><span class="eyebrow">Overview</span><h2>Why shoppers use this supplier.</h2><p class="lead" style="margin-top:16px;">Get a quick sense of what this merchant does best, the bottle categories they are known for, and the easiest route to browse or buy locally.</p></div><div class="panel"><div class="muted" style="display:grid; gap:12px;">${profile.sellingPoints.map(i => `<span>• ${i}</span>`).join('')}</div></div></div></section>
     <section id="catalogue" class="section-tight"><div class="container"><div class="section-head"><div><span class="eyebrow">Catalogue</span><h2>Bottles and categories to start with.</h2><p class="lead" style="margin-top:14px;">A quick sample of what this supplier is known for before you click through to the full shop.</p></div></div><div class="grid grid-3">${profile.catalogue.map(item => renderCard({name:item[0], area:profile.area, price:item[1], image:siteImages.shop, type:profile.specialty, description:'Sample bottle from this supplier'}, {type:'drink', cta:`<a class="btn btn-primary btn-small" href="${profile.website}">Buy from supplier</a>`})).join('')}</div></div></section>
+    <section id="inventory" class="section-tight" style="display:${typeof supplierSheetSources !== 'undefined' && supplierSheetSources[slug] ? 'block' : 'none'};"><div class="container"><div class="section-head"><div><span class="eyebrow">Live inventory</span><h2>Current stock from connected sheet.</h2><p class="lead" style="margin-top:14px;">Products loaded directly from this supplier&#39;s Google Sheet.</p></div></div><div id="sheet-inventory-${slug}"><p class="muted">Loading inventory...</p></div></div></section>
     <section id="events" class="section"><div class="container"><div class="section-head"><div><span class="eyebrow">Supplier events</span><h2>Tastings and activations worth watching.</h2><p class="lead" style="margin-top:14px;">A more visual event section so supplier tastings and launches feel like premium programming, not plain text.</p></div></div><div class="grid grid-2">${profile.events.map((evt, index) => renderCard({name:evt[0], area:profile.area, venue:profile.name, date:evt[1], image:[siteImages.event, siteImages.shop, siteImages.rooftop][index % 3], tierLabel:'Supplier event'}, {type:'event', className:'event-card', cta:`<a class="btn btn-primary btn-small" href="${profile.website}">Visit supplier</a>`})).join('')}</div></div></section>
     <section id="reviews" class="section-tight"><div class="container grid grid-2">${profile.reviews.map(r => `<div class="panel"><span class="eyebrow">Customer feedback</span><p style="margin-top:14px; font-size:1.05rem;">${r[0]}</p><p class="muted" style="margin-top:14px;">— ${r[1]}</p></div>`).join('')}</div></section>
     <section id="contact" class="section"><div class="container grid grid-2"><div class="panel"><span class="eyebrow">Contact</span><h3 style="margin:14px 0;">Ready to browse or buy?</h3><div class="muted" style="display:grid; gap:10px;"><span>${profile.address}</span><span>${profile.phone}</span><span><a href="${profile.website}">${profile.website}</a></span></div></div><div class="panel"><span class="eyebrow">Own this supplier listing?</span><h3 style="margin:14px 0;">Get your profile live</h3><p class="muted">Add your story, catalogue, and store links so shoppers can move from discovery to purchase more easily.</p><div class="inline-actions" style="margin-top:18px;"><a class="btn btn-primary btn-small" href="list-your-business.html?type=merchant&plan=merchant-enhanced">List your business</a></div></div></div></section>`;
@@ -1225,6 +1228,8 @@ function renderBusinessDashboardPage() {
                 <input class="input" name="phone" value="${config.phone}" placeholder="Phone" />
                 <input class="input" name="district" value="${config.district}" placeholder="District" />
                 <textarea class="input full" name="notes" rows="4" placeholder="Business notes">${config.notes}</textarea>
+                <input class="input" name="sheetUrl" value="${config.sheetUrl || ''}" placeholder="Google Sheet CSV URL (published to web)" />
+                <div class="small-note">Publish your Google Sheet: File → Share → Publish to web → CSV → copy URL. Products appear on your supplier listing page.</div>
                 <button class="btn btn-primary full" type="submit">Save listing settings</button>
               </form>
               <div id="dashboard-notice"></div>
@@ -1335,6 +1340,7 @@ function renderBusinessDashboardPage() {
       config.phone = form.get('phone');
       config.district = form.get('district');
       config.notes = form.get('notes');
+      config.sheetUrl = form.get('sheetUrl');
       persist();
       notice.innerHTML = '<div class="notice">Listing settings saved.</div>';
     });
@@ -1382,6 +1388,7 @@ function renderBusinessDashboardPage() {
           const imported = importItemsFromCSV(text);
           if (!imported.length) throw new Error('No inventory rows were detected.');
           config.items = mode === 'replace' ? imported : [...config.items, ...imported];
+          if (source.startsWith('http')) config.sheetUrl = source;
           persist();
           storage.addImportJob({
             businessName: config.listingName,
@@ -1465,6 +1472,25 @@ function adminMoneyLabel(planValue, listingType, billing) {
 function adminStatusChip(status) {
   const tone = String(status || '').toLowerCase().replace(/[^a-z]+/g, '-');
   return `<span class="status-chip ${tone}">${status}</span>`;
+}
+
+async function fetchAndRenderSheetInventory(slug, container) {
+  const sheetUrl = (typeof supplierSheetSources !== 'undefined' && supplierSheetSources[slug]) ? supplierSheetSources[slug] : null;
+  if (!sheetUrl) { container.innerHTML = ''; return; }
+  try {
+    const text = await loadImportSourceText(sheetUrl);
+    const items = importItemsFromCSV(text);
+    if (!items.length) {
+      container.innerHTML = '<p class="muted" style="padding:20px 0;">No inventory items found in the connected sheet.</p>';
+      return;
+    }
+    container.innerHTML = '<div class="grid grid-3">' + items.map(function(item) {
+      var sclass = String(item.availability || '').toLowerCase().replace(/[^a-z]+/g, '-');
+      return '<div class="card" style="border:1px solid rgba(189,161,111,.15);"><div class="card-content" style="padding:16px;"><h4 style="margin:0 0 6px;">' + item.name + '</h4><p class="lead" style="margin:0 0 6px;">' + item.price + '</p><span class="status-chip ' + sclass + '">' + item.availability + '</span></div></div>';
+    }).join('') + '</div>';
+  } catch (e) {
+    container.innerHTML = '<p class="muted" style="padding:20px 0;">Could not load live inventory. Check that the sheet URL is valid and published publicly.</p>';
+  }
 }
 
 function parseCSVRows(text) {

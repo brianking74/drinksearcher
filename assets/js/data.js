@@ -140,3 +140,9 @@ const supplierProfiles = {
     reviews:[['\u201cUseful example for brewery and craft suppliers.\u201d','Distributor'],['\u201cClear, modern and easy to edit offline.\u201d','Brian']]
   }
 };
+
+const supplierSheetSources = {
+  'young-master': 'assets/data/sample-inventory.csv',
+  'watsons-wine': 'assets/data/sample-inventory.csv',
+  'ponti': 'assets/data/sample-inventory.csv'
+};
