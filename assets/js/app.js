@@ -291,8 +291,34 @@ const storage = {
     });
     localStorage.setItem(dashKey, JSON.stringify(dashState));
     return { ok: true, user: user };
+  },
+  getUserListings() {
+    try { return JSON.parse(localStorage.getItem('ds_user_listings') || '[]'); } catch { return []; }
+  },
+  setUserListings(list) {
+    localStorage.setItem('ds_user_listings', JSON.stringify(list));
+  },
+  addUserListing(data) {
+    const list = this.getUserListings();
+    const entry = { ...data, id: `listing_${Date.now()}`, submittedAt: new Date().toISOString() };
+    list.unshift(entry);
+    this.setUserListings(list);
+    return entry;
   }
 };
+
+function mergeUserListings() {
+  const listings = storage.getUserListings();
+  listings.forEach(function(l) {
+    if (l.listingType === 'venue') {
+      var exists = typeof venueListings !== 'undefined' && venueListings.standard.some(function(v) { return v[0] === l.businessName; });
+      if (!exists && typeof venueListings !== 'undefined') venueListings.standard.unshift([l.businessName, l.district || 'TBD', l.phone || '—', 'Venue / Bar']);
+    } else {
+      var exists = typeof supplierListings !== 'undefined' && supplierListings.standard.some(function(s) { return s[0] === l.businessName; });
+      if (!exists && typeof supplierListings !== 'undefined') supplierListings.standard.unshift([l.businessName, l.district || 'TBD', l.phone || '—', 'Supplier / Merchant']);
+    }
+  });
+}
 
 function currentPagePath() {
   const file = window.location.pathname.split('/').pop() || 'index.html';
@@ -568,7 +594,7 @@ function renderHomepage() {
   const featuredSuppliers = [
     { slug:'watsons-wine', name:"Watson's Wine", area:'Central · 1,200+ listings', tierLabel:'Wine Merchant', specialty:'Global cellar', image:'assets/images/watsons-wine.jpg', description:'Established wine retailer with an extensive global portfolio and a strong footprint across Hong Kong.' },
     { slug:'ponti', name:'Ponti Wine Cellars', area:'Central · 850+ listings', tierLabel:'Fine Wine', specialty:'Collector bottles', image:'assets/images/wine-shop.jpg', description:'Central-based specialist known for rare vintages, collector bottles, and a tightly curated premium cellar.' },
-    { slug:'sake-central-supplier', name:'Sake Central', area:'PMQ, Central · 400+ listings', tierLabel:'Sake Specialist', specialty:'Tasting-led retail', image:'assets/images/sake-central-supplier.jpg', description:"A design-led sake retail and tasting destination with one of Hong Kong's broadest craft sake selections." },
+    { slug:'wine-not', name:'Wine Not', area:'Since 1996 · Premium selection', tierLabel:'Wine Merchant', specialty:'Hong Kong classic', image:'assets/images/wine-shop.jpg', description:'A long-standing Hong Kong wine institution offering a carefully curated selection of fine wines from around the world.', website:'https://www.winenot.com.hk/' },
     { slug:'young-master', name:'Young Master Ales', area:'Wong Chuk Hang · 45+ listings', tierLabel:'Craft Brewery', specialty:'Fresh local releases', image:'assets/images/young-master.png', description:"Hong Kong's flagship independent brewery, bringing locally brewed beers and fresh small-batch releases to market." }
   ];
   const featuredVenues = [
@@ -626,7 +652,7 @@ function renderHomepage() {
     <section class="section homepage-suppliers-section">
       <div class="container">
         <div class="section-head section-head-center"><div><span class="eyebrow">Directory</span><h2>Premium <span class="text-gold headline-script">suppliers</span></h2><p class="lead" style="margin-top:14px;">Merchants, specialists, and local producers presented more like an editorial shortlist than a generic directory grid.</p></div></div>
-        <div class="grid grid-4">${featuredSuppliers.map(s => renderCard(s, {type:'supplier', href:`supplier-template.html?slug=${s.slug}`, cta:`<a class="btn btn-primary btn-small" href="supplier-template.html?slug=${s.slug}">View</a>`})).join('')}</div>
+        <div class="grid grid-4">${featuredSuppliers.map(s => renderCard(s, {type:'supplier', href:s.website || `supplier-template.html?slug=${s.slug}`, cta:s.website ? `<a class="btn btn-primary btn-small" href="${s.website}" target="_blank">Visit website</a>` : `<a class="btn btn-primary btn-small" href="supplier-template.html?slug=${s.slug}">View</a>`})).join('')}</div>
       </div>
     </section>
 
@@ -733,6 +759,7 @@ function renderHomepage() {
 }
 
 function renderVenueDirectory() {
+  mergeUserListings();
   const app = $('#app');
   app.innerHTML = `
     <nav class="breadcrumb"><a href="index.html">Home</a><span class="sep">/</span><span>Bars & Restaurants</span></nav>
@@ -787,6 +814,7 @@ function renderVenueDirectory() {
 }
 
 function renderSupplierDirectory() {
+  mergeUserListings();
   const app = $('#app');
   app.innerHTML = `
     <nav class="breadcrumb"><a href="index.html">Home</a><span class="sep">/</span><span>Suppliers</span></nav>
@@ -1030,11 +1058,10 @@ function renderLeadCapturePage() {
   const typeField = $('[name="listingType"]', app);
   const leadNotice = $('#lead-notice', app);
 
-  $('#lead-form').addEventListener('submit', e => {
+  $('#lead-form').addEventListener('submit', function(e) {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
-    const lead = storage.addLead({
-      accountEmail: user?.email || '',
+    const formData = {
       listingType: form.get('listingType'),
       businessName: form.get('businessName'),
       contactName: form.get('contactName'),
@@ -1042,13 +1069,52 @@ function renderLeadCapturePage() {
       phone: form.get('phone'),
       district: form.get('district'),
       website: form.get('website'),
-
       notes: form.get('notes'),
-      source
+      source: source
+    };
+    if (user) {
+      storage.addUserListing(formData);
+      if (typeof storage.updateDashboardState === 'function') {
+        storage.updateDashboardState(user.email, {
+          businessName: formData.businessName,
+          contactEmail: formData.email,
+          phone: formData.phone,
+          district: formData.district
+        });
+      }
+      leadNotice.innerHTML = '<div class="notice">Your <strong>' + formData.businessName + '</strong> listing has been added to your account and is now visible in the directory.</div>';
+      setTimeout(function() { window.location.href = 'dashboard.html'; }, 2000);
+      return;
+    }
+    var password = 'welcome' + Math.floor(1000 + Math.random() * 9000);
+    var signUpResult = storage.signUp({
+      name: formData.contactName,
+      email: formData.email,
+      password: password,
+      role: formData.listingType === 'venue' ? 'venue' : 'merchant',
+      city: formData.district
     });
-    leadNotice.innerHTML = `<div class="notice">Thanks — your enquiry for <strong>${lead.businessName}</strong> has been received. ${user ? 'You can review it in your account dashboard.' : 'Create or sign into an account later to connect submissions to a profile.'}</div>`;
-    if (user) setTimeout(() => { window.location.href = 'account.html'; }, 450);
-    else e.currentTarget.reset();
+    if (!signUpResult.ok) {
+      leadNotice.innerHTML = '<div class="notice">' + signUpResult.message + '</div>';
+      return;
+    }
+    storage.addUserListing(formData);
+    if (typeof storage.updateDashboardState === 'function') {
+      storage.updateDashboardState(formData.email, {
+        businessName: formData.businessName,
+        contactEmail: formData.email,
+        phone: formData.phone,
+        district: formData.district
+      });
+    }
+    leadNotice.innerHTML = '<div class="notice">Welcome to drinksearcher.hk!<br><br>' +
+      'Your <strong>' + formData.businessName + '</strong> listing has been created and is now visible in the directory.' +
+      '<br><br><strong>Sign-in details:</strong><br>' +
+      'Email: ' + formData.email + '<br>' +
+      'Password: ' + password +
+      '<br><br>Redirecting to your dashboard...</div>';
+    setTimeout(function() { window.location.href = 'dashboard.html'; }, 2500);
+    storage.clearPostAuthRedirect();
   });
 }
 
