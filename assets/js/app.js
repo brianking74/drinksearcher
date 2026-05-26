@@ -1118,18 +1118,28 @@ function renderSearcherAccountPage() {
       phone: '+852 6119 4233',
       district: 'Central',
       items: [
-        { name: 'Cincoro Silver Tequila (750ml)', price: 'HK$998', availability: 'In stock', visibility: 'Featured' },
-        { name: 'Cincoro Reposado Tequila (750ml)', price: 'HK$1,280', availability: 'In stock', visibility: 'Featured' },
-        { name: 'Cincoro Añejo Tequila (750ml)', price: 'HK$1,480', availability: 'In stock', visibility: 'Enhanced' },
-        { name: 'Cincoro Extra Añejo Tequila (750ml)', price: 'HK$2,680', availability: 'Low stock', visibility: 'Featured' },
-        { name: 'Clase Azul Reposado Tequila (750ml)', price: 'HK$2,380', availability: 'In stock', visibility: 'Enhanced' },
-        { name: 'Clase Azul Añejo Tequila (750ml)', price: 'HK$3,280', availability: 'Pre-order', visibility: 'Enhanced' },
-        { name: 'Clase Azul Ultra Tequila (750ml)', price: 'HK$8,880', availability: 'In stock', visibility: 'Featured' },
-        { name: 'Alfred GIRAUD Blanco Tequila (750ml)', price: 'HK$1,180', availability: 'In stock', visibility: 'Featured' },
-        { name: 'Alfred GIRAUD Reposado Tequila (750ml)', price: 'HK$1,480', availability: 'In stock', visibility: 'Enhanced' },
-        { name: 'Alfred GIRAUD Añejo Tequila (750ml)', price: 'HK$1,780', availability: 'In stock', visibility: 'Enhanced' },
-        { name: 'Sierra Milenario Reposado (750ml)', price: 'HK$780', availability: 'In stock', visibility: 'Enhanced' },
-        { name: 'Tears of Llorona Extra Añejo (750ml)', price: 'HK$3,880', availability: 'Low stock', visibility: 'Featured' }
+        { name: 'Cincoro Blanco Tequila', price: 'HK$1,498', availability: 'In stock', visibility: 'Featured' },
+        { name: 'Cincoro Reposado Tequila', price: 'HK$1,898', availability: 'In stock', visibility: 'Featured' },
+        { name: 'Cincoro Anejo Tequila', price: 'HK$2,288', availability: 'In stock', visibility: 'Featured' },
+        { name: 'Cincoro Extra Anejo Tequila', price: 'HK$15,988', availability: 'In stock', visibility: 'Enhanced' },
+        { name: 'Cincoro Gold Tequila', price: 'HK$3,488', availability: 'In stock', visibility: 'Enhanced' },
+        { name: 'Cincoro Collection (6 bottles)', price: 'HK$24,498', availability: 'Pre-order', visibility: 'Featured' },
+        { name: 'Clase Azul Plata', price: 'HK$1,898', availability: 'In stock', visibility: 'Enhanced' },
+        { name: 'Clase Azul Reposado', price: 'HK$1,898', availability: 'In stock', visibility: 'Enhanced' },
+        { name: 'Clase Azul Gold', price: 'HK$3,998', availability: 'In stock', visibility: 'Enhanced' },
+        { name: 'Clase Azul Anejo', price: 'HK$8,198', availability: 'Pre-order', visibility: 'Featured' },
+        { name: 'Clase Azul Ultra', price: 'HK$29,888', availability: 'Pre-order', visibility: 'Featured' },
+        { name: 'Clase Azul Durango Mezcal', price: 'HK$4,498', availability: 'In stock', visibility: 'Enhanced' },
+        { name: 'Clase Azul Guerrero Mezcal', price: 'HK$4,498', availability: 'In stock', visibility: 'Enhanced' },
+        { name: 'Clase Azul San Luis Potosi Mezcal', price: 'HK$4,998', availability: 'In stock', visibility: 'Enhanced' },
+        { name: 'Clase Azul Ahumado', price: 'HK$3,898', availability: 'In stock', visibility: 'Enhanced' },
+        { name: 'Clase Azul Spirit of Champions', price: 'HK$17,998', availability: 'Pre-order', visibility: 'Featured' },
+        { name: 'Alfred GIRAUD Heritage 700ml', price: 'HK$1,668', availability: 'In stock', visibility: 'Featured' },
+        { name: 'Alfred GIRAUD Harmonie 700ml', price: 'HK$2,578', availability: 'In stock', visibility: 'Enhanced' },
+        { name: 'Alfred GIRAUD Voyage 700ml', price: 'HK$2,588', availability: 'In stock', visibility: 'Enhanced' },
+        { name: 'Alfred GIRAUD Intrigue 700ml', price: 'HK$4,718', availability: 'Pre-order', visibility: 'Featured' },
+        { name: 'Alfred GIRAUD Horizon 700ml', price: 'HK$1,768', availability: 'In stock', visibility: 'Enhanced' },
+        { name: 'Alfred GIRAUD Une Odyssee 700ml', price: 'HK$24,988', availability: 'Pre-order', visibility: 'Featured' }
       ]
     });
     if (result.ok) {
@@ -1160,7 +1170,8 @@ function renderSearcherAccountPage() {
     var password = form.get('password');
     var result = storage.signIn(email, password);
     if (!result.ok && email === 'hkdrinks@demo.hk' && password === 'demo123') {
-      result = storage.seedDemoAccount(email, password, 'HK Drinks', { businessName:'HK Drinks — Premium Spirits & Tequila', contactEmail:'info@hkdrinks.shop', phone:'+852 6119 4233', district:'Central', items:[ {name:'Cincoro Silver Tequila (750ml)',price:'HK$998'},{name:'Cincoro Reposado Tequila (750ml)',price:'HK$1,280'},{name:'Cincoro Añejo Tequila (750ml)',price:'HK$1,480'},{name:'Cincoro Extra Añejo Tequila (750ml)',price:'HK$2,680'},{name:'Clase Azul Reposado Tequila (750ml)',price:'HK$2,380'},{name:'Clase Azul Añejo Tequila (750ml)',price:'HK$3,280'},{name:'Clase Azul Ultra Tequila (750ml)',price:'HK$8,880'},{name:'Alfred GIRAUD Blanco Tequila (750ml)',price:'HK$1,180'},{name:'Alfred GIRAUD Reposado Tequila (750ml)',price:'HK$1,480'},{name:'Alfred GIRAUD Añejo Tequila (750ml)',price:'HK$1,780'},{name:'Sierra Milenario Reposado (750ml)',price:'HK$780'},{name:'Tears of Llorona Extra Añejo (750ml)',price:'HK$3,880'}] });
+      result = storage.seedDemoAccount(email, password, 'HK Drinks', { businessName:'HK Drinks — Premium Spirits & Tequila', contactEmail:'info@hkdrinks.shop', phone:'+852 6119 4233', district:'Central', items:[ {name:'Cincoro Blanco Tequila',price:'HK$1,498'},{name:'Cincoro Reposado Tequila',price:'HK$1,898'},{name:'Cincoro Anejo Tequila',price:'HK$2,288'},{name:'Cincoro Extra Anejo Tequila',price:'HK$15,988'},{name:'Cincoro Gold Tequila',price:'HK$3,488'},{name:'Cincoro Collection (6 bottles)',price:'HK$24,498'},{name:'Clase Azul Plata',price:'HK$1,898'},{name:'Clase Azul Reposado',price:'HK$1,898'},{name:'Clase Azul Gold',price:'HK$3,998'},{name:'Clase Azul Anejo',price:'HK$8,198'},{name:'Clase Azul Ultra',price:'HK$29,888'},{name:'Clase Azul Durango Mezcal',price:'HK$4,498'},{name:'Clase Azul Guerrero Mezcal',price:'HK$4,498'},{name:'Clase Azul San Luis Potosi Mezcal',price:'HK$4,998'},{name:'Clase Azul Ahumado',price:'HK$3,898'},{name:'Clase Azul Spirit of Champions',price:'HK$17,998'},{name:'Alfred GIRAUD Heritage 700ml',price:'HK$1,668'},{name:'Alfred GIRAUD Harmonie 700ml',price:'HK$2,578'},{name:'Alfred GIRAUD Voyage 700ml',price:'HK$2,588'},{name:'Alfred GIRAUD Intrigue 700ml',price:'HK$4,718'},{name:'Alfred GIRAUD Horizon 700ml',price:'HK$1,768'},{name:'Alfred GIRAUD Une Odyssee 700ml',price:'HK$24,988'}] });
+
       if (result.ok) { storage.clearPostAuthRedirect(); window.location.href = 'dashboard.html'; return; }
     }
     document.getElementById('sa-signin-notice').innerHTML = result.ok ? '<div class="notice">Signed in successfully. Taking you to your account…</div>' : '<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">' + result.message + '</div>';
