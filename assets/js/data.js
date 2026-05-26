@@ -138,11 +138,20 @@ const supplierProfiles = {
     catalogue:[['Neon City Pale Ale','HK$28'],['Classic Pale Ale','HK$30'],['Cha Chaan Teng Gose','HK$34'],['1842 Island IPA','HK$36'],['Winter Stout Reserve','HK$42'],['Brewery Mixed Case','HK$198']],
     events:[['Brewery Night Market Collab','29 Nov'],['Tap Takeover Series','7 Dec']],
     reviews:[['\u201cUseful example for brewery and craft suppliers.\u201d','Distributor'],['\u201cClear, modern and easy to edit offline.\u201d','Brian']]
+  },
+  'hkdrinks': {
+    name:'HK Drinks', area:'Central', specialty:'Premium Spirits & Tequila', address:'Shop 8, 18 On Lan Street, Central, Hong Kong', phone:'+852 6119 4233', website:'https://www.hkdrinks.shop/', hero:'assets/images/hongkong-view.jpg',
+    summary:'HK Drinks is Hong Kong\'s premium tequila and spirits specialist. Stocking Cincoro, Clase Azul, and Alfred GIRAUD — direct from the world\'s finest distilleries.',
+    sellingPoints:['Authorised Cincoro Tequila retailer','Clase Azul boutique partner','Alfred GIRAUD cognac house stockist','Direct-from-sheet live inventory'],
+    catalogue:[['Cincoro Blanco Tequila','HK$1,498'],['Cincoro Reposado Tequila','HK$1,898'],['Cincoro Anejo Tequila','HK$2,288'],['Clase Azul Reposado','HK$1,898'],['Clase Azul Gold','HK$3,998'],['Alfred GIRAUD Heritage','HK$1,668']],
+    events:[['Cincoro Tasting Evening','15 Jan'],['Clase Azul Masterclass','22 Feb']],
+    reviews:[['\u201cBest selection of ultra-premium tequila in Hong Kong.\u201d','Tequila Enthusiast'],['\u201cSmooth delivery, beautifully presented bottles.\u201d','Catherine L.']]
   }
 };
 
 const supplierSheetSources = {
   'young-master': 'assets/data/sample-inventory.csv',
   'watsons-wine': 'assets/data/sample-inventory.csv',
-  'ponti': 'assets/data/sample-inventory.csv'
+  'ponti': 'assets/data/sample-inventory.csv',
+  'hkdrinks': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSsKcjpx8kkJntoxwLN386ofRV96EI_yOOOSaGEcNgpoUEFIb1bVVnz8l0dsQcbtugcla891vEP2V5Q/pub?output=csv'
 };

@@ -1486,7 +1486,8 @@ async function fetchAndRenderSheetInventory(slug, container) {
     }
     container.innerHTML = '<div class="grid grid-3">' + items.map(function(item) {
       var sclass = String(item.availability || '').toLowerCase().replace(/[^a-z]+/g, '-');
-      return '<div class="card" style="border:1px solid rgba(189,161,111,.15);"><div class="card-content" style="padding:16px;"><h4 style="margin:0 0 6px;">' + item.name + '</h4><p class="lead" style="margin:0 0 6px;">' + item.price + '</p><span class="status-chip ' + sclass + '">' + item.availability + '</span></div></div>';
+      var imgHtml = item.image ? '<div class="card-img-wrap" style="height:160px;overflow:hidden;background:#141414;"><img src="' + item.image + '" alt="' + item.name + '" style="width:100%;height:100%;object-fit:cover;" loading="lazy" onerror="this.style.display=\'none\'" /></div>' : '';
+      return '<div class="card" style="border:1px solid rgba(189,161,111,.15);">' + imgHtml + '<div class="card-content" style="padding:16px;"><h4 style="margin:0 0 6px;">' + item.name + '</h4><p class="lead" style="margin:0 0 6px;">' + item.price + '</p><span class="status-chip ' + sclass + '">' + item.availability + '</span></div></div>';
     }).join('') + '</div>';
   } catch (e) {
     container.innerHTML = '<p class="muted" style="padding:20px 0;">Could not load live inventory. Check that the sheet URL is valid and published publicly.</p>';
@@ -1556,6 +1557,7 @@ function importItemsFromCSV(text) {
   const priceIndex = inventoryColumnIndex(headers, ['price', 'unit price', 'sale price']);
   const availabilityIndex = inventoryColumnIndex(headers, ['availability', 'stock status', 'stock', 'inventory', 'status']);
   const visibilityIndex = inventoryColumnIndex(headers, ['visibility', 'tier', 'listing tier']);
+  const imageIndex = inventoryColumnIndex(headers, ['image url', 'image', 'photo', 'img']);
   const items = rows.slice(1).map((row, index) => {
     const name = row[nameIndex] || row[0];
     if (!name) return null;
@@ -1564,7 +1566,8 @@ function importItemsFromCSV(text) {
       name: name.trim(),
       price: normalizeImportPrice(row[priceIndex]),
       availability: normalizeImportAvailability(row[availabilityIndex]),
-      visibility: row[visibilityIndex] || 'Enhanced'
+      visibility: row[visibilityIndex] || 'Enhanced',
+      image: row[imageIndex] || ''
     };
   }).filter(Boolean);
   return items;
