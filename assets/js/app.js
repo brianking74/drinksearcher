@@ -261,6 +261,35 @@ const storage = {
       notes: job.notes || ''
     });
     this.setAdminState(state);
+  },
+  seedDemoAccount(email, password, name, opts) {
+    email = String(email || '').trim().toLowerCase();
+    if (!email || !password) return { ok: false, message: 'Email and password required.' };
+    var users = this.getUsers();
+    var existing = users.find(function(u) { return u.email === email; });
+    if (existing) {
+      this.setCurrentUser(email);
+      return { ok: true, user: existing, existed: true };
+    }
+    var user = { name: name || email.split('@')[0], email: email, password: password, city: (opts && opts.city) || '', createdAt: new Date().toISOString() };
+    users.push(user);
+    this.setUsers(users);
+    this.setCurrentUser(email);
+    var dashKey = 'ds_dashboard_' + email;
+    var dashState = this.getDashboardStateForEmail(email) || this.defaultDashboardState(user);
+    if (opts && opts.dashboard) {
+      Object.assign(dashState, opts.dashboard);
+    }
+    dashState.merchant.listingName = (opts && opts.businessName) || (name || email.split('@')[0]) + "'s Listing";
+    if (opts && opts.businessName) dashState.merchant.listingName = opts.businessName;
+    if (opts && opts.contactEmail) dashState.merchant.contactEmail = opts.contactEmail;
+    if (opts && opts.phone) dashState.merchant.phone = opts.phone;
+    if (opts && opts.district) { dashState.merchant.district = opts.district; dashState.venue.district = opts.district; }
+    if (opts && opts.items) dashState.merchant.items = opts.items.map(function(it, i) {
+      return { id: 'm' + (i+1), name: it.name, price: it.price || '—', availability: it.availability || 'In stock', visibility: it.visibility || 'Enhanced' };
+    });
+    localStorage.setItem(dashKey, JSON.stringify(dashState));
+    return { ok: true, user: user };
   }
 };
 
@@ -1078,6 +1107,35 @@ function renderSupplierProfile() {
 
 function renderSearcherAccountPage() {
   const app = $('#app');
+  var params = new URLSearchParams(window.location.search);
+  if (params.get('seed') === 'hkdrinks') {
+    var result = storage.seedDemoAccount('hkdrinks@demo.hk', 'demo123', 'HK Drinks', {
+      businessName: 'HK Drinks — Premium Spirits & Tequila',
+      contactEmail: 'info@hkdrinks.shop',
+      phone: '+852 6119 4233',
+      district: 'Central',
+      items: [
+        { name: 'Cincoro Silver Tequila (750ml)', price: 'HK$998', availability: 'In stock', visibility: 'Featured' },
+        { name: 'Cincoro Reposado Tequila (750ml)', price: 'HK$1,280', availability: 'In stock', visibility: 'Featured' },
+        { name: 'Cincoro Añejo Tequila (750ml)', price: 'HK$1,480', availability: 'In stock', visibility: 'Enhanced' },
+        { name: 'Cincoro Extra Añejo Tequila (750ml)', price: 'HK$2,680', availability: 'Low stock', visibility: 'Featured' },
+        { name: 'Clase Azul Reposado Tequila (750ml)', price: 'HK$2,380', availability: 'In stock', visibility: 'Enhanced' },
+        { name: 'Clase Azul Añejo Tequila (750ml)', price: 'HK$3,280', availability: 'Pre-order', visibility: 'Enhanced' },
+        { name: 'Clase Azul Ultra Tequila (750ml)', price: 'HK$8,880', availability: 'In stock', visibility: 'Featured' },
+        { name: 'Alfred GIRAUD Blanco Tequila (750ml)', price: 'HK$1,180', availability: 'In stock', visibility: 'Featured' },
+        { name: 'Alfred GIRAUD Reposado Tequila (750ml)', price: 'HK$1,480', availability: 'In stock', visibility: 'Enhanced' },
+        { name: 'Alfred GIRAUD Añejo Tequila (750ml)', price: 'HK$1,780', availability: 'In stock', visibility: 'Enhanced' },
+        { name: 'Sierra Milenario Reposado (750ml)', price: 'HK$780', availability: 'In stock', visibility: 'Enhanced' },
+        { name: 'Tears of Llorona Extra Añejo (750ml)', price: 'HK$3,880', availability: 'Low stock', visibility: 'Featured' }
+      ]
+    });
+    if (result.ok) {
+      app.innerHTML = '<section class="hero" style="min-height:50vh;"><div class="hero-media" style="background-image:url(\'' + siteImages.hero + '\')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Demo Account Seeded</span><h1>Ready to explore.</h1><p class="lead">HK Drinks account is ready. You\'re signed in — head to the dashboard to see the full supplier panel.</p></div><div class="search-shell"><a class="btn btn-primary btn-block" href="dashboard.html">Go to Dashboard</a></div></div></section>';
+    } else {
+      app.innerHTML = '<section class="hero" style="min-height:50vh;"><div class="container hero-grid"><div class="hero-copy"><h1>Something went wrong</h1><p class="lead">' + result.message + '</p></div></div></section>';
+    }
+    return;
+  }
   const user = storage.getCurrentUser();
   const hasPending = !!storage.getPendingSave() || new URLSearchParams(window.location.search).get('intent') === 'save';
   if (user) {
@@ -1089,7 +1147,7 @@ function renderSearcherAccountPage() {
   }
   app.innerHTML = `
     <section class="hero" style="min-height:62vh;"><div class="hero-media" style="background-image:url('${siteImages.hero}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Searcher Account</span><h1>Your HK drinks shortlist, anywhere.</h1><p class="lead">Save bottles, venues, and events. Track your finds. One account for everything.</p></div></div></section>
-    <section class="section"><div class="container grid grid-2"><div class="search-shell"><span class="eyebrow">Welcome back</span><h3 style="margin:10px 0 4px;">Sign in</h3>${hasPending ? '<div class="notice">Sign in to finish saving the item you just selected.</div>' : ''}<form id="sa-signin-form" class="form-grid" style="margin-top:14px;"><input class="input full" name="email" type="email" placeholder="Email" required /><input class="input full" name="password" type="password" placeholder="Password" required /><button class="btn btn-primary full" type="submit">Sign In</button></form><div id="sa-signin-notice"></div></div><div class="search-shell"><span class="eyebrow">New here</span><h3 style="margin:10px 0 4px;">Create account</h3><form id="sa-signup-form" class="form-grid" style="margin-top:14px;"><input class="input" name="name" placeholder="Full name" required /><input class="input" name="city" placeholder="Preferred district" required /><input class="input full" name="email" type="email" placeholder="Email" required /><input class="input full" name="password" type="password" placeholder="Create password" required /><button class="btn btn-primary full" type="submit">Create Account</button></form><div id="sa-signup-notice"></div></div></div></section>`;
+    <section class="section"><div class="container grid grid-2"><div class="search-shell"><span class="eyebrow">Welcome back</span><h3 style="margin:10px 0 4px;">Sign in</h3>${hasPending ? '<div class="notice">Sign in to finish saving the item you just selected.</div>' : ''}<form id="sa-signin-form" class="form-grid" style="margin-top:14px;"><input class="input full" name="email" type="email" placeholder="Email" required /><input class="input full" name="password" type="password" placeholder="Password" required /><button class="btn btn-primary full" type="submit">Sign In</button></form><div id="sa-signin-notice"></div></div><div class="search-shell"><span class="eyebrow">New here</span><h3 style="margin:10px 0 4px;">Create account</h3><form id="sa-signup-form" class="form-grid" style="margin-top:14px;"><input class="input" name="name" placeholder="Full name" required /><input class="input full" name="email" type="email" placeholder="Email" required /><input class="input full" name="password" type="password" placeholder="Create password" required /><button class="btn btn-primary full" type="submit">Create Account</button></form><div id="sa-signup-notice"></div></div></div></section>`;
   var signinForm = document.getElementById('sa-signin-form');
   if (signinForm) signinForm.addEventListener('submit', function(e) {
     e.preventDefault();
@@ -1102,7 +1160,7 @@ function renderSearcherAccountPage() {
   if (signupForm) signupForm.addEventListener('submit', function(e) {
     e.preventDefault();
     var form = new FormData(e.currentTarget);
-    var result = storage.signUp({ name: form.get('name'), city: form.get('city'), email: form.get('email'), password: form.get('password') });
+    var result = storage.signUp({ name: form.get('name'), email: form.get('email'), password: form.get('password') });
     document.getElementById('sa-signup-notice').innerHTML = result.ok ? '<div class="notice">Account created successfully. Taking you to your profile…</div>' : '<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">' + result.message + '</div>';
     if (result.ok) setTimeout(function() { finishAuthFlow('account.html'); }, 300);
   });
