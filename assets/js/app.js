@@ -1214,7 +1214,11 @@ function renderSearcherAccountPage() {
       if (result.ok) { storage.clearPostAuthRedirect(); window.location.href = 'dashboard.html'; return; }
     }
     document.getElementById('sa-signin-notice').innerHTML = result.ok ? '<div class="notice">Signed in successfully. Taking you to your account…</div>' : '<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">' + result.message + '</div>';
-    if (result.ok) { var _role = (result.user.role === 'merchant' || result.user.role === 'venue') ? 'dashboard.html' : 'account.html'; setTimeout(function() { finishAuthFlow(_role); }, 300); }
+    if (result.ok) {
+      var role = result.user.role;
+      storage.clearPostAuthRedirect();
+      setTimeout(function() { finishAuthFlow(role === 'merchant' || role === 'venue' ? 'dashboard.html' : 'account.html'); }, 300);
+    }
   });
   var signupForm = document.getElementById('sa-signup-form');
   if (signupForm) signupForm.addEventListener('submit', function(e) {
@@ -1222,7 +1226,7 @@ function renderSearcherAccountPage() {
     var form = new FormData(e.currentTarget);
     var result = storage.signUp({ name: form.get('name'), email: form.get('email'), password: form.get('password') });
     document.getElementById('sa-signup-notice').innerHTML = result.ok ? '<div class="notice">Account created successfully. Taking you to your profile…</div>' : '<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">' + result.message + '</div>';
-    if (result.ok) setTimeout(function() { finishAuthFlow('account.html'); }, 300);
+    if (result.ok) { storage.clearPostAuthRedirect(); setTimeout(function() { finishAuthFlow('account.html'); }, 300); }
   });
   var bizForm = document.getElementById('sa-biz-form');
   if (bizForm) bizForm.addEventListener('submit', function(e) {
@@ -1296,7 +1300,7 @@ function renderSignInPage() {
     const form = new FormData(e.currentTarget);
     const result = storage.signIn(form.get('email'), form.get('password'));
     $('#signin-notice').innerHTML = result.ok ? '<div class="notice">Signed in successfully. Taking you to your account…</div>' : `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">${result.message}</div>`;
-    if (result.ok) { var _rt = (result.user.role === 'merchant' || result.user.role === 'venue') ? 'dashboard.html' : 'account.html'; setTimeout(() => finishAuthFlow(_rt), 300); }
+    if (result.ok) { storage.clearPostAuthRedirect(); var _rt = (result.user.role === 'merchant' || result.user.role === 'venue') ? 'dashboard.html' : 'account.html'; setTimeout(() => finishAuthFlow(_rt), 300); }
   });
 }
 
@@ -1313,7 +1317,7 @@ function renderSignUpPage() {
     const form = new FormData(e.currentTarget);
     const result = storage.signUp({ name: form.get('name'), city: form.get('city'), email: form.get('email'), password: form.get('password') });
     $('#signup-notice').innerHTML = result.ok ? '<div class="notice">Account created successfully. Taking you to your profile…</div>' : `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">${result.message}</div>`;
-    if (result.ok) { var _ut = (result.user.role === 'merchant' || result.user.role === 'venue') ? 'dashboard.html' : 'account.html'; setTimeout(() => finishAuthFlow(_ut), 300); }
+    if (result.ok) { storage.clearPostAuthRedirect(); var _ut = (result.user.role === 'merchant' || result.user.role === 'venue') ? 'dashboard.html' : 'account.html'; setTimeout(() => finishAuthFlow(_ut), 300); }
 });
 }
 
