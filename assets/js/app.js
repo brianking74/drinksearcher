@@ -1152,7 +1152,12 @@ function renderSearcherAccountPage() {
   if (signinForm) signinForm.addEventListener('submit', function(e) {
     e.preventDefault();
     var form = new FormData(e.currentTarget);
-    var result = storage.signIn(form.get('email'), form.get('password'));
+    var email = form.get('email');
+    var password = form.get('password');
+    var result = storage.signIn(email, password);
+    if (!result.ok && email === 'hkdrinks@demo.hk' && password === 'demo123') {
+      result = storage.seedDemoAccount(email, password, 'HK Drinks', { businessName:'HK Drinks — Premium Spirits & Tequila', contactEmail:'info@hkdrinks.shop', phone:'+852 6119 4233', district:'Central', items:[ {name:'Cincoro Silver Tequila (750ml)',price:'HK$998'},{name:'Cincoro Reposado Tequila (750ml)',price:'HK$1,280'},{name:'Cincoro Añejo Tequila (750ml)',price:'HK$1,480'},{name:'Cincoro Extra Añejo Tequila (750ml)',price:'HK$2,680'},{name:'Clase Azul Reposado Tequila (750ml)',price:'HK$2,380'},{name:'Clase Azul Añejo Tequila (750ml)',price:'HK$3,280'},{name:'Clase Azul Ultra Tequila (750ml)',price:'HK$8,880'},{name:'Alfred GIRAUD Blanco Tequila (750ml)',price:'HK$1,180'},{name:'Alfred GIRAUD Reposado Tequila (750ml)',price:'HK$1,480'},{name:'Alfred GIRAUD Añejo Tequila (750ml)',price:'HK$1,780'},{name:'Sierra Milenario Reposado (750ml)',price:'HK$780'},{name:'Tears of Llorona Extra Añejo (750ml)',price:'HK$3,880'}] });
+    }
     document.getElementById('sa-signin-notice').innerHTML = result.ok ? '<div class="notice">Signed in successfully. Taking you to your account…</div>' : '<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">' + result.message + '</div>';
     if (result.ok) setTimeout(function() { finishAuthFlow('account.html'); }, 300);
   });
