@@ -167,7 +167,15 @@ const supplierProfiles = {
     sellingPoints:['Authorised Cincoro Tequila retailer','Clase Azul boutique partner','Alfred GIRAUD cognac house stockist','Direct-from-sheet live inventory'],
     catalogue:[['Cincoro Blanco Tequila','HK$1,498'],['Cincoro Reposado Tequila','HK$1,898'],['Cincoro Anejo Tequila','HK$2,288'],['Cincoro Extra Anejo Tequila','HK$15,988'],['Cincoro Gold Tequila','HK$3,488'],['Cincoro Collection (6)','HK$24,498'],['Clase Azul Ultra','HK$29,888'],['Alfred GIRAUD Heritage','HK$1,668'],['Alfred GIRAUD Harmonie','HK$2,578'],['Alfred GIRAUD Voyage','HK$2,588']],
     events:[['Cincoro Tasting Evening','15 Jan'],['Clase Azul Masterclass','22 Feb']],
-    reviews:[['\u201cBest selection of ultra-premium tequila in Hong Kong.\u201d','Tequila Enthusiast'],['\u201cSmooth delivery, beautifully presented bottles.\u201d','Catherine L.']]
+    reviews:[['"Best selection of ultra-premium tequila in Hong Kong.","Tequila Enthusiast'],['"Smooth delivery, beautifully presented bottles.","Catherine L.']]
+  },
+  'wine-not': {
+    name:'Wine Not', area:'Central / Citywide', specialty:'Wine Merchant', address:'Hong Kong', phone:'+852', website:'https://www.winenot.com.hk/', hero:'assets/images/wine-shop.jpg',
+    summary:'A long-standing Hong Kong wine institution offering a carefully curated selection of fine wines from around the world, with over two decades of service.',
+    sellingPoints:['Established since 1996','Curated global wine selection','Hong Kong wine institution','Premium supplier listing'],
+    catalogue:[['Château Margaux 2015','HK$7,980'],['Dom Pérignon 2013','HK$1,680'],['Penfolds Bin 389','HK$590']],
+    events:[['Wine Not Weekly Tasting','Every Friday'],['New Arrival Preview','1 Dec']],
+    reviews:[['"A trusted name for fine wine in Hong Kong."','Long-time customer'],['"Excellent selection and reliable service.','Regular buyer']]
   }
 };
 

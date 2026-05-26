@@ -594,7 +594,7 @@ function renderHomepage() {
   const featuredSuppliers = [
     { slug:'watsons-wine', name:"Watson's Wine", area:'Central · 1,200+ listings', tierLabel:'Wine Merchant', specialty:'Global cellar', image:'assets/images/watsons-wine.jpg', description:'Established wine retailer with an extensive global portfolio and a strong footprint across Hong Kong.' },
     { slug:'ponti', name:'Ponti Wine Cellars', area:'Central · 850+ listings', tierLabel:'Fine Wine', specialty:'Collector bottles', image:'assets/images/wine-shop.jpg', description:'Central-based specialist known for rare vintages, collector bottles, and a tightly curated premium cellar.' },
-    { slug:'wine-not', name:'Wine Not', area:'Since 1996 · Premium selection', tierLabel:'Wine Merchant', specialty:'Hong Kong classic', image:'assets/images/wine-shop.jpg', description:'A long-standing Hong Kong wine institution offering a carefully curated selection of fine wines from around the world.', website:'https://www.winenot.com.hk/' },
+    { slug:'wine-not', name:'Wine Not', area:'Since 1996 · Premium selection', tierLabel:'Wine Merchant', specialty:'Hong Kong classic', image:'assets/images/wine-shop.jpg', description:'A long-standing Hong Kong wine institution offering a carefully curated selection of fine wines from around the world.' },
     { slug:'young-master', name:'Young Master Ales', area:'Wong Chuk Hang · 45+ listings', tierLabel:'Craft Brewery', specialty:'Fresh local releases', image:'assets/images/young-master.png', description:"Hong Kong's flagship independent brewery, bringing locally brewed beers and fresh small-batch releases to market." }
   ];
   const featuredVenues = [
@@ -652,7 +652,7 @@ function renderHomepage() {
     <section class="section homepage-suppliers-section">
       <div class="container">
         <div class="section-head section-head-center"><div><span class="eyebrow">Directory</span><h2>Premium <span class="text-gold headline-script">suppliers</span></h2><p class="lead" style="margin-top:14px;">Merchants, specialists, and local producers presented more like an editorial shortlist than a generic directory grid.</p></div></div>
-        <div class="grid grid-4">${featuredSuppliers.map(s => renderCard(s, {type:'supplier', href:s.website || `supplier-template.html?slug=${s.slug}`, cta:s.website ? `<a class="btn btn-primary btn-small" href="${s.website}" target="_blank">Visit website</a>` : `<a class="btn btn-primary btn-small" href="supplier-template.html?slug=${s.slug}">View</a>`})).join('')}</div>
+        <div class="grid grid-4">${featuredSuppliers.map(s => renderCard(s, {type:'supplier', href:`supplier-template.html?slug=${s.slug}`, cta:`<a class="btn btn-primary btn-small" href="supplier-template.html?slug=${s.slug}">View</a>`})).join('')}</div>
       </div>
     </section>
 
