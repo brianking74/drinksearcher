@@ -185,7 +185,7 @@ h1 em, h2 em, h3 em { font-style: normal; font-weight: 500; letter-spacing: .04e
 
 .btn-primary {
   background: linear-gradient(180deg, rgba(189,161,111,.35), rgba(189,161,111,.55));
-  color: #09090b;
+  color: #fff;
   border-color: rgba(189,161,111,.35);
   box-shadow: inset 0 1px 0 rgba(255,255,255,.18), 0 12px 28px rgba(0,0,0,.2);
 }
