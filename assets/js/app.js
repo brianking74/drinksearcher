@@ -1143,10 +1143,19 @@ function renderProductPage() {
           <div class="product-hero-info">
             <span class="kicker">Product details</span>
             <h1>${product.name}</h1>
-            <p class="product-meta">${product.type}${product.proof ? ' · ' + product.proof : ''}</p>
+            <p class="product-meta">${product.type}${product.abv ? ' · ' + product.abv : ''} · ${product.origin || ''}</p>
             <p class="muted">Available from <strong>${uniqueSuppliers}</strong> supplier${uniqueSuppliers > 1 ? 's' : ''}</p>
           </div>
         </div>
+        <section class="product-details">
+          <div class="section-head"><div><span class="eyebrow">About this drink</span><h2>Product details</h2></div></div>
+          <p class="product-description">${product.description || ''}</p>
+          <div class="info-strip">
+            <div class="info-chip"><div class="muted">Origin</div><strong>${product.origin || '—'}</strong></div>
+            <div class="info-chip"><div class="muted">ABV</div><strong>${product.abv || '—'}</strong></div>
+            <div class="info-chip"><div class="muted">Type</div><strong>${product.type}</strong></div>
+          </div>
+        </section>
         <section class="supplier-comparison">
           <div class="section-head"><div><span class="eyebrow">Compare prices</span><h2>Where to buy</h2></div></div>
           <div class="table-wrap">
