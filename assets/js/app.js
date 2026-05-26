@@ -564,7 +564,7 @@ function renderHomepage() {
   ];
   const featuredSuppliers = [
     { slug:'watsons-wine', name:"Watson's Wine", area:'Central · 1,200+ listings', tierLabel:'Wine Merchant', specialty:'Global cellar', image:'assets/images/watsons-wine.jpg', description:'Established wine retailer with an extensive global portfolio and a strong footprint across Hong Kong.' },
-    { slug:'ponti', name:'Ponti Wine Cellars', area:'Central · 850+ listings', tierLabel:'Fine Wine', specialty:'Collector bottles', image:'assets/images/ponti.jpg', description:'Central-based specialist known for rare vintages, collector bottles, and a tightly curated premium cellar.' },
+    { slug:'ponti', name:'Ponti Wine Cellars', area:'Central · 850+ listings', tierLabel:'Fine Wine', specialty:'Collector bottles', image:'assets/images/wine-shop.jpg', description:'Central-based specialist known for rare vintages, collector bottles, and a tightly curated premium cellar.' },
     { slug:'sake-central-supplier', name:'Sake Central', area:'PMQ, Central · 400+ listings', tierLabel:'Sake Specialist', specialty:'Tasting-led retail', image:'assets/images/sake-central-supplier.jpg', description:"A design-led sake retail and tasting destination with one of Hong Kong's broadest craft sake selections." },
     { slug:'young-master', name:'Young Master Ales', area:'Wong Chuk Hang · 45+ listings', tierLabel:'Craft Brewery', specialty:'Fresh local releases', image:'assets/images/young-master.png', description:"Hong Kong's flagship independent brewery, bringing locally brewed beers and fresh small-batch releases to market." }
   ];

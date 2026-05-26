@@ -51,7 +51,7 @@ const venueListings = {
 const supplierListings = {
   enhanced: [
     {slug:'watsons-wine', name:"Watson's Wine", area:'Central / Citywide', phone:'+852 2530 5002', specialty:'Wine Retailer', tier:'Enhanced', image:'assets/images/watsons-wine.jpg', website:'https://www.watsonswine.com/'},
-    {slug:'ponti', name:'Ponti Wine Cellars', area:'Central / Kowloon', phone:'+852 2810 1000', specialty:'Fine Wine Retailer', tier:'Enhanced', image:'assets/images/ponti.jpg', website:'https://www.pontiwinecellars.com.hk/'},
+    {slug:'ponti', name:'Ponti Wine Cellars', area:'Central / Kowloon', phone:'+852 2810 1000', specialty:'Fine Wine Retailer', tier:'Enhanced', image:'assets/images/wine-shop.jpg', website:'https://www.pontiwinecellars.com.hk/'},
     {slug:'young-master', name:'Young Master Ales', area:'Wong Chuk Hang', phone:'+852 2783 8907', specialty:'Craft Brewery', tier:'Enhanced', image:'assets/images/young-master.png', website:'https://www.youngmasterales.com/'},
     {slug:'sake-central-supplier', name:'Sake Central', area:'Central', phone:'+852 3611 0727', specialty:'Sake Specialist', tier:'Enhanced', image:'assets/images/sake-central-supplier.jpg', website:'https://www.sakecentral.com.hk/'},
     {slug:'lacabane', name:'La Cabane', area:'Sheung Wan', phone:'+852 2803 9930', specialty:'French Wine Imports', tier:'Enhanced', image:'assets/images/lacabane.jpg', website:'#'},
@@ -134,7 +134,7 @@ const supplierProfiles = {
     reviews:[['\u201cEasy to compare ranges and click through to buy.\u201d','Frequent buyer'],['\u201cExactly the sort of supplier page that can justify premium pricing.\u201d','Marketplace founder']]
   },
   ponti: {
-    name:'Ponti Wine Cellars', area:'Central / Kowloon', specialty:'Fine Wine Retailer', address:'18A Stanley Street, Central, Hong Kong', phone:'+852 2810 1000', website:'https://www.pontiwinecellars.com.hk/', hero:'assets/images/ponti.jpg',
+    name:'Ponti Wine Cellars', area:'Central / Kowloon', specialty:'Fine Wine Retailer', address:'G/F, 18A Stanley Street, Central, Hong Kong', phone:'+852 2810 1000', website:'https://www.pontiwinecellars.com.hk/', hero:'assets/images/wine-shop.jpg',
     summary:'A premium wine merchant profile focused on Hong Kong availability, curated catalogue presentation, and direct hand-off to the supplier\u2019s own ecommerce or inquiry funnel.',
     sellingPoints:['Multiple HK shops','Bordeaux, Burgundy, Champagne','Import + retail footprint','Enhanced supplier example'],
     catalogue:[['Krug Grande Cuv\u00e9e 170\u00e8me','HK$1,950'],['Opus One 2018','HK$3,650'],['Barolo Riserva 2016','HK$1,180'],['Chablis Premier Cru','HK$420'],['Brunello di Montalcino','HK$780'],['Sassicaia 2020','HK$2,950']],
