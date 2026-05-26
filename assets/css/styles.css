@@ -435,7 +435,8 @@ textarea:focus-visible {
 .card-media { position: relative; aspect-ratio: 4/3; overflow: hidden; background: linear-gradient(135deg, #111726, #0a0d14); }
 .card-media img { height: 100%; object-fit: cover; }
 .card-media.square { aspect-ratio: 1/1; }
-.card-media.portrait { aspect-ratio: 1/1; }
+.card-media.portrait { aspect-ratio: 2/3; }
+.card-media.portrait-bottle { aspect-ratio: 2/3; }
 .card-overlay { position: absolute; inset: 0; background: linear-gradient(180deg, transparent 20%, rgba(7,8,13,.84) 100%); }
 .badge-row { position: absolute; left: 16px; top: 16px; display: flex; gap: 8px; flex-wrap: wrap; z-index: 2; }
 
