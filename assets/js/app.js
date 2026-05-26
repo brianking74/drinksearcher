@@ -798,10 +798,6 @@ function renderDrinksPage() {
     <section class="hero" style="min-height:56vh;"><div class="hero-media" style="background-image:url('${siteImages.trio}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Drinks</span><h1>Bottles actually available in Hong Kong.</h1><p class="lead">From cellar icons to sake, Champagne, beer, spirits, and no-alcohol discoveries — all routed to local suppliers.</p></div><div class="search-shell"><div class="search-tabs"><span class="search-tab active">Search results</span></div><div class="notice">Showing <strong>${filteredDrinks.length}</strong> drinks${query ? ` for “${query}”` : ''}${area ? ` in ${area}` : ''}.</div><div class="panel" style="padding:18px; background:transparent; border:none; box-shadow:none;"><div class="muted" style="display:grid; gap:10px;"><span>Direct links to local supplier stores</span><span>HK pricing and neighbourhood context</span><span>A mix of discovery bottles and everyday favourites</span></div></div></div></div></section>
     <section class="section"><div class="container"><div class="section-head"><div><span class="eyebrow">Featured bottles</span><h2>Popular drinks from Hong Kong suppliers.</h2></div></div>${filteredDrinks.length ? `<div class="grid grid-4">${filteredDrinks.map(d => renderCard({...d, tierLabel:d.tier==='enhanced' ? 'Available now' : 'Featured'}, {type:'drink', portrait:true, href:buildSearchHref('drinks.html', d.name, d.area), cta:d.tier==='enhanced' ? ctaLink('Buy online', d.buy || (d.supplier ? buildSearchHref('suppliers.html', d.supplier, d.area) : buildSearchHref('drinks.html', d.name, d.area)), 'btn btn-primary btn-small', 'View supplier') : ctaLink('View', d.supplier ? buildSearchHref('suppliers.html', d.supplier, d.area) : buildSearchHref('drinks.html', d.name, d.area), 'btn btn-ghost btn-small')})).join('')}</div>` : '<div class="empty-state">No drinks match that search yet. Try a broader bottle name, category, or area.</div>'}</div></section>`;
     bindSaveButtons(app);
-  if (typeof supplierSheetSources !== 'undefined' && supplierSheetSources[slug]) {
-    var el = document.getElementById('sheet-inventory-' + slug);
-    if (el) fetchAndRenderSheetInventory(slug, el);
-  }
 }function renderEventsPage() {
   const app = $('#app');
   const query = queryParam('q') || '';
@@ -1079,6 +1075,10 @@ function renderSupplierProfile() {
     <section id="reviews" class="section-tight"><div class="container grid grid-2">${profile.reviews.map(r => `<div class="panel"><span class="eyebrow">Customer feedback</span><p style="margin-top:14px; font-size:1.05rem;">${r[0]}</p><p class="muted" style="margin-top:14px;">— ${r[1]}</p></div>`).join('')}</div></section>
     <section id="contact" class="section"><div class="container grid grid-2"><div class="panel"><span class="eyebrow">Contact</span><h3 style="margin:14px 0;">Ready to browse or buy?</h3><div class="muted" style="display:grid; gap:10px;"><span>${profile.address}</span><span>${profile.phone}</span><span><a href="${profile.website}">${profile.website}</a></span></div></div><div class="panel"><span class="eyebrow">Own this supplier listing?</span><h3 style="margin:14px 0;">Get your profile live</h3><p class="muted">Add your story, catalogue, and store links so shoppers can move from discovery to purchase more easily.</p><div class="inline-actions" style="margin-top:18px;"><a class="btn btn-primary btn-small" href="list-your-business.html?type=merchant&plan=merchant-enhanced">List your business</a></div></div></div></section>`;
   bindSaveButtons(app);
+  if (typeof supplierSheetSources !== 'undefined' && supplierSheetSources[slug]) {
+    var el = document.getElementById('sheet-inventory-' + slug);
+    if (el) fetchAndRenderSheetInventory(slug, el);
+  }
 }
 
 function renderSignInPage() {
@@ -1531,7 +1531,11 @@ function parseCSVRows(text) {
 }
 
 function inventoryColumnIndex(headers, aliases) {
-  return headers.findIndex(header => aliases.includes(header));
+  return headers.findIndex(header => aliases.some(a => {
+    var h = String(header || '').trim().toLowerCase();
+    var al = String(a || '').trim().toLowerCase();
+    return h === al;
+  }));
 }
 
 function normalizeImportPrice(value) {
