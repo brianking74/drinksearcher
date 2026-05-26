@@ -1081,4 +1081,31 @@ hr.sep { border: 0; height: 1px; background: rgba(255,255,255,.06); margin: 18px
   .hero-actions, .inline-actions { width: 100%; }
   .hero-actions .btn, .inline-actions .btn { flex: 1 1 auto; }
   .info-strip, .footer-grid { grid-template-columns: 1fr; }
+  .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+}
+/* ── Product page ── */
+.product-page { padding-top: 126px; }
+.product-hero { display: flex; gap: 48px; align-items: flex-start; padding: 48px 0; border-bottom: 1px solid rgba(255,255,255,.06); margin-bottom: 48px; }
+.product-hero-image { flex: 0 0 280px; border-radius: 12px; overflow: hidden; background: rgba(255,255,255,.03); }
+.product-hero-image img { width: 100%; height: auto; display: block; }
+.product-hero-info { flex: 1; padding-top: 8px; }
+.product-hero-info h1 { margin: 12px 0 8px; }
+.product-meta { font-size: 1.05rem; color: var(--muted, rgba(255,255,255,.45)); margin-bottom: 8px; }
+.supplier-comparison { padding-bottom: 64px; }
+.comparison-table { width: 100%; border-collapse: collapse; }
+.comparison-table th { text-align: left; padding: 14px 16px; font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted, rgba(255,255,255,.45)); border-bottom: 1px solid rgba(255,255,255,.08); }
+.comparison-table td { padding: 16px; border-bottom: 1px solid rgba(255,255,255,.04); vertical-align: middle; }
+.comparison-table tbody tr:hover { background: rgba(255,255,255,.02); }
+.supplier-cell { display: flex; flex-direction: column; gap: 2px; }
+.price-cell { font-weight: 600; white-space: nowrap; }
+.availability-cell { white-space: nowrap; }
+.action-cell { text-align: right; }
+.badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: .8rem; font-weight: 500; }
+.badge-in-stock { background: rgba(0,200,120,.1); color: #00c878; }
+.badge-limited { background: rgba(255,183,77,.1); color: #ffb74d; }
+@media (max-width: 768px) {
+  .product-hero { flex-direction: column; gap: 24px; }
+  .product-hero-image { flex: 0 0 auto; width: 60%; max-width: 220px; }
+  .comparison-table th, .comparison-table td { padding: 12px; }
+  .action-cell .btn { font-size: .8rem; padding: 6px 12px; }
 }

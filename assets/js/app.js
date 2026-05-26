@@ -612,7 +612,7 @@ function renderHomepage() {
     <section class="section homepage-bottles-section">
       <div class="container">
         <div class="section-head carousel-head"><div><span class="eyebrow">Popular in Hong Kong</span><h2>Featured bottles available now.</h2><p class="lead" style="margin-top:14px;">A tighter edit of the labels people are actually hunting for right now — designed to feel more like a premium shortlist than a product wall.</p></div><div class="carousel-controls"><button class="carousel-arrow" type="button" data-carousel-target="featured-bottles" data-dir="-1" aria-label="Scroll bottles left">←</button><button class="carousel-arrow" type="button" data-carousel-target="featured-bottles" data-dir="1" aria-label="Scroll bottles right">→</button><a class="btn btn-ghost" href="drinks.html">See all drinks</a></div></div>
-        <div class="carousel-shell"><div class="carousel-track bottles-carousel" id="featured-bottles">${featuredDrinks.map(d => renderCard({...d, tierLabel:d.type}, {type:'drink', portrait:true, href:buildSearchHref('drinks.html', d.name), className:'homepage-bottle-card', cta:ctaLink('View', d.buy || buildSearchHref('drinks.html', d.name), 'btn btn-primary btn-small', 'View details')})).join('')}</div></div>
+        <div class="carousel-shell"><div class="carousel-track bottles-carousel" id="featured-bottles">${featuredDrinks.map(d => renderCard({...d, tierLabel:d.type}, {type:'drink', portrait:true, href:'product.html?slug=' + slugify(d.name), className:'homepage-bottle-card', cta:ctaLink('View', 'product.html?slug=' + slugify(d.name), 'btn btn-primary btn-small', 'View details')})).join('')}</div></div>
       </div>
     </section>
 
@@ -819,7 +819,7 @@ function renderDrinksPage() {
   const filteredDrinks = drinksInventory.filter(d => matchesSearch([d.name, d.supplier, d.type, d.area], query) && (!area || d.area === area));
   app.innerHTML = `
     <section class="hero" style="min-height:56vh;"><div class="hero-media" style="background-image:url('${siteImages.trio}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Drinks</span><h1>Bottles actually available in Hong Kong.</h1><p class="lead">From cellar icons to sake, Champagne, beer, spirits, and no-alcohol discoveries — all routed to local suppliers.</p></div><div class="search-shell"><div class="search-tabs"><span class="search-tab active">Search results</span></div><div class="notice">Showing <strong>${filteredDrinks.length}</strong> drinks${query ? ` for “${query}”` : ''}${area ? ` in ${area}` : ''}.</div><div class="panel" style="padding:18px; background:transparent; border:none; box-shadow:none;"><div class="muted" style="display:grid; gap:10px;"><span>Direct links to local supplier stores</span><span>HK pricing and neighbourhood context</span><span>A mix of discovery bottles and everyday favourites</span></div></div></div></div></section>
-    <section class="section"><div class="container"><div class="section-head"><div><span class="eyebrow">Featured bottles</span><h2>Popular drinks from Hong Kong suppliers.</h2></div></div>${filteredDrinks.length ? `<div class="grid grid-4">${filteredDrinks.map(d => renderCard({...d, tierLabel:d.tier==='enhanced' ? 'Available now' : 'Featured'}, {type:'drink', portrait:true, href:buildSearchHref('drinks.html', d.name, d.area), cta:d.tier==='enhanced' ? ctaLink('Buy online', d.buy || (d.supplier ? buildSearchHref('suppliers.html', d.supplier, d.area) : buildSearchHref('drinks.html', d.name, d.area)), 'btn btn-primary btn-small', 'View supplier') : ctaLink('View', d.supplier ? buildSearchHref('suppliers.html', d.supplier, d.area) : buildSearchHref('drinks.html', d.name, d.area), 'btn btn-ghost btn-small')})).join('')}</div>` : '<div class="empty-state">No drinks match that search yet. Try a broader bottle name, category, or area.</div>'}</div></section>`;
+    <section class="section"><div class="container"><div class="section-head"><div><span class="eyebrow">Featured bottles</span><h2>Popular drinks from Hong Kong suppliers.</h2></div></div>${filteredDrinks.length ? `<div class="grid grid-4">${filteredDrinks.map(d => renderCard({...d, tierLabel:d.tier==='enhanced' ? 'Available now' : 'Featured'}, {type:'drink', portrait:true, href:'product.html?slug=' + slugify(d.name), cta:d.tier==='enhanced' ? ctaLink('Buy online', d.buy || 'product.html?slug=' + slugify(d.name), 'btn btn-primary btn-small', 'View details') : ctaLink('View', 'product.html?slug=' + slugify(d.name), 'btn btn-ghost btn-small', 'View details')})).join('')}</div>` : '<div class="empty-state">No drinks match that search yet. Try a broader bottle name, category, or area.</div>'}</div></section>`;
     bindSaveButtons(app);
 }function renderEventsPage() {
   const app = $('#app');
@@ -1062,6 +1062,52 @@ function renderLeadCapturePage() {
     if (user) setTimeout(() => { window.location.href = 'account.html'; }, 450);
     else e.currentTarget.reset();
   });
+}
+
+function renderProductPage() {
+  const slug = queryParam('slug');
+  if (!slug) { $('#app').innerHTML = '<section class=\"section\"><div class=\"container\"><h1>Product not found</h1><p class=\"lead\">No product specified. <a href=\"drinks.html\">Browse all drinks</a></p></div></section>'; return; }
+  const matching = drinksInventory.filter(d => slugify(d.name) === slug);
+  if (!matching.length) { $('#app').innerHTML = '<section class=\"section\"><div class=\"container\"><h1>Product not found</h1><p class=\"lead\">We can\'t find this product. <a href=\"drinks.html\">Browse all drinks</a></p></div></section>'; return; }
+  const product = matching[0];
+  const img = product.image || 'assets/images/placeholder-bottle.svg';
+  const rows = matching.map(d => `
+    <tr>
+      <td class="supplier-cell"><strong>${d.supplier}</strong><span class="muted">${d.area || ''}</span></td>
+      <td class="price-cell">${d.price}</td>
+      <td class="availability-cell"><span class="badge badge-${d.tier === 'enhanced' ? 'in-stock' : 'limited'}">${d.tier === 'enhanced' ? 'In stock' : 'Available'}</span></td>
+      <td class="action-cell">${d.buy ? `<a class="btn btn-primary btn-small" href="${d.buy}" target="_blank">Buy / Enquire</a>` : '<span class="muted">Contact supplier</span>'}</td>
+    </tr>
+  `).join('');
+  const uniqueSuppliers = new Set(matching.map(d => d.supplier)).size;
+  const app = $('#app');
+  app.innerHTML = `
+    <section class="product-page">
+      <div class="container">
+        <div class="product-hero">
+          <div class="product-hero-image"><img src="${img}" alt="${product.name}"></div>
+          <div class="product-hero-info">
+            <span class="kicker">Product details</span>
+            <h1>${product.name}</h1>
+            <p class="product-meta">${product.type}${product.proof ? ' · ' + product.proof : ''}</p>
+            <p class="muted">Available from <strong>${uniqueSuppliers}</strong> supplier${uniqueSuppliers > 1 ? 's' : ''}</p>
+          </div>
+        </div>
+        <section class="supplier-comparison">
+          <div class="section-head"><div><span class="eyebrow">Compare prices</span><h2>Where to buy</h2></div></div>
+          <div class="table-wrap">
+            <table class="comparison-table">
+              <thead><tr><th>Supplier</th><th>Price</th><th>Availability</th><th></th></tr></thead>
+              <tbody>${rows}</tbody>
+            </table>
+          </div>
+          <p class="muted" style="margin-top:14px;font-size:.9rem;">Prices and availability are provided by suppliers and may change. Contact the supplier to confirm.</p>
+        </section>
+      </div>
+    </section>
+  `;
+  document.title = `${product.name} — drinksearcher.hk`;
+  bindSaveButtons(app);
 }
 
 function queryParam(name) {
@@ -2039,10 +2085,12 @@ document.addEventListener('DOMContentLoaded', () => {
     signup: '',
     account: '',
     'venue-profile': 'Bars & Restaurants',
-    'supplier-profile': 'Suppliers'
+    'supplier-profile': 'Suppliers',
+    product: ''
   };
   setupChrome(activeMap[page] || '');
   if (page === 'home') renderHomepage();
+  if (page === 'product') renderProductPage();
   if (page === 'venues') renderVenueDirectory();
   if (page === 'suppliers') renderSupplierDirectory();
   if (page === 'drinks') renderDrinksPage();
