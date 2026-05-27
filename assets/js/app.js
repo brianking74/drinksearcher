@@ -525,15 +525,6 @@ function renderCard(item, options = {}) {
     : type === 'venue'
       ? [item.specialty, item.booking].filter(Boolean)
       : [];
-  const badgeTone = type === 'venue' ? 'pink' : type === 'event' ? 'jade' : 'gold';
-  const topBadges = [
-    item.tierLabel ? `<span class="badge ${badgeTone}">${item.tierLabel}</span>` : '',
-    item.type && type !== 'event' ? `<span class="badge pink">${item.type}</span>` : '',
-    type === 'supplier' && primaryMeta ? `<span class="badge supplier-location-badge">${primaryMeta}</span>` : '',
-    type === 'venue' && primaryMeta ? `<span class="badge venue-location-badge">${primaryMeta}</span>` : '',
-    type === 'event' && item.date ? `<span class="badge event-date-badge">${item.date}</span>` : '',
-    type !== 'supplier' && type !== 'venue' && type !== 'event' && item.specialty ? `<span class="badge gold">${item.specialty}</span>` : ''
-  ].filter(Boolean).join('');
   const fallbackMeta = (item.price || item.phone || item.booking)
     ? `<div class="meta">${item.price ? `<span>${item.price}</span>` : ''}${item.phone ? `<span>${item.phone}</span>` : ''}${item.booking ? `<span>${item.booking}</span>` : ''}</div>`
     : '';
@@ -550,7 +541,6 @@ function renderCard(item, options = {}) {
       <div class="${imageClass}">
         <img src="${item.image}" alt="${item.name}" />
         <div class="card-overlay"></div>
-        <div class="badge-row">${topBadges}</div>
       </div>
       <div class="card-body">
         ${overline ? `<div class="card-kicker">${overline}</div>` : ''}
