@@ -594,7 +594,7 @@ function renderHomepage() {
   const featuredSuppliers = [
     { slug:'watsons-wine', name:"Watson's Wine", area:'Central · 1,200+ listings', tierLabel:'Wine Merchant', specialty:'Global cellar', image:'assets/images/watsons-wine.jpg', description:'Established wine retailer with an extensive global portfolio and a strong footprint across Hong Kong.' },
     { slug:'ponti', name:'Ponti Wine Cellars', area:'Central · 850+ listings', tierLabel:'Fine Wine', specialty:'Collector bottles', image:'assets/images/wine-shop.jpg', description:'Central-based specialist known for rare vintages, collector bottles, and a tightly curated premium cellar.' },
-    { slug:'wine-not', name:'Wine Not', area:'Since 1996 · Premium selection', tierLabel:'Wine Merchant', specialty:'Hong Kong classic', image:'assets/images/wine-shop.jpg', description:'A long-standing Hong Kong wine institution offering a carefully curated selection of fine wines from around the world.' },
+    { slug:'hk-liquor-store', name:'HK Liquor Store', area:'4,000+ products · Island-wide', tierLabel:'Premium Liquor Retailer', specialty:'Whisky, wine & spirits', image:'assets/images/hk-liquor-store.webp', description:"Hong Kong's premier liquor outlet stocking over 4,000 products — from rare whiskies and fine wines to premium spirits, with delivery across the territory." },
     { slug:'young-master', name:'Young Master Ales', area:'Wong Chuk Hang · 45+ listings', tierLabel:'Craft Brewery', specialty:'Fresh local releases', image:'assets/images/young-master.png', description:"Hong Kong's flagship independent brewery, bringing locally brewed beers and fresh small-batch releases to market." }
   ];
   const featuredVenues = [

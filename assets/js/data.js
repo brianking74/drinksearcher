@@ -169,13 +169,13 @@ const supplierProfiles = {
     events:[['Cincoro Tasting Evening','15 Jan'],['Clase Azul Masterclass','22 Feb']],
     reviews:[['"Best selection of ultra-premium tequila in Hong Kong.","Tequila Enthusiast'],['"Smooth delivery, beautifully presented bottles.","Catherine L.']]
   },
-  'wine-not': {
-    name:'Wine Not', area:'Central / Citywide', specialty:'Wine Merchant', address:'Hong Kong', phone:'+852', website:'https://www.winenot.com.hk/', hero:'assets/images/wine-shop.jpg',
-    summary:'A long-standing Hong Kong wine institution offering a carefully curated selection of fine wines from around the world, with over two decades of service.',
-    sellingPoints:['Established since 1996','Curated global wine selection','Hong Kong wine institution','Premium supplier listing'],
-    catalogue:[['Château Margaux 2015','HK$7,980'],['Dom Pérignon 2013','HK$1,680'],['Penfolds Bin 389','HK$590']],
-    events:[['Wine Not Weekly Tasting','Every Friday'],['New Arrival Preview','1 Dec']],
-    reviews:[['"A trusted name for fine wine in Hong Kong."','Long-time customer'],['"Excellent selection and reliable service.','Regular buyer']]
+  'hk-liquor-store': {
+    name:'HK Liquor Store', area:'Tsim Sha Tsui / Citywide', specialty:'Premium Liquor Retailer', address:'Room 308, 3/F, Chinachem Golden Plaza, 77 Mody Road, Tsim Sha Tsui', phone:'+852 3543 0039', website:'https://www.hkliquorstore.com/', hero:'assets/images/hk-liquor-store.webp',
+    summary:"Hong Kong's premier liquor outlet with over 4,000 products. From rare whiskies and fine wines to premium spirits, with expansive brick-and-mortar locations across the city and delivery island-wide.",
+    sellingPoints:['Over 4,000 products in stock','Expansive retail locations across Hong Kong','Island-wide delivery service','Premium marketing & co-hosting events for brand partners'],
+    catalogue:[['Whisky Collection','From HK$498'],['Gin Selection','From HK$388'],['Tequila Range','From HK$428'],['Fine Wines','From HK$168'],['Champagne & Sparkling','From HK$298'],['Japanese Sake','From HK$188'],['Cognac & Brandy','From HK$588'],['Baijiu & Chinese Spirits','From HK$268']],
+    events:[['In-Store Tasting Event','Every Saturday'],['Malt & Cask Masterclass','First Friday Monthly']],
+    reviews:[['"The best liquor selection in Hong Kong — unmatched variety."','HK Drinks Guide'],['"A one-stop shop for anything drinkable, from everyday bottles to rare finds."','Lydia S.']]
   }
 };
 
