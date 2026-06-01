@@ -107,22 +107,18 @@ const storage = {
     return {
       activeRole: 'merchant',
       merchant: {
-        membership: 'Merchant Enhanced',
+        membership: 'Merchant Starter',
         billing: 'Monthly',
-        featuredSupplier: true,
+        featuredSupplier: false,
         featuredEvent: false,
-        extraProducts: true,
+        extraProducts: false,
         listingName: `${user?.name ? `${user.name}'s` : 'Founder'} Merchant Listing`,
-        website: 'https://example-store.hk',
+        website: '',
         contactEmail: user?.email || '',
-        phone: '+852 1234 5678',
+        phone: '',
         district: user?.city || 'Central',
-        notes: 'Importer / retailer / drinks merchant profile with listing controls.',
-        items: [
-          { id: 'm1', name: 'Château Margaux 2015', price: 'HK$7,980', availability: 'In stock', visibility: 'Featured' },
-          { id: 'm2', name: 'Yamazaki 12 Year Old', price: 'HK$1,880', availability: 'Low stock', visibility: 'Enhanced' },
-          { id: 'm3', name: 'Dassai 23 Junmai Daiginjo', price: 'HK$880', availability: 'Pre-order', visibility: 'Enhanced' }
-        ]
+        notes: '',
+        items: []
       },
       venue: {
         membership: 'Venue Enhanced',
@@ -1509,8 +1505,9 @@ function renderBusinessDashboardPage() {
         <section class="section-tight">
           <div class="container">
             <div class="section-head"><div><span class="eyebrow">Pricing & availability</span><h2>${role === 'merchant' ? 'Manage stock visibility and current pricing.' : 'Manage offers, ticketing, tables, and availability.'}</h2></div></div>
+            <div class="plan-info">${config.membership === 'Merchant Starter' ? '<span class="muted">Merchant Starter plan — up to <strong>10 items</strong> visible in the directory. Upgrade your plan to show more.</span>' : ''}</div>
             <div class="dashboard-table-wrap">
-              <div class="dashboard-table-head"><div>${listingLabels[0]}</div><div>${listingLabels[1]}</div><div>${listingLabels[2]}</div><div>${listingLabels[3]}</div></div>
+              <div class="dashboard-table-head"><div>${listingLabels[0]}</div><div>${listingLabels[1]}</div><div>${listingLabels[2]}</div><div>${listingLabels[3]}</div><div>Show in directory</div></div>
               <div id="dashboard-items">${config.items.map((item, index) => `
                 <div class="dashboard-row">
                   <input class="input" data-item-name="${index}" value="${item.name}" />
@@ -1521,6 +1518,7 @@ function renderBusinessDashboardPage() {
                   <select class="select" data-item-visibility="${index}">
                     ${['Standard','Enhanced','Featured','Homepage event','Venue page'].map(option => `<option value="${option}" ${item.visibility === option ? 'selected' : ''}>${option}</option>`).join('')}
                   </select>
+                  <label class="check-row" style="justify-content:center;"><input type="checkbox" data-item-displayed="${index}" ${item.displayed !== false ? 'checked' : ''} /><span class="sr-only">Show in directory</span></label>
                 </div>`).join('')}</div>
               <div class="inline-actions" style="padding:20px; border-top:1px solid rgba(255,255,255,.06);">
                 <button class="btn btn-primary" id="save-items-btn" type="button">Save pricing & availability</button>
@@ -1616,14 +1614,20 @@ function renderBusinessDashboardPage() {
         name: $('[data-item-name]', row).value,
         price: $('[data-item-price]', row).value,
         availability: $('[data-item-availability]', row).value,
-        visibility: $('[data-item-visibility]', row).value
+        visibility: $('[data-item-visibility]', row).value,
+        displayed: $('[data-item-displayed]', row)?.checked !== false
       }));
+      var displayedCount = config.items.filter(function(it) { return it.displayed !== false; }).length;
+      if (config.membership === 'Merchant Starter' && displayedCount > 10) {
+        notice.innerHTML = '<div class="notice" style="background:rgba(255,180,50,.08);border-color:rgba(255,180,50,.18);color:#ffecb3;">Your <strong>Merchant Starter</strong> plan allows up to <strong>10 items</strong> visible in the directory. Uncheck some items or upgrade your plan to show more.</div>';
+      } else {
+        notice.innerHTML = '<div class="notice">Pricing and availability updated for this dashboard view.</div>';
+      }
       persist();
-      notice.innerHTML = '<div class="notice">Pricing and availability updated for this dashboard view.</div>';
     };
     $('#save-items-btn', app).addEventListener('click', saveItems);
     $('#add-item-btn', app).addEventListener('click', () => {
-      config.items.push({ id: `${role}_${Date.now()}`, name: role === 'merchant' ? 'New product' : 'New venue offer', price: 'HK$0', availability: 'In stock', visibility: 'Standard' });
+      config.items.push({ id: `${role}_${Date.now()}`, name: role === 'merchant' ? 'New product' : 'New venue offer', price: 'HK$0', availability: 'In stock', visibility: 'Standard', displayed: true });
       persist();
       renderBusinessDashboardPage();
     });
