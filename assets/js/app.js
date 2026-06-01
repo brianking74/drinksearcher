@@ -286,6 +286,8 @@ const storage = {
     var users = this.getUsers();
     var existing = users.find(function(u) { return u.email === email; });
     if (existing) {
+      existing.role = 'merchant';
+      this.setUsers(users);
       this.setCurrentUser(email);
       return { ok: true, user: existing, existed: true };
     }
@@ -1286,6 +1288,11 @@ function renderSearcherAccountPage() {
     document.getElementById('sa-signin-notice').innerHTML = result.ok ? '<div class="notice">Signed in successfully. Taking you to your account…</div>' : '<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">' + result.message + '</div>';
     if (result.ok) {
       var role = result.user.role;
+      if (email === 'hkdrinks@demo.hk' && role !== 'merchant') {
+        var users = storage.getUsers();
+        var match = users.find(function(u) { return u.email === email; });
+        if (match) { match.role = 'merchant'; storage.setUsers(users); role = 'merchant'; }
+      }
       storage.clearPostAuthRedirect();
       setTimeout(function() { finishAuthFlow(role === 'merchant' || role === 'venue' ? 'dashboard.html' : 'account.html'); }, 300);
     }
