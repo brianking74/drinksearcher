@@ -1517,6 +1517,7 @@ function renderBusinessDashboardPage() {
                   </select>
 
                   <label class="check-row" style="justify-content:center;"><input type="checkbox" data-item-displayed="${index}" ${item.displayed !== false ? 'checked' : ''} /><span class="sr-only">Show in directory</span></label>
+                  <button class="btn btn-ghost btn-icon" data-item-delete="${index}" type="button" title="Delete item">✕</button>
                 </div>`).join('')}</div>
               <div class="inline-actions" style="padding:20px; border-top:1px solid rgba(255,255,255,.06);">
                 <button class="btn btn-primary" id="save-items-btn" type="button">Save pricing & availability</button>
@@ -1627,6 +1628,15 @@ function renderBusinessDashboardPage() {
       config.items.push({ id: `${role}_${Date.now()}`, name: role === 'merchant' ? 'New product' : 'New venue offer', price: 'HK$0', availability: 'In stock', visibility: 'Standard', displayed: true });
       persist();
       renderBusinessDashboardPage();
+    });
+    $$('[data-item-delete]', app).forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var idx = parseInt(btn.dataset.itemDelete, 10);
+        if (isNaN(idx)) return;
+        config.items.splice(idx, 1);
+        persist();
+        renderBusinessDashboardPage();
+      });
     });
     if (role === 'merchant' && $('#sheet-template-btn', app)) {
       $('#sheet-template-btn', app).addEventListener('click', () => {
