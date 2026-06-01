@@ -160,6 +160,23 @@ const storage = {
     const key = this.getDashboardKey();
     if (key) localStorage.setItem(key, JSON.stringify(state));
   },
+  updateDashboardState(email, partial) {
+    if (!email) return;
+    const key = `ds_dashboard_${email}`;
+    var existing = {};
+    try { existing = JSON.parse(localStorage.getItem(key) || 'null'); } catch {}
+    if (!existing) {
+      var u = this.getUsers().find(usr => usr.email === email);
+      existing = this.defaultDashboardState(u || { email: email, name: '', city: '' });
+    }
+    ['merchant', 'venue'].forEach(function(side) {
+      if (partial[side]) Object.assign(existing[side], partial[side]);
+    });
+    Object.keys(partial).forEach(function(k) {
+      if (k !== 'merchant' && k !== 'venue') existing[k] = partial[k];
+    });
+    localStorage.setItem(key, JSON.stringify(existing));
+  },
   getDashboardStateForEmail(email) {
     if (!email) return null;
     try { return JSON.parse(localStorage.getItem(`ds_dashboard_${email}`) || 'null'); } catch { return null; }
@@ -1065,11 +1082,15 @@ function renderLeadCapturePage() {
     if (user) {
       storage.addUserListing(formData);
       if (typeof storage.updateDashboardState === 'function') {
+        var side = formData.listingType === 'venue' ? 'venue' : 'merchant';
         storage.updateDashboardState(user.email, {
-          businessName: formData.businessName,
-          contactEmail: formData.email,
-          phone: formData.phone,
-          district: formData.district
+          activeRole: side,
+          [side]: {
+            listingName: formData.businessName,
+            contactEmail: formData.email,
+            phone: formData.phone,
+            district: formData.district
+          }
         });
       }
       leadNotice.innerHTML = '<div class="notice">Your <strong>' + formData.businessName + '</strong> listing has been added to your account and is now visible in the directory.</div>';
@@ -1090,11 +1111,15 @@ function renderLeadCapturePage() {
     }
     storage.addUserListing(formData);
     if (typeof storage.updateDashboardState === 'function') {
+      var side = formData.listingType === 'venue' ? 'venue' : 'merchant';
       storage.updateDashboardState(formData.email, {
-        businessName: formData.businessName,
-        contactEmail: formData.email,
-        phone: formData.phone,
-        district: formData.district
+        activeRole: side,
+        [side]: {
+          listingName: formData.businessName,
+          contactEmail: formData.email,
+          phone: formData.phone,
+          district: formData.district
+        }
       });
     }
     leadNotice.innerHTML = '<div class="notice">Welcome to drinksearcher.hk!<br><br>' +
@@ -1287,42 +1312,15 @@ function renderSearcherAccountPage() {
     var district = form.get('district') || 'Central';
     var result = storage.signUp({ name: bizname, email: email, password: password, role: 'merchant' });
     if (result.ok) {
-      storage.setDashboardState({
+      storage.updateDashboardState(email, {
         activeRole: 'merchant',
         merchant: {
-          membership: 'Merchant Enhanced',
-          billing: 'Monthly',
-          featuredSupplier: false,
-          featuredEvent: false,
-          extraProducts: true,
           listingName: bizname + ' Listing',
           website: 'https://',
-          description: bizname + ' — premium spirits and beverages supplier in Hong Kong.',
           contactEmail: email,
           phone: phone || '',
-          inventory: [],
-          addOnProducts: [],
-          billingEmail: email,
-          billingPhone: phone || '',
-          billingAddress: district + ', Hong Kong'
-        },
-        venue: {
-          membership: 'Venue Enhanced',
-          billing: 'Monthly',
-          featuredVenue: false,
-          featuredEvent: false,
-          listingName: bizname,
-          website: 'https://',
-          description: '',
-          contactEmail: email,
-          phone: phone || '',
-          facebook: '',
-          instagram: '',
-          events: [],
-          collaboratorInvites: [],
-          billingEmail: email,
-          billingPhone: phone || '',
-          billingAddress: district + ', Hong Kong'
+          district: district,
+          notes: bizname + ' — premium spirits and beverages supplier in Hong Kong.'
         }
       });
     }
