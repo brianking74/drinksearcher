@@ -1440,8 +1440,8 @@ function renderBusinessDashboardPage() {
           ['bookingBoost', 'Booking link boost']
         ];
     const listingLabels = role === 'merchant'
-      ? ['Product / listing', 'Price', 'Availability', 'Visibility']
-      : ['Offer / event / table inventory', 'Price', 'Availability', 'Visibility'];
+      ? ['Product / listing', 'Price', 'Availability']
+      : ['Offer / event / table inventory', 'Price', 'Availability'];
     return `
       <div class="dashboard-shell">
         <section class="hero" style="min-height:52vh;">
@@ -1507,7 +1507,7 @@ function renderBusinessDashboardPage() {
             <div class="section-head"><div><span class="eyebrow">Pricing & availability</span><h2>${role === 'merchant' ? 'Manage stock visibility and current pricing.' : 'Manage offers, ticketing, tables, and availability.'}</h2></div></div>
             <div class="plan-info">${config.membership === 'Merchant Starter' ? '<span class="muted">Merchant Starter plan — up to <strong>10 items</strong> visible in the directory. Upgrade your plan to show more.</span>' : ''}</div>
             <div class="dashboard-table-wrap">
-              <div class="dashboard-table-head"><div>${listingLabels[0]}</div><div>${listingLabels[1]}</div><div>${listingLabels[2]}</div><div>${listingLabels[3]}</div><div>Show in directory</div></div>
+              <div class="dashboard-table-head"><div>${listingLabels[0]}</div><div>${listingLabels[1]}</div><div>${listingLabels[2]}</div><div>Show in directory</div></div>
               <div id="dashboard-items">${config.items.map((item, index) => `
                 <div class="dashboard-row">
                   <input class="input" data-item-name="${index}" value="${item.name}" />
@@ -1515,9 +1515,7 @@ function renderBusinessDashboardPage() {
                   <select class="select" data-item-availability="${index}">
                     ${['In stock','Low stock','Pre-order','Live','Selling','Open tables','Sold out'].map(option => `<option value="${option}" ${item.availability === option ? 'selected' : ''}>${option}</option>`).join('')}
                   </select>
-                  <select class="select" data-item-visibility="${index}">
-                    ${['Standard','Enhanced','Featured','Homepage event','Venue page'].map(option => `<option value="${option}" ${item.visibility === option ? 'selected' : ''}>${option}</option>`).join('')}
-                  </select>
+
                   <label class="check-row" style="justify-content:center;"><input type="checkbox" data-item-displayed="${index}" ${item.displayed !== false ? 'checked' : ''} /><span class="sr-only">Show in directory</span></label>
                 </div>`).join('')}</div>
               <div class="inline-actions" style="padding:20px; border-top:1px solid rgba(255,255,255,.06);">
@@ -1614,7 +1612,6 @@ function renderBusinessDashboardPage() {
         name: $('[data-item-name]', row).value,
         price: $('[data-item-price]', row).value,
         availability: $('[data-item-availability]', row).value,
-        visibility: $('[data-item-visibility]', row).value,
         displayed: $('[data-item-displayed]', row)?.checked !== false
       }));
       var displayedCount = config.items.filter(function(it) { return it.displayed !== false; }).length;
