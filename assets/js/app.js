@@ -1568,8 +1568,8 @@ function renderBusinessDashboardPage() {
                 <span>${user.city || 'Hong Kong'}</span>
               </div>
               <div class="inline-actions" style="margin-top:18px;">
-                <a class="btn btn-ghost" href="account.html">Back to account</a>
-                <a class="btn btn-secondary" href="list-your-business.html?type=${role === 'merchant' ? 'merchant' : 'venue'}">Edit enquiry</a>
+                <a class="btn btn-ghost" href="suppliers.html">View supplier directory</a>
+                <a class="btn btn-secondary" href="list-your-business.html?type=${role === 'merchant' ? 'merchant' : 'venue'}">Edit business details</a>
               </div>
             </div>
           </div>
