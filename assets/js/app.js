@@ -1673,7 +1673,7 @@ function renderBusinessDashboardPage() {
           }
           setTimeout(() => renderBusinessDashboardPage(), 300);
         } catch (error) {
-          holder.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">${error.message || 'Import failed. Try using pasted CSV rows or a public CSV URL.'}</div>`;
+          holder.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;white-space:pre-wrap;">${error.message || 'Import failed. Try using pasted CSV rows or a public CSV URL.'}</div>`;
         }
       });
       $('#scan-site-btn', app).addEventListener('click', () => {
@@ -1854,9 +1854,25 @@ async function loadImportSourceText(source) {
   const text = String(source || '').trim();
   if (!text) return '';
   if (!/^https?:\/\//i.test(text)) return text;
+  
+  // Auto-convert Google Sheet edit URLs to published CSV URLs
+  var sheetMatch = text.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+  if (sheetMatch && !text.includes('pub?') && !text.includes('export?')) {
+    throw new Error('This looks like a Google Sheet editor URL. To import inventory:\n\n1. Open your sheet and go to File → Share → Publish to web\n2. Choose "Entire document" as CSV\n3. Copy the published URL (starts with https://docs.google.com/spreadsheets/d/e/...)\n4. Paste that URL here');
+  }
+  
   const response = await fetch(text);
-  if (!response.ok) throw new Error('Could not fetch the source URL.');
-  return response.text();
+  if (!response.ok) throw new Error('Could not fetch the source URL. Check that the sheet is published to the web.');
+  
+  const bodyText = await response.text();
+  
+  // Detect if response is HTML instead of CSV
+  var trimmed = bodyText.trim();
+  if (trimmed.length > 0 && trimmed[0] === '<' || /<\!DOCTYPE|\.grid-container|#sheets-viewport/.test(trimmed.slice(0, 500))) {
+    throw new Error('The URL returned an HTML page instead of CSV data. Make sure the sheet is published to the web as CSV:\n\nFile → Share → Publish to web → Select "Comma-separated values (.csv)" → Publish');
+  }
+  
+  return bodyText;
 }
 
 function renderAdminDashboardPage() {
