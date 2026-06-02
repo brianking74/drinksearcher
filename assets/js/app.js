@@ -1667,7 +1667,10 @@ function renderBusinessDashboardPage() {
             itemCount: imported.length,
             notes: `${mode === 'replace' ? 'Replaced' : 'Appended'} inventory from supplier sheet.`
           });
-          holder.innerHTML = `<div class="notice">Imported <strong>${imported.length}</strong> inventory rows into the merchant dashboard.</div>`;
+          holder.innerHTML = `<div class="notice">Imported <strong>${imported.length}</strong> inventory rows.</div>`;
+          if (imported.length && imported[0].name && !imported[0].price) {
+            holder.innerHTML += `<div class="notice" style="margin-top:8px;background:rgba(255,180,50,.08);border-color:rgba(255,180,50,.18);color:#ffecb3;">No price column detected. Make sure your Google Sheet has a column named &quot;Price&quot; or &quot;Cost&quot; with HKD values.</div>`;
+          }
           setTimeout(() => renderBusinessDashboardPage(), 300);
         } catch (error) {
           holder.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">${error.message || 'Import failed. Try using pasted CSV rows or a public CSV URL.'}</div>`;
@@ -1802,9 +1805,9 @@ function parseCSVRows(text) {
 
 function inventoryColumnIndex(headers, aliases) {
   return headers.findIndex(header => aliases.some(a => {
-    var h = String(header || '').trim().toLowerCase();
+    var h = String(header || '').trim().toLowerCase().replace(/[^a-z0-9 ]/g, '');
     var al = String(a || '').trim().toLowerCase();
-    return h === al;
+    return h.includes(al) || al.includes(h);
   }));
 }
 
@@ -1827,11 +1830,11 @@ function importItemsFromCSV(text) {
   const rows = parseCSVRows(text);
   if (rows.length < 2) return [];
   const headers = rows[0].map(cell => String(cell || '').trim().toLowerCase());
-  const nameIndex = inventoryColumnIndex(headers, ['name', 'title', 'product', 'product name', 'item']);
-  const priceIndex = inventoryColumnIndex(headers, ['price', 'unit price', 'sale price']);
-  const availabilityIndex = inventoryColumnIndex(headers, ['availability', 'stock status', 'stock', 'inventory', 'status']);
-  const visibilityIndex = inventoryColumnIndex(headers, ['visibility', 'tier', 'listing tier']);
-  const imageIndex = inventoryColumnIndex(headers, ['image url', 'image', 'photo', 'img']);
+  const nameIndex = inventoryColumnIndex(headers, ['name', 'title', 'product', 'product name', 'item', 'product name', 'item description', 'description', 'bottle', 'wine', 'spirits']);
+  const priceIndex = inventoryColumnIndex(headers, ['price', 'unit price', 'sale price', 'cost', 'rate', 'hkd', 'hk$', 'selling price', 'retail price']);
+  const availabilityIndex = inventoryColumnIndex(headers, ['availability', 'stock status', 'stock', 'inventory', 'status', 'qty', 'quantity', 'count']);
+  const visibilityIndex = inventoryColumnIndex(headers, ['visibility', 'tier', 'listing tier', 'listing', 'type', 'category']);
+  const imageIndex = inventoryColumnIndex(headers, ['image url', 'image', 'photo', 'img', 'picture', 'media', 'thumbnail', 'product image']);
   const items = rows.slice(1).map((row, index) => {
     const name = row[nameIndex] || row[0];
     if (!name) return null;
