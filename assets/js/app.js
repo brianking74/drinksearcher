@@ -1442,7 +1442,7 @@ function renderBusinessDashboardPage() {
     const listingLabels = role === 'merchant'
       ? ['Product / listing', 'Price', 'Availability']
       : ['Offer / event / table inventory', 'Price', 'Availability'];
-    return `
+    app.innerHTML = `
       <div class="dashboard-shell">
         <section class="hero" style="min-height:52vh;">
           <div class="hero-media" style="background-image:url('${role === 'merchant' ? siteImages.shop : siteImages.rooftop}')"></div>
@@ -1701,7 +1701,7 @@ function renderBusinessDashboardPage() {
       renderBusinessDashboardPage();
     }));
   };
-  app.innerHTML = renderRole(state.activeRole || 'merchant');
+  renderRole(state.activeRole || 'merchant');
 }
 
 function adminPlanCatalog() {
