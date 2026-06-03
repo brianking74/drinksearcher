@@ -177,7 +177,57 @@ const storage = {
     if (!email) return null;
     try { return JSON.parse(localStorage.getItem(`ds_dashboard_${email}`) || 'null'); } catch { return null; }
   },
-  addAdminApplication(lead) {
+  getInventorySubmissions() {
+    const state = this.getAdminState();
+    state.inventorySubmissions ||= [];
+    return state.inventorySubmissions;
+  },
+  addInventorySubmission(data) {
+    const submissions = this.getInventorySubmissions();
+    const entry = {
+      id: `invsub_${Date.now()}`,
+      businessName: data.businessName || 'Unknown',
+      email: data.email || '',
+      items: data.items || [],
+      itemCount: (data.items || []).length,
+      submittedAt: new Date().toISOString(),
+      status: 'Pending'
+    };
+    submissions.unshift(entry);
+    const state = this.getAdminState();
+    state.inventorySubmissions = submissions;
+    localStorage.setItem('ds_admin_state', JSON.stringify(state));
+    return entry;
+  },
+  approveInventorySubmission(id) {
+    const submissions = this.getInventorySubmissions();
+    const entry = submissions.find(s => s.id === id);
+    if (entry) { entry.status = 'Approved'; entry.approvedAt = new Date().toISOString(); }
+    const state = this.getAdminState();
+    state.inventorySubmissions = submissions;
+    localStorage.setItem('ds_admin_state', JSON.stringify(state));
+    return entry;
+  },
+  rejectInventorySubmission(id) {
+    const submissions = this.getInventorySubmissions();
+    const entry = submissions.find(s => s.id === id);
+    if (entry) { entry.status = 'Rejected'; }
+    const state = this.getAdminState();
+    state.inventorySubmissions = submissions;
+    localStorage.setItem('ds_admin_state', JSON.stringify(state));
+    return entry;
+  },
+  getApprovedInventoryItems() {
+    const submissions = this.getInventorySubmissions();
+    const approved = submissions.filter(s => s.status === 'Approved');
+    const items = [];
+    approved.forEach(sub => {
+      (sub.items || []).forEach(item => {
+        items.push({ ...item, supplierName: sub.businessName, supplierEmail: sub.email });
+      });
+    });
+    return items;
+  },(lead) {
     const state = this.getAdminState();
     if (state.applications.some(entry => entry.id === lead.id)) return;
     state.applications.unshift({
@@ -224,7 +274,8 @@ const storage = {
       importJobs: [
         { id: 'import_seed_1', businessName: 'Watson\'s Wine', email: 'trade@watsonswine.hk', method: 'Google Sheets', platform: 'Mixed', source: 'https://docs.google.com/spreadsheets/d/example', status: 'Imported', itemCount: 18, submittedAt: '2026-05-18T10:20:00.000Z', notes: 'Mapped public sheet to merchant inventory.' },
         { id: 'import_seed_2', businessName: 'Cardinal Point', email: 'events@cardinalpoint.hk', method: 'Website Scan', platform: 'Custom', source: 'https://cardinal-point.example', status: 'Queued', itemCount: 0, submittedAt: '2026-05-21T09:10:00.000Z', notes: 'Needs structured-data crawl review.' }
-      ]
+      ],
+      inventorySubmissions: []
     };
   },
   getAdminState() {
@@ -1671,10 +1722,23 @@ function renderBusinessDashboardPage() {
           if (imported.length && imported[0].name && !imported[0].price) {
             holder.innerHTML += `<div class="notice" style="margin-top:8px;background:rgba(255,180,50,.08);border-color:rgba(255,180,50,.18);color:#ffecb3;">No price column detected. Make sure your Google Sheet has a column named &quot;Price&quot; or &quot;Cost&quot; with HKD values.</div>`;
           }
+          if (imported.length) {
+            holder.innerHTML += `<div class="inline-actions" style="margin-top:14px;"><button class="btn btn-primary" id="submit-inventory-btn" type="button">Submit ${imported.length} items for approval</button><span class="muted" style="font-size:.82rem;">Items will be reviewed by admin before appearing in the public directory.</span></div>`;
+          }
           setTimeout(() => renderBusinessDashboardPage(), 300);
         } catch (error) {
           holder.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;white-space:pre-wrap;">${error.message || 'Import failed. Try using pasted CSV rows or a public CSV URL.'}</div>`;
         }
+      });
+      $('#submit-inventory-btn', app)?.addEventListener('click', () => {
+        if (!config.items.length) return;
+        storage.addInventorySubmission({
+          businessName: config.listingName || user.name || 'Unknown',
+          email: user.email,
+          items: config.items
+        });
+        var submitNotice = $('#sheet-import-notice', app);
+        if (submitNotice) submitNotice.innerHTML = '<div class="notice">Submitted <strong>' + config.items.length + '</strong> items for admin review. You will be notified once they are approved.</div>';
       });
       $('#scan-site-btn', app).addEventListener('click', () => {
         const source = $('#scan-site-url', app).value.trim();
@@ -2017,7 +2081,26 @@ function renderAdminDashboardPage() {
         </div>
         <div id="admin-imports-notice"></div>
       </div>
-    </section>`;
+
+    <section class="section-tight">
+      <div class="container">
+        <div class="section-head"><div><span class="eyebrow">Inventory submissions</span><h2>Supplier inventory awaiting approval.</h2></div></div>
+        <div class="admin-table">
+          <div class="admin-table-head"><div>Business</div><div>Items</div><div>Submitted</div><div>Status</div><div>Actions</div></div>
+          <div id="admin-inventory-subs">${state.inventorySubmissions && state.inventorySubmissions.length ? state.inventorySubmissions.map(function(sub, index) {
+            return `
+            <div class="admin-table-row">
+              <div><strong>${sub.businessName}</strong><div class="small-note">${sub.email || 'No email'}</div></div>
+              <div><div>${sub.itemCount || 0} items</div><div class="small-note">${(sub.items || []).slice(0, 2).map(function(i) { return i.name; }).join(', ')}${(sub.items||[]).length > 2 ? '...' : ''}</div></div>
+              <div><div class="small-note">${new Date(sub.submittedAt).toLocaleDateString() || 'Unknown'}</div></div>
+              <div>${adminStatusChip(sub.status)}</div>
+              <div class="admin-inline">${sub.status === 'Pending' ? '<button class="btn btn-primary btn-small" type="button" data-sub-approve="' + sub.id + '">Approve</button><button class="btn btn-ghost btn-small" type="button" data-sub-reject="' + sub.id + '" style="color:rgba(255,80,80,.8);">Reject</button>' : '<span class="small-note">' + sub.status + '</span>'}</div>
+            </div>`;
+          }).join('') : '<div class="empty-state">No inventory submissions yet. Suppliers submit items from their dashboard after importing a Google Sheet.</div>'}</div>
+        </div>
+        <div id="admin-inventory-subs-notice"></div>
+      </div>
+    </section>    </section>`;
 
   const saveState = (message, selector) => {
     storage.setAdminState(state);
@@ -2112,7 +2195,26 @@ function renderAdminDashboardPage() {
     renderAdminDashboardPage();
   }));
 
-  $$('[data-import-promote]', app).forEach(btn => btn.addEventListener('click', () => {
+  
+  $$('[data-sub-approve]', app).forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var subId = btn.dataset.subApprove;
+      var entry = storage.approveInventorySubmission(subId);
+      var subsNotice = $('#admin-inventory-subs-notice', app);
+      if (subsNotice) subsNotice.innerHTML = '<div class="notice">Approved ' + entry.itemCount + ' items from ' + entry.businessName + '.</div>';
+      renderAdminDashboardPage();
+    });
+  });
+  $$('[data-sub-reject]', app).forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var subId = btn.dataset.subReject;
+      storage.rejectInventorySubmission(subId);
+      var subsNotice = $('#admin-inventory-subs-notice', app);
+      if (subsNotice) subsNotice.innerHTML = '<div class="notice">Submission rejected.</div>';
+      renderAdminDashboardPage();
+    });
+  });
+$$('[data-import-promote]', app).forEach(btn => btn.addEventListener('click', () => {
     const index = Number(btn.dataset.importPromote);
     const job = state.importJobs[index];
     if (!job) return;
