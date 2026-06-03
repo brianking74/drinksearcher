@@ -2115,7 +2115,25 @@ function renderAdminDashboardPage() {
         <div id="admin-inventory-subs-notice" class="admin-notice"></div>
       </div>
     </div>`;`;
-        }).join('')}</div>
+        
+  // Register admin button handlers
+  function _adminHandler(e) {
+    if (document.body.dataset.page !== 'admin') return;
+    var btn = e.target.closest('[data-item-approve]');
+    var s, sep;
+    if (btn) { s = btn.dataset.itemApprove; sep = s.indexOf('_item_'); if (sep > 0) { adminApproveInventoryItem(s.slice(0, sep), s.slice(sep + 6)); renderAdminDashboardPage(); } return; }
+    btn = e.target.closest('[data-item-reject]');
+    if (btn) { s = btn.dataset.itemReject; sep = s.indexOf('_item_'); if (sep > 0) { adminRejectInventoryItem(s.slice(0, sep), s.slice(sep + 6)); renderAdminDashboardPage(); } return; }
+    btn = e.target.closest('[data-item-delete]');
+    if (btn) { s = btn.dataset.itemDelete; sep = s.indexOf('_item_'); if (sep > 0) { adminDeleteInventoryItem(s.slice(0, sep), s.slice(sep + 6)); renderAdminDashboardPage(); } return; }
+    btn = e.target.closest('[data-admin-delete]');
+    if (btn) { adminDeleteItem(btn.dataset.adminDelete, btn.dataset.adminId); renderAdminDashboardPage(); return; }
+    btn = e.target.closest('[data-sub-delete]');
+    if (btn) { adminDeleteInventorySubmission(btn.dataset.subDelete); renderAdminDashboardPage(); return; }
+  }
+  document.body.removeEventListener('click', _adminHandler);
+  document.body.addEventListener('click', _adminHandler);
+}).join('')}</div>
         <div id="admin-subscriptions-notice"></div>
       </div>
     </section>
@@ -2429,43 +2447,6 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
-// Admin page click handler
-document.body.addEventListener('click', function(e) {
-  if (document.body.dataset.page !== 'admin') return;
-  var btn = e.target.closest('[data-item-approve]');
-  if (btn) {
-    var s = btn.dataset.itemApprove;
-    var sep = s.indexOf('_item_');
-    if (sep > 0) { adminApproveInventoryItem(s.slice(0, sep), s.slice(sep + 6)); renderAdminDashboardPage(); }
-    return;
-  }
-  btn = e.target.closest('[data-item-reject]');
-  if (btn) {
-    var s = btn.dataset.itemReject;
-    var sep = s.indexOf('_item_');
-    if (sep > 0) { adminRejectInventoryItem(s.slice(0, sep), s.slice(sep + 6)); renderAdminDashboardPage(); }
-    return;
-  }
-  btn = e.target.closest('[data-item-delete]');
-  if (btn) {
-    var s = btn.dataset.itemDelete;
-    var sep = s.indexOf('_item_');
-    if (sep > 0) { adminDeleteInventoryItem(s.slice(0, sep), s.slice(sep + 6)); renderAdminDashboardPage(); }
-    return;
-  }
-  btn = e.target.closest('[data-admin-delete]');
-  if (btn) {
-    adminDeleteItem(btn.dataset.adminDelete, btn.dataset.adminId);
-    renderAdminDashboardPage();
-    return;
-  }
-  btn = e.target.closest('[data-sub-delete]');
-  if (btn) {
-    adminDeleteInventorySubmission(btn.dataset.subDelete);
-    renderAdminDashboardPage();
-    return;
-  }
-});
 
 function adminDeleteInventorySubmission(subId) {
   var state = JSON.parse(localStorage.getItem('ds_admin_state') || 'null');
