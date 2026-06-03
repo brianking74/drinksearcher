@@ -188,7 +188,7 @@ const storage = {
       id: `invsub_${Date.now()}`,
       businessName: data.businessName || 'Unknown',
       email: data.email || '',
-      items: data.items || [],
+      items: (data.items || []).map(function(it, idx) { return Object.assign({}, it, { _id: 'item_' + Date.now() + '_' + idx, _status: 'Pending' }); }),
       itemCount: (data.items || []).length,
       submittedAt: new Date().toISOString(),
       status: 'Pending'
@@ -199,31 +199,42 @@ const storage = {
     localStorage.setItem('ds_admin_state', JSON.stringify(state));
     return entry;
   },
-  approveInventorySubmission(id) {
+  approveInventoryItem(subId, itemId) {
     const submissions = this.getInventorySubmissions();
-    const entry = submissions.find(s => s.id === id);
-    if (entry) { entry.status = 'Approved'; entry.approvedAt = new Date().toISOString(); }
+    var foundItem = null;
+    submissions.forEach(function(sub) {
+      if (sub.id === subId) {
+        (sub.items || []).forEach(function(item) {
+          if (item._id === itemId) { item._status = 'Approved'; foundItem = item; }
+        });
+      }
+    });
     const state = this.getAdminState();
     state.inventorySubmissions = submissions;
     localStorage.setItem('ds_admin_state', JSON.stringify(state));
-    return entry;
+    return foundItem;
   },
-  rejectInventorySubmission(id) {
+  rejectInventoryItem(subId, itemId) {
     const submissions = this.getInventorySubmissions();
-    const entry = submissions.find(s => s.id === id);
-    if (entry) { entry.status = 'Rejected'; }
+    submissions.forEach(function(sub) {
+      if (sub.id === subId) {
+        (sub.items || []).forEach(function(item) {
+          if (item._id === itemId) { item._status = 'Rejected'; }
+        });
+      }
+    });
     const state = this.getAdminState();
     state.inventorySubmissions = submissions;
     localStorage.setItem('ds_admin_state', JSON.stringify(state));
-    return entry;
   },
   getApprovedInventoryItems() {
     const submissions = this.getInventorySubmissions();
-    const approved = submissions.filter(s => s.status === 'Approved');
     const items = [];
-    approved.forEach(sub => {
+    submissions.forEach(sub => {
       (sub.items || []).forEach(item => {
-        items.push({ ...item, supplierName: sub.businessName, supplierEmail: sub.email });
+        if (item._status === 'Approved') {
+          items.push(Object.assign({}, item, { supplierName: sub.businessName, supplierEmail: sub.email }));
+        }
       });
     });
     return items;
@@ -2115,7 +2126,12 @@ function renderAdminDashboardPage() {
             return `
             <div class="admin-table-row">
               <div><strong>${sub.businessName}</strong><div class="small-note">${sub.email || 'No email'}</div></div>
-              <div><div>${sub.itemCount || 0} items</div><div class="small-note" style="max-height:200px;overflow-y:auto;font-size:.82rem;line-height:1.5;">${(sub.items || []).map(function(i, idx) { return (idx+1) + '. ' + (i.name || 'Unnamed') + ' — ' + (i.price || 'HK$0') + (i.availability ? ' [' + i.availability + ']' : ''); }).join('<br>')}</div></div>
+              <div><div>${sub.itemCount || 0} items</div><div class="small-note inv-item-list">${(sub.items || []).map(function(i, idx) {
+            var itemStatus = i._status === 'Approved' ? '<span style="color:#4caf50;">Approved</span>' : (i._status === 'Rejected' ? '<span style="color:#ff5252;">Rejected</span>' : '<span style="color:#ffc107;">Pending</span>');
+            var approveBtn = i._status !== 'Approved' ? '<button class="btn btn-primary btn-small" type="button" data-item-approve="' + sub.id + '_' + i._id + '" style="font-size:.72rem;padding:4px 8px;min-height:28px;">Approve</button>' : '';
+            var rejectBtn = i._status !== 'Rejected' ? '<button class="btn btn-ghost btn-small" type="button" data-item-reject="' + sub.id + '_' + i._id + '" style="font-size:.72rem;padding:4px 8px;min-height:28px;color:#ff5252;">Reject</button>' : '';
+            return '<div class="inv-item"><span class="inv-item-name">' + (idx+1) + '. ' + (i.name || 'Unnamed') + '</span><span class="inv-item-price">' + (i.price || 'HK$0') + '</span><span class="inv-item-avail">' + (i.availability || '') + '</span><span class="inv-item-status">' + itemStatus + '</span><span class="inv-item-actions">' + approveBtn + rejectBtn + '</span></div>';
+          }).join('')}</div></div>
               <div><div class="small-note">${new Date(sub.submittedAt).toLocaleDateString() || 'Unknown'}</div></div>
               <div>${adminStatusChip(sub.status)}</div>
               <div class="admin-inline">${sub.status === 'Pending' ? '<button class="btn btn-primary btn-small" type="button" data-sub-approve="' + sub.id + '">Approve</button><button class="btn btn-ghost btn-small" type="button" data-sub-reject="' + sub.id + '" style="color:rgba(255,80,80,.8);">Reject</button>' : '<span class="small-note">' + sub.status + '</span>'}</div>
@@ -2220,21 +2236,29 @@ function renderAdminDashboardPage() {
   }));
 
   
-  $$('[data-sub-approve]', app).forEach(function(btn) {
+  $$('[data-item-approve]', app).forEach(function(btn) {
     btn.addEventListener('click', function() {
-      var subId = btn.dataset.subApprove;
-      var entry = storage.approveInventorySubmission(subId);
+      var fullId = btn.dataset.itemApprove;
+      var sepIdx = fullId.indexOf('_item_');
+      if (sepIdx < 0) return;
+      var subId = fullId.slice(0, sepIdx);
+      var itemId = fullId.slice(sepIdx + 1);
+      var entry = storage.approveInventoryItem(subId, itemId);
       var subsNotice = $('#admin-inventory-subs-notice', app);
-      if (subsNotice) subsNotice.innerHTML = '<div class="notice">Approved ' + entry.itemCount + ' items from ' + entry.businessName + '.</div>';
+      if (subsNotice && entry) subsNotice.innerHTML = '<div class="notice">Approved: ' + (entry.name || 'item') + '</div>';
       renderAdminDashboardPage();
     });
   });
-  $$('[data-sub-reject]', app).forEach(function(btn) {
+  $$('[data-item-reject]', app).forEach(function(btn) {
     btn.addEventListener('click', function() {
-      var subId = btn.dataset.subReject;
-      storage.rejectInventorySubmission(subId);
+      var fullId = btn.dataset.itemReject;
+      var sepIdx = fullId.indexOf('_item_');
+      if (sepIdx < 0) return;
+      var subId = fullId.slice(0, sepIdx);
+      var itemId = fullId.slice(sepIdx + 1);
+      storage.rejectInventoryItem(subId, itemId);
       var subsNotice = $('#admin-inventory-subs-notice', app);
-      if (subsNotice) subsNotice.innerHTML = '<div class="notice">Submission rejected.</div>';
+      if (subsNotice) subsNotice.innerHTML = '<div class="notice">Item rejected.</div>';
       renderAdminDashboardPage();
     });
   });

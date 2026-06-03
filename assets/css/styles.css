@@ -992,6 +992,13 @@ hr.sep { border: 0; height: 1px; background: rgba(255,255,255,.06); margin: 18px
 .admin-inline { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .admin-select { min-width: 160px; }
 .small-note { color: var(--muted); font-size: .92rem; line-height: 1.5; }
+.inv-item-list { max-height:300px; overflow-y:auto; display:grid; gap:6px; }
+.inv-item { display:grid; grid-template-columns:1fr auto auto auto auto; gap:8px; align-items:center; padding:6px 8px; border-radius:8px; background:rgba(255,255,255,.02); }
+.inv-item-name { font-weight:500; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.inv-item-price { color:var(--gold); font-size:.85rem; }
+.inv-item-avail { color:var(--muted); font-size:.8rem; }
+.inv-item-status { font-size:.8rem; }
+.inv-item-actions { display:flex; gap:4px; }
 
 /* ── Promise Section (Homepage) ── */
 
