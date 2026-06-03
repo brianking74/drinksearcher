@@ -2119,7 +2119,7 @@ function renderAdminDashboardPage() {
         </div>
         <div id="admin-inventory-subs-notice"></div>
       </div>
-    </section>    </section>`;
+    </section>`;
 
   const saveState = (message, selector) => {
     storage.setAdminState(state);
