@@ -2455,16 +2455,23 @@ document.addEventListener('DOMContentLoaded', () => {
     if (document.body.dataset.page !== 'admin') return;
     var delBtn = e.target.closest('[data-item-delete]');
     if (delBtn) {
-      var sep = delBtn.dataset.itemDelete.indexOf('_item_');
-      if (sep < 0) return;
-      storage.deleteInventoryItem(delBtn.dataset.itemDelete.slice(0, sep), delBtn.dataset.itemDelete.slice(sep + 1));
-      renderAdminDashboardPage();
+      try {
+        var fullId = delBtn.dataset.itemDelete;
+        var sep = fullId.indexOf('_item_');
+        if (sep < 0) return;
+        var subId = fullId.slice(0, sep);
+        var itemId = fullId.slice(sep + 1);
+        storage.deleteInventoryItem(subId, itemId);
+        renderAdminDashboardPage();
+      } catch(err) { console.error('Delete error:', err); }
       return;
     }
     var adminBtn = e.target.closest('[data-admin-delete]');
     if (adminBtn) {
-      storage.deleteAdminItem(adminBtn.dataset.adminDelete, adminBtn.dataset.adminId);
-      renderAdminDashboardPage();
+      try {
+        storage.deleteAdminItem(adminBtn.dataset.adminDelete, adminBtn.dataset.adminId);
+        renderAdminDashboardPage();
+      } catch(err) { console.error('Delete error:', err); }
       return;
     }
   });
