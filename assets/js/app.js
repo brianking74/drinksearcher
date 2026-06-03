@@ -288,6 +288,7 @@ const storage = {
     state.placements ||= [];
     state.moderation ||= [];
     state.importJobs ||= [];
+    state.inventorySubmissions ||= [];
     this.getLeads().forEach(lead => {
       if (!state.applications.some(entry => entry.id === lead.id)) {
         state.applications.unshift({
