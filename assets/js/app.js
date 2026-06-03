@@ -384,6 +384,24 @@ function mergeUserListings() {
       if (!exists && typeof supplierListings !== 'undefined') supplierListings.standard.unshift([l.businessName, l.district || 'TBD', l.phone || '—', 'Supplier / Merchant']);
     }
   });
+  // Merge approved inventory submissions into drinks directory
+  if (typeof drinksInventory !== 'undefined') {
+    var approvedItems = storage.getApprovedInventoryItems();
+    approvedItems.forEach(function(item) {
+      if (!drinksInventory.some(function(d) { return d.name === item.name && d.supplier === item.supplierName; })) {
+        drinksInventory.push({
+          name: item.name,
+          price: item.price || 'HK$0',
+          supplier: item.supplierName || 'Supplier',
+          area: 'Hong Kong',
+          type: 'Spirits & Wine',
+          tier: 'standard',
+          buy: '',
+          image: item.image || ''
+        });
+      }
+    });
+  }
 }
 
 function currentPagePath() {
@@ -1979,6 +1997,7 @@ function renderAdminDashboardPage() {
             <div class="metric-card"><strong>${counts.activeSubs}</strong><span class="muted">active or trial subscriptions</span></div>
             <div class="metric-card"><strong>${counts.moderation}</strong><span class="muted">moderation items needing action</span></div>
             <div class="metric-card"><strong>${counts.imports}</strong><span class="muted">inventory imports awaiting review</span></div>
+            <div class="metric-card"><strong>${(state.inventorySubmissions||[]).filter(function(s){return s.status==='Pending';}).length}</strong><span class="muted">new inventory submissions</span></div>
           </div>
           <div class="notice">Use this workspace to review submissions, update statuses, and manage placements across the site.</div>
         </div>
