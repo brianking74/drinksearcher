@@ -251,6 +251,32 @@ const storage = {
     if (!state[stateKey]) return;
     state[stateKey] = state[stateKey].filter(function(item) { return item.id !== itemId; });
     localStorage.setItem('ds_admin_state', JSON.stringify(state));
+  },
+  syncInventorySubmission(email, items) {
+    const submissions = this.getInventorySubmissions();
+    var match = null;
+    submissions.forEach(function(sub) {
+      if (sub.email === email && sub.status === 'Pending') {
+        match = sub;
+      }
+    });
+    if (match) {
+      // Update items but preserve individual _status for already-reviewed items
+      var oldItems = match.items || [];
+      match.items = items.map(function(newItem, idx) {
+        var oldItem = oldItems.find(function(o) { return o._id === newItem._id || o.name === newItem.name; });
+        return Object.assign({}, newItem, { 
+          _id: newItem._id || 'item_' + Date.now() + '_' + idx, 
+          _status: oldItem ? oldItem._status : 'Pending' 
+        });
+      });
+      match.itemCount = items.length;
+      const state = this.getAdminState();
+      state.inventorySubmissions = submissions;
+      localStorage.setItem('ds_admin_state', JSON.stringify(state));
+      return true;
+    }
+    return false;
   },  getApprovedInventoryItems() {
     const submissions = this.getInventorySubmissions();
     const items = [];
@@ -1725,9 +1751,20 @@ function renderBusinessDashboardPage() {
       if (config.membership === 'Merchant Starter' && displayedCount > 10) {
         notice.innerHTML = '<div class="notice" style="background:rgba(255,180,50,.08);border-color:rgba(255,180,50,.18);color:#ffecb3;">Your <strong>Merchant Starter</strong> plan allows up to <strong>10 items</strong> visible in the directory. Uncheck some items or upgrade your plan to show more.</div>';
       } else {
-        notice.innerHTML = '<div class="notice">Pricing and availability updated for this dashboard view.</div>';
+        notice.innerHTML = '<div class="notice">Pricing and availability updated.</div>';
       }
       persist();
+      // Auto-sync to admin inventory submission
+      if (user && user.email) {
+        storage.syncInventorySubmission(user.email, config.items);
+        // Show toast notification
+        var toast = document.createElement('div');
+        toast.className = 'toast-notification';
+        toast.textContent = 'Items saved and synced to admin review.';
+        document.body.appendChild(toast);
+        setTimeout(function() { toast.classList.add('toast-fade'); }, 2000);
+        setTimeout(function() { if (toast.parentNode) toast.parentNode.removeChild(toast); }, 3000);
+      }
     };
     $('#save-items-btn', app).addEventListener('click', saveItems);
     $('#add-item-btn', app).addEventListener('click', () => {

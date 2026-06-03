@@ -938,7 +938,9 @@ hr.sep { border: 0; height: 1px; background: rgba(255,255,255,.06); margin: 18px
 .status-chip.active, .status-chip.trial { color:#4caf50; border-color:rgba(76,175,80,.3); }
 .status-chip.past-due { color:#ff9800; border-color:rgba(255,152,0,.3); }
 .status-chip.paid { color:#4caf50; border-color:rgba(76,175,80,.3); }
-.status-chip.pending { color:#ffc107; border-color:rgba(255,193,7,.3); }/* ── Promise Section (Homepage) ── */
+.status-chip.pending { color:#ffc107; border-color:rgba(255,193,7,.3); }
+.toast-notification { position:fixed; bottom:30px; right:30px; background:rgba(8,16,35,.95); border:1px solid rgba(0,212,255,.3); border-radius:10px; padding:14px 22px; font-size:.9rem; color:#e8e6e0; z-index:9999; box-shadow:0 8px 32px rgba(0,0,0,.4); transition:opacity .4s ease, transform .4s ease; }
+.toast-fade { opacity:0; transform:translateY(10px); }/* ── Promise Section (Homepage) ── */
 
 .promise-section { padding-top: 68px; }
 .promise-shell {
