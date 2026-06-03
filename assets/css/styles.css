@@ -992,13 +992,27 @@ hr.sep { border: 0; height: 1px; background: rgba(255,255,255,.06); margin: 18px
 .admin-inline { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .admin-select { min-width: 160px; }
 .small-note { color: var(--muted); font-size: .92rem; line-height: 1.5; }
-.inv-item-list { max-height:300px; overflow-y:auto; display:grid; gap:6px; }
-.inv-item { display:grid; grid-template-columns:1fr auto auto auto auto; gap:8px; align-items:center; padding:6px 8px; border-radius:8px; background:rgba(255,255,255,.02); }
-.inv-item-name { font-weight:500; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.inv-item-price { color:var(--gold); font-size:.85rem; }
-.inv-item-avail { color:var(--muted); font-size:.8rem; }
-.inv-item-status { font-size:.8rem; }
-.inv-item-actions { display:flex; gap:4px; }
+.inv-card { border:1px solid rgba(255,255,255,.06); border-radius:16px; background:linear-gradient(180deg,rgba(24,24,29,.92),rgba(14,14,18,.97)); margin-bottom:20px; overflow:hidden; }
+.inv-card-head { display:flex; align-items:center; justify-content:space-between; padding:18px 20px; border-bottom:1px solid rgba(255,255,255,.055); flex-wrap:wrap; gap:8px; }
+.inv-stats { display:flex; gap:12px; font-size:.85rem; }
+.inv-stat-pending { color:#ffc107; }
+.inv-stat-approved { color:#4caf50; }
+.inv-stat-rejected { color:#ff5252; }
+.inv-item-table { }
+.inv-item-head { display:grid; grid-template-columns:2.5fr 100px 100px 100px 170px; gap:10px; padding:12px 20px; background:rgba(255,255,255,.02); font-size:.78rem; text-transform:uppercase; letter-spacing:.12em; color:rgba(241,238,230,.4); }
+.inv-item-row { display:grid; grid-template-columns:2.5fr 100px 100px 100px 170px; gap:10px; padding:12px 20px; align-items:center; border-top:1px solid rgba(255,255,255,.04); }
+.inv-item-row:hover { background:rgba(255,255,255,.015); }
+.inv-row-approved { background:rgba(76,175,80,.04); }
+.inv-row-rejected { background:rgba(255,82,82,.04); }
+.inv-col-name { font-size:.92rem; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.inv-col-price { font-size:.85rem; color:var(--gold); }
+.inv-col-avail { font-size:.82rem; color:var(--muted); }
+.inv-col-status { }
+.inv-col-actions { display:flex; gap:6px; }
+.inv-idx { color:var(--muted); margin-right:4px; }
+.inv-status-pending { color:#ffc107; font-size:.82rem; font-weight:600; }
+.inv-status-approved { color:#4caf50; font-size:.82rem; font-weight:600; }
+.inv-status-rejected { color:#ff5252; font-size:.82rem; font-weight:600; }
 
 /* ── Promise Section (Homepage) ── */
 

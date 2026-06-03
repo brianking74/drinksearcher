@@ -2117,27 +2117,34 @@ function renderAdminDashboardPage() {
         <div id="admin-imports-notice"></div>
       </div>
 
-    <section class="section-tight">
+        <section class="section-tight">
       <div class="container">
         <div class="section-head"><div><span class="eyebrow">Inventory submissions</span><h2>Supplier inventory awaiting approval.</h2></div></div>
-        <div class="admin-table">
-          <div class="admin-table-head"><div>Business</div><div>Items</div><div>Submitted</div><div>Status</div><div>Actions</div></div>
-          <div id="admin-inventory-subs">${state.inventorySubmissions && state.inventorySubmissions.length ? state.inventorySubmissions.map(function(sub, index) {
-            return `
-            <div class="admin-table-row">
-              <div><strong>${sub.businessName}</strong><div class="small-note">${sub.email || 'No email'}</div></div>
-              <div><div>${sub.itemCount || 0} items</div><div class="small-note inv-item-list">${(sub.items || []).map(function(i, idx) {
-            var itemStatus = i._status === 'Approved' ? '<span style="color:#4caf50;">Approved</span>' : (i._status === 'Rejected' ? '<span style="color:#ff5252;">Rejected</span>' : '<span style="color:#ffc107;">Pending</span>');
-            var approveBtn = i._status !== 'Approved' ? '<button class="btn btn-primary btn-small" type="button" data-item-approve="' + sub.id + '_' + i._id + '" style="font-size:.72rem;padding:4px 8px;min-height:28px;">Approve</button>' : '';
-            var rejectBtn = i._status !== 'Rejected' ? '<button class="btn btn-ghost btn-small" type="button" data-item-reject="' + sub.id + '_' + i._id + '" style="font-size:.72rem;padding:4px 8px;min-height:28px;color:#ff5252;">Reject</button>' : '';
-            return '<div class="inv-item"><span class="inv-item-name">' + (idx+1) + '. ' + (i.name || 'Unnamed') + '</span><span class="inv-item-price">' + (i.price || 'HK$0') + '</span><span class="inv-item-avail">' + (i.availability || '') + '</span><span class="inv-item-status">' + itemStatus + '</span><span class="inv-item-actions">' + approveBtn + rejectBtn + '</span></div>';
-          }).join('')}</div></div>
-              <div><div class="small-note">${new Date(sub.submittedAt).toLocaleDateString() || 'Unknown'}</div></div>
-              <div>${adminStatusChip(sub.status)}</div>
-              <div class="admin-inline">${sub.status === 'Pending' ? '<button class="btn btn-primary btn-small" type="button" data-sub-approve="' + sub.id + '">Approve</button><button class="btn btn-ghost btn-small" type="button" data-sub-reject="' + sub.id + '" style="color:rgba(255,80,80,.8);">Reject</button>' : '<span class="small-note">' + sub.status + '</span>'}</div>
-            </div>`;
-          }).join('') : '<div class="empty-state">No inventory submissions yet. Suppliers submit items from their dashboard after importing a Google Sheet.</div>'}</div>
-        </div>
+        <div id="admin-inventory-subs">${state.inventorySubmissions && state.inventorySubmissions.length ? state.inventorySubmissions.map(function(sub, index) {
+          var approvedCount = (sub.items||[]).filter(function(it) { return it._status === 'Approved'; }).length;
+          var pendingCount = (sub.items||[]).filter(function(it) { return it._status === 'Pending'; }).length;
+          var rejectedCount = (sub.items||[]).filter(function(it) { return it._status === 'Rejected'; }).length;
+          return `
+          <div class="inv-card">
+            <div class="inv-card-head">
+              <div><strong>${sub.businessName}</strong> <span class="muted">· ${sub.email || 'No email'}</span></div>
+              <div class="inv-stats"><span>${sub.itemCount || 0} items</span><span class="inv-stat-pending">${pendingCount} pending</span><span class="inv-stat-approved">${approvedCount} approved</span>${rejectedCount ? '<span class="inv-stat-rejected">' + rejectedCount + ' rejected</span>' : ''}</div>
+              <div class="muted" style="font-size:.82rem;">Submitted ${new Date(sub.submittedAt).toLocaleDateString() || 'Unknown'}</div>
+            </div>
+            <div class="inv-item-table">
+              <div class="inv-item-head"><div class="inv-col-name">Product</div><div class="inv-col-price">Price</div><div class="inv-col-avail">Stock</div><div class="inv-col-status">Status</div><div class="inv-col-actions">Actions</div></div>
+              ${(sub.items || []).map(function(i, idx) {
+                var isApproved = i._status === 'Approved';
+                var isRejected = i._status === 'Rejected';
+                var statusClass = isApproved ? 'inv-status-approved' : (isRejected ? 'inv-status-rejected' : 'inv-status-pending');
+                var statusLabel = isApproved ? 'Approved' : (isRejected ? 'Rejected' : 'Pending');
+                var approveBtn = !isApproved ? '<button class="btn btn-primary btn-small" type="button" data-item-approve="' + sub.id + '_item_' + i._id + '">Approve</button>' : '';
+                var rejectBtn = !isRejected ? '<button class="btn btn-ghost btn-small" type="button" data-item-reject="' + sub.id + '_item_' + i._id + '">Reject</button>' : '';
+                return '<div class="inv-item-row ' + (isApproved ? 'inv-row-approved' : (isRejected ? 'inv-row-rejected' : '')) + '"><div class="inv-col-name"><span class="inv-idx">' + (idx+1) + '.</span> ' + (i.name || 'Unnamed') + '</div><div class="inv-col-price">' + (i.price || 'HK$0') + '</div><div class="inv-col-avail">' + (i.availability || '—') + '</div><div class="inv-col-status"><span class="' + statusClass + '">' + statusLabel + '</span></div><div class="inv-col-actions">' + approveBtn + rejectBtn + '</div></div>';
+              }).join('')}
+            </div>
+          </div>`;
+        }).join('') : '<div class="empty-state">No inventory submissions yet. Suppliers submit items from their dashboard after importing a Google Sheet.</div>'}</div>
         <div id="admin-inventory-subs-notice"></div>
       </div>
     </section>`;
