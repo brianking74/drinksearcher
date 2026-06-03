@@ -227,7 +227,8 @@ const storage = {
       });
     });
     return items;
-  },(lead) {
+  },
+  addAdminApplication(lead) {
     const state = this.getAdminState();
     if (state.applications.some(entry => entry.id === lead.id)) return;
     state.applications.unshift({
