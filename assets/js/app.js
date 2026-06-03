@@ -2137,7 +2137,37 @@ function renderAdminDashboardPage() {
         <div id="admin-inventory-subs-notice" class="admin-notice"></div>
       </div>
     </div>`;`;
-        }).join('')}</div>
+        
+  // Inventory submissions item delete handler
+  $$('[data-item-delete]', app).forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var fullId = btn.dataset.itemDelete;
+      if (!fullId) return;
+      var sepIdx = fullId.indexOf('_item_');
+      if (sepIdx < 0) return;
+      var subId = fullId.slice(0, sepIdx);
+      var itemId = fullId.slice(sepIdx + 1);
+      storage.deleteInventoryItem(subId, itemId);
+      var subsNotice = $('#admin-inventory-subs-notice', app);
+      if (subsNotice) subsNotice.innerHTML = '<div class="admin-notice-text">Item deleted.</div>';
+      renderAdminDashboardPage();
+    });
+  });
+  
+  // Generic delete handler for all admin sections
+  $$('[data-admin-delete]', app).forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var stateKey = btn.dataset.adminDelete;
+      var itemId = btn.dataset.adminId;
+      storage.deleteAdminItem(stateKey, itemId);
+      var noticeMap = { applications: 'admin-applications-notice', subscriptions: 'admin-subscriptions-notice', placements: 'admin-placements-notice', moderation: 'admin-moderation-notice', importJobs: 'admin-imports-notice' };
+      var noticeEl = $(noticeMap[stateKey] || '#admin-applications-notice', app);
+      if (noticeEl) noticeEl.innerHTML = '<div class="admin-notice-text">Deleted.</div>';
+      renderAdminDashboardPage();
+    });
+  });
+  
+}).join('')}</div>
         <div id="admin-subscriptions-notice"></div>
       </div>
     </section>
