@@ -2450,19 +2450,22 @@ document.addEventListener('DOMContentLoaded', () => {
   setupAnchorSpy();
   syncSaveButtons();
 
-  // Admin delete handlers (delegated - works on any admin page)
+  // Admin delete handlers (delegated - uses closest to handle nested clicks)
   document.body.addEventListener('click', function(e) {
-    var t = e.target;
     if (document.body.dataset.page !== 'admin') return;
-    if (t.matches('[data-item-delete]')) {
-      var sep = t.dataset.itemDelete.indexOf('_item_');
+    var delBtn = e.target.closest('[data-item-delete]');
+    if (delBtn) {
+      var sep = delBtn.dataset.itemDelete.indexOf('_item_');
       if (sep < 0) return;
-      storage.deleteInventoryItem(t.dataset.itemDelete.slice(0, sep), t.dataset.itemDelete.slice(sep + 1));
-      return renderAdminDashboardPage();
+      storage.deleteInventoryItem(delBtn.dataset.itemDelete.slice(0, sep), delBtn.dataset.itemDelete.slice(sep + 1));
+      renderAdminDashboardPage();
+      return;
     }
-    if (t.matches('[data-admin-delete]')) {
-      storage.deleteAdminItem(t.dataset.adminDelete, t.dataset.adminId);
-      return renderAdminDashboardPage();
+    var adminBtn = e.target.closest('[data-admin-delete]');
+    if (adminBtn) {
+      storage.deleteAdminItem(adminBtn.dataset.adminDelete, adminBtn.dataset.adminId);
+      renderAdminDashboardPage();
+      return;
     }
   });
 });
