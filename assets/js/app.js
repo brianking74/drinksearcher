@@ -227,7 +227,25 @@ const storage = {
     state.inventorySubmissions = submissions;
     localStorage.setItem('ds_admin_state', JSON.stringify(state));
   },
-  getApprovedInventoryItems() {
+  deleteInventoryItem(subId, itemId) {
+    const submissions = this.getInventorySubmissions();
+    submissions.forEach(function(sub) {
+      if (sub.id === subId) {
+        sub.items = (sub.items || []).filter(function(item) { return item._id !== itemId; });
+        sub.itemCount = sub.items.length;
+      }
+    });
+    const state = this.getAdminState();
+    state.inventorySubmissions = submissions;
+    localStorage.setItem('ds_admin_state', JSON.stringify(state));
+  },
+  deleteInventorySubmission(subId) {
+    var submissions = this.getInventorySubmissions();
+    submissions = submissions.filter(function(s) { return s.id !== subId; });
+    const state = this.getAdminState();
+    state.inventorySubmissions = submissions;
+    localStorage.setItem('ds_admin_state', JSON.stringify(state));
+  },  getApprovedInventoryItems() {
     const submissions = this.getInventorySubmissions();
     const items = [];
     submissions.forEach(sub => {
@@ -2067,10 +2085,10 @@ function renderAdminDashboardPage() {
           var approvedCount = (sub.items||[]).filter(function(it) { return it._status === 'Approved'; }).length;
           var pendingCount = (sub.items||[]).filter(function(it) { return it._status === 'Pending'; }).length;
           var rejectedCount = (sub.items||[]).filter(function(it) { return it._status === 'Rejected'; }).length;
-          return '<div class="inv-card"><div class="inv-card-head"><div><strong>' + sub.businessName + '</strong> <span class="admin-meta">' + (sub.email || '') + '</span></div><div class="admin-meta">' + (sub.itemCount || 0) + ' items · ' + pendingCount + ' pending · ' + approvedCount + ' approved' + (rejectedCount ? ' · ' + rejectedCount + ' rejected' : '') + ' · ' + (new Date(sub.submittedAt).toLocaleDateString() || '') + '</div></div><div class="inv-item-table"><div class="inv-item-head"><div>Product</div><div>Price</div><div>Stock</div><div>Status</div><div></div></div>' + (sub.items || []).map(function(i, idx) {
+          return '<div class="inv-card"><div class="inv-card-head"><div><strong>' + sub.businessName + '</strong> <span class="admin-meta">' + (sub.email || '') + '</span></div><div class="admin-meta">' + (sub.itemCount || 0) + ' items · ' + pendingCount + ' pending · ' + approvedCount + ' approved' + (rejectedCount ? ' · ' + rejectedCount + ' rejected' : '') + ' · ' + (new Date(sub.submittedAt).toLocaleDateString() || '') + ' <button class="admin-btn admin-btn-sm" type="button" data-sub-delete="' + sub.id + '" style="color:#ff5252;margin-left:8px;">Delete all</button></div></div><div class="inv-item-table"><div class="inv-item-head"><div>Product</div><div>Price</div><div>Stock</div><div>Status</div><div></div></div>' + (sub.items || []).map(function(i, idx) {
             var isApproved = i._status === 'Approved';
             var isRejected = i._status === 'Rejected';
-            return '<div class="inv-item-row' + (isApproved ? ' inv-row-approved' : (isRejected ? ' inv-row-rejected' : '')) + '"><div>' + (idx+1) + '. ' + (i.name || 'Unnamed') + '</div><div>' + (i.price || 'HK$0') + '</div><div>' + (i.availability || '—') + '</div><div><span class="' + (isApproved ? 'inv-status-approved' : (isRejected ? 'inv-status-rejected' : 'inv-status-pending')) + '">' + (isApproved ? 'Approved' : (isRejected ? 'Rejected' : 'Pending')) + '</span></div><div>' + (!isApproved ? '<button class="admin-btn admin-btn-sm" type="button" data-item-approve="' + sub.id + '_item_' + i._id + '">Approve</button>' : '') + ' ' + (!isRejected ? '<button class="admin-btn admin-btn-sm" type="button" data-item-reject="' + sub.id + '_item_' + i._id + '">Reject</button>' : '') + '</div></div>';
+            return '<div class="inv-item-row' + (isApproved ? ' inv-row-approved' : (isRejected ? ' inv-row-rejected' : '')) + '"><div>' + (idx+1) + '. ' + (i.name || 'Unnamed') + '</div><div>' + (i.price || 'HK$0') + '</div><div>' + (i.availability || '—') + '</div><div><span class="' + (isApproved ? 'inv-status-approved' : (isRejected ? 'inv-status-rejected' : 'inv-status-pending')) + '">' + (isApproved ? 'Approved' : (isRejected ? 'Rejected' : 'Pending')) + '</span></div><div>' + (!isApproved ? '<button class="admin-btn admin-btn-sm" type="button" data-item-approve="' + sub.id + '_item_' + i._id + '">Approve</button>' : '') + ' ' + (!isRejected ? '<button class="admin-btn admin-btn-sm" type="button" data-item-reject="' + sub.id + '_item_' + i._id + '">Reject</button>' : '') + ' <button class="admin-btn admin-btn-sm" type="button" data-item-delete="' + sub.id + '_item_' + i._id + '" style="color:#ff5252;">Delete</button></div></div>';
           }).join('') + '</div></div>';
         }).join('') : '<div class="admin-meta">No inventory submissions yet.</div>'}</div>
         <div id="admin-inventory-subs-notice" class="admin-notice"></div>
