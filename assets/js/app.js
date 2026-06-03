@@ -2109,7 +2109,7 @@ function renderAdminDashboardPage() {
           return '<div class="inv-card"><div class="inv-card-head"><div><strong>' + sub.businessName + '</strong> <span class="admin-meta">' + (sub.email || '') + '</span> <button class="admin-btn admin-btn-sm" type="button" data-sub-delete=\"' + sub.id + '\" style="color:#ff5252;margin-left:8px;">Delete all</button></div><div class="admin-meta">' + (sub.itemCount || 0) + ' items · ' + pendingCount + ' pending · ' + approvedCount + ' approved' + (rejectedCount ? ' · ' + rejectedCount + ' rejected' : '') + ' · ' + (new Date(sub.submittedAt).toLocaleDateString() || '') + '</div></div><div class="inv-item-table"><div class="inv-item-head"><div>Product</div><div>Price</div><div>Stock</div><div>Status</div><div></div></div>' + (sub.items || []).map(function(i, idx) {
             var isApproved = i._status === 'Approved';
             var isRejected = i._status === 'Rejected';
-            return '<div class="inv-item-row' + (isApproved ? ' inv-row-approved' : (isRejected ? ' inv-row-rejected' : '')) + '"><div>' + (idx+1) + '. ' + (i.name || 'Unnamed') + '</div><div>' + (i.price || 'HK$0') + '</div><div>' + (i.availability || '—') + '</div><div><span class="' + (isApproved ? 'inv-status-approved' : (isRejected ? 'inv-status-rejected' : 'inv-status-pending')) + '">' + (isApproved ? 'Approved' : (isRejected ? 'Rejected' : 'Pending')) + '</span></div><div>' + (!isApproved ? '<button class="admin-btn admin-btn-sm" type="button" data-item-approve="' + sub.id + '_item_' + i._id + '">Approve</button>' : '') + ' ' + (!isRejected ? '<button class="admin-btn admin-btn-sm" type="button" data-item-reject="' + sub.id + '_item_' + i._id + '">Reject</button>' : '') + '</div></div>';
+            return '<div class="inv-item-row' + (isApproved ? ' inv-row-approved' : (isRejected ? ' inv-row-rejected' : '')) + '"><div>' + (idx+1) + '. ' + (i.name || 'Unnamed') + '</div><div>' + (i.price || 'HK$0') + '</div><div>' + (i.availability || '—') + '</div><div><span class="' + (isApproved ? 'inv-status-approved' : (isRejected ? 'inv-status-rejected' : 'inv-status-pending')) + '">' + (isApproved ? 'Approved' : (isRejected ? 'Rejected' : 'Pending')) + '</span></div><div>' + (!isApproved ? '<button class="admin-btn admin-btn-sm" type="button" data-item-approve="' + sub.id + '_item_' + i._id + '">Approve</button>' : '') + ' ' + (!isRejected ? '<button class="admin-btn admin-btn-sm" type="button" data-item-reject="' + sub.id + '_item_' + i._id + '">Reject</button>' : '') + ' <button class="admin-btn admin-btn-sm" style="color:#ff5252;" type="button" data-item-delete="' + sub.id + '_item_' + i._id + '">Delete</button></div></div>';
           }).join('') + '</div></div>';
         }).join('') : '<div class="admin-meta">No inventory submissions yet.</div>'}</div>
         <div id="admin-inventory-subs-notice" class="admin-notice"></div>
@@ -2404,19 +2404,19 @@ document.addEventListener('DOMContentLoaded', () => {
     var btn = e.target.closest('[data-item-approve]');
     if (btn) {
       var sep = btn.dataset.itemApprove.indexOf('_item_');
-      if (sep > 0) { adminApproveInventoryItem(btn.dataset.itemApprove.slice(0, sep), btn.dataset.itemApprove.slice(sep + 1)); renderAdminDashboardPage(); }
+      if (sep > 0) { adminApproveInventoryItem(btn.dataset.itemApprove.slice(0, sep), btn.dataset.itemApprove.slice(sep + 6)); renderAdminDashboardPage(); }
       return;
     }
     btn = e.target.closest('[data-item-reject]');
     if (btn) {
       var sep = btn.dataset.itemReject.indexOf('_item_');
-      if (sep > 0) { adminRejectInventoryItem(btn.dataset.itemReject.slice(0, sep), btn.dataset.itemReject.slice(sep + 1)); renderAdminDashboardPage(); }
+      if (sep > 0) { adminRejectInventoryItem(btn.dataset.itemReject.slice(0, sep), btn.dataset.itemReject.slice(sep + 6)); renderAdminDashboardPage(); }
       return;
     }
     btn = e.target.closest('[data-item-delete]');
     if (btn) {
       var sep = btn.dataset.itemDelete.indexOf('_item_');
-      if (sep > 0) { adminDeleteInventoryItem(btn.dataset.itemDelete.slice(0, sep), btn.dataset.itemDelete.slice(sep + 1)); renderAdminDashboardPage(); }
+      if (sep > 0) { adminDeleteInventoryItem(btn.dataset.itemDelete.slice(0, sep), btn.dataset.itemDelete.slice(sep + 6)); renderAdminDashboardPage(); }
       return;
     }
     btn = e.target.closest('[data-admin-delete]');
@@ -2436,21 +2436,21 @@ document.body.addEventListener('click', function(e) {
   if (btn) {
     var s = btn.dataset.itemApprove;
     var sep = s.indexOf('_item_');
-    if (sep > 0) { adminApproveInventoryItem(s.slice(0, sep), s.slice(sep + 1)); renderAdminDashboardPage(); }
+    if (sep > 0) { adminApproveInventoryItem(s.slice(0, sep), s.slice(sep + 6)); renderAdminDashboardPage(); }
     return;
   }
   btn = e.target.closest('[data-item-reject]');
   if (btn) {
     var s = btn.dataset.itemReject;
     var sep = s.indexOf('_item_');
-    if (sep > 0) { adminRejectInventoryItem(s.slice(0, sep), s.slice(sep + 1)); renderAdminDashboardPage(); }
+    if (sep > 0) { adminRejectInventoryItem(s.slice(0, sep), s.slice(sep + 6)); renderAdminDashboardPage(); }
     return;
   }
   btn = e.target.closest('[data-item-delete]');
   if (btn) {
     var s = btn.dataset.itemDelete;
     var sep = s.indexOf('_item_');
-    if (sep > 0) { adminDeleteInventoryItem(s.slice(0, sep), s.slice(sep + 1)); renderAdminDashboardPage(); }
+    if (sep > 0) { adminDeleteInventoryItem(s.slice(0, sep), s.slice(sep + 6)); renderAdminDashboardPage(); }
     return;
   }
   btn = e.target.closest('[data-admin-delete]');
