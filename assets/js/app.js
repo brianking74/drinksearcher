@@ -1736,12 +1736,15 @@ function renderBusinessDashboardPage() {
             itemCount: imported.length,
             notes: `${mode === 'replace' ? 'Replaced' : 'Appended'} inventory from supplier sheet.`
           });
-          holder.innerHTML = `<div class="notice">Imported <strong>${imported.length}</strong> inventory rows.</div>`;
+          // Auto-submit for admin review
+          storage.addInventorySubmission({
+            businessName: config.listingName || (user ? user.name : '') || 'Unknown',
+            email: user ? user.email : '',
+            items: imported
+          });
+          holder.innerHTML = `<div class="notice">Imported <strong>${imported.length}</strong> inventory rows and submitted for admin review.</div>`;
           if (imported.length && imported[0].name && !imported[0].price) {
             holder.innerHTML += `<div class="notice" style="margin-top:8px;background:rgba(255,180,50,.08);border-color:rgba(255,180,50,.18);color:#ffecb3;">No price column detected. Make sure your Google Sheet has a column named &quot;Price&quot; or &quot;Cost&quot; with HKD values.</div>`;
-          }
-          if (imported.length) {
-            holder.innerHTML += `<div class="inline-actions" style="margin-top:14px;"><button class="btn btn-primary" id="submit-inventory-btn" type="button">Submit ${imported.length} items for approval</button><span class="muted" style="font-size:.82rem;">Items will be reviewed by admin before appearing in the public directory.</span></div>`;
           }
           setTimeout(() => renderBusinessDashboardPage(), 300);
         } catch (error) {
