@@ -2115,7 +2115,7 @@ function renderAdminDashboardPage() {
             return `
             <div class="admin-table-row">
               <div><strong>${sub.businessName}</strong><div class="small-note">${sub.email || 'No email'}</div></div>
-              <div><div>${sub.itemCount || 0} items</div><div class="small-note">${(sub.items || []).slice(0, 2).map(function(i) { return i.name; }).join(', ')}${(sub.items||[]).length > 2 ? '...' : ''}</div></div>
+              <div><div>${sub.itemCount || 0} items</div><div class="small-note" style="max-height:200px;overflow-y:auto;font-size:.82rem;line-height:1.5;">${(sub.items || []).map(function(i, idx) { return (idx+1) + '. ' + (i.name || 'Unnamed') + ' — ' + (i.price || 'HK$0') + (i.availability ? ' [' + i.availability + ']' : ''); }).join('<br>')}</div></div>
               <div><div class="small-note">${new Date(sub.submittedAt).toLocaleDateString() || 'Unknown'}</div></div>
               <div>${adminStatusChip(sub.status)}</div>
               <div class="admin-inline">${sub.status === 'Pending' ? '<button class="btn btn-primary btn-small" type="button" data-sub-approve="' + sub.id + '">Approve</button><button class="btn btn-ghost btn-small" type="button" data-sub-reject="' + sub.id + '" style="color:rgba(255,80,80,.8);">Reject</button>' : '<span class="small-note">' + sub.status + '</span>'}</div>
