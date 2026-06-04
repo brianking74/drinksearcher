@@ -1,41 +1,36 @@
 
-// Admin helper functions (standalone, not in storage object)
-function adminDeleteItem(stateKey, itemId) {
-  var state = JSON.parse(localStorage.getItem('ds_admin_state') || 'null');
-  if (!state || !state[stateKey]) return;
-  state[stateKey] = state[stateKey].filter(function(item) { return item.id !== itemId; });
+function adminGetState() {
+  return JSON.parse(localStorage.getItem('ds_admin_state') || 'null');
+}
+function adminSaveState(state) {
   localStorage.setItem('ds_admin_state', JSON.stringify(state));
+}
+function adminDeleteItem(stateKey, itemId) {
+  var s = adminGetState(); if (!s || !s[stateKey]) return;
+  s[stateKey] = s[stateKey].filter(function(i) { return i.id !== itemId; });
+  adminSaveState(s);
 }
 function adminDeleteInventoryItem(subId, itemId) {
-  var state = JSON.parse(localStorage.getItem('ds_admin_state') || 'null');
-  if (!state || !state.inventorySubmissions) return;
-  state.inventorySubmissions.forEach(function(sub) {
-    if (sub.id === subId) {
-      sub.items = (sub.items || []).filter(function(item) { return item._id !== itemId; });
-      sub.itemCount = sub.items.length;
-    }
+  var s = adminGetState(); if (!s || !s.inventorySubmissions) return;
+  s.inventorySubmissions.forEach(function(sub) {
+    if (sub.id === subId) { sub.items = (sub.items||[]).filter(function(i) { return i._id !== itemId; }); sub.itemCount = sub.items.length; }
   });
-  localStorage.setItem('ds_admin_state', JSON.stringify(state));
+  adminSaveState(s);
 }
-function adminApproveInventoryItem(subId, itemId) {
-  var state = JSON.parse(localStorage.getItem('ds_admin_state') || 'null');
-  if (!state || !state.inventorySubmissions) return;
-  state.inventorySubmissions.forEach(function(sub) {
-    (sub.items || []).forEach(function(item) {
-      if (item._id === itemId) { item._status = 'Approved'; }
-    });
-  });
-  localStorage.setItem('ds_admin_state', JSON.stringify(state));
+function adminApproveItem(subId, itemId) {
+  var s = adminGetState(); if (!s || !s.inventorySubmissions) return;
+  s.inventorySubmissions.forEach(function(sub) { (sub.items||[]).forEach(function(i) { if (i._id === itemId) i._status = 'Approved'; }); });
+  adminSaveState(s);
 }
-function adminRejectInventoryItem(subId, itemId) {
-  var state = JSON.parse(localStorage.getItem('ds_admin_state') || 'null');
-  if (!state || !state.inventorySubmissions) return;
-  state.inventorySubmissions.forEach(function(sub) {
-    (sub.items || []).forEach(function(item) {
-      if (item._id === itemId) { item._status = 'Rejected'; }
-    });
-  });
-  localStorage.setItem('ds_admin_state', JSON.stringify(state));
+function adminRejectItem(subId, itemId) {
+  var s = adminGetState(); if (!s || !s.inventorySubmissions) return;
+  s.inventorySubmissions.forEach(function(sub) { (sub.items||[]).forEach(function(i) { if (i._id === itemId) i._status = 'Rejected'; }); });
+  adminSaveState(s);
+}
+function adminDeleteSubmission(subId) {
+  var s = adminGetState(); if (!s || !s.inventorySubmissions) return;
+  s.inventorySubmissions = s.inventorySubmissions.filter(function(x) { return x.id !== subId; });
+  adminSaveState(s);
 }
 function $(sel, root = document) { return root.querySelector(sel); }
 function $$(sel, root = document) { return Array.from(root.querySelectorAll(sel)); }
@@ -2106,7 +2101,7 @@ function renderAdminDashboardPage() {
           var approvedCount = (sub.items||[]).filter(function(it) { return it._status === 'Approved'; }).length;
           var pendingCount = (sub.items||[]).filter(function(it) { return it._status === 'Pending'; }).length;
           var rejectedCount = (sub.items||[]).filter(function(it) { return it._status === 'Rejected'; }).length;
-          return '<div class="inv-card"><div class="inv-card-head"><div><strong>' + sub.businessName + '</strong> <span class="admin-meta">' + (sub.email || '') + '</span> <button class="admin-btn admin-btn-sm" type="button" data-sub-delete=\"' + sub.id + '\" style="color:#ff5252;margin-left:8px;">Delete all</button></div><div class="admin-meta">' + (sub.itemCount || 0) + ' items · ' + pendingCount + ' pending · ' + approvedCount + ' approved' + (rejectedCount ? ' · ' + rejectedCount + ' rejected' : '') + ' · ' + (new Date(sub.submittedAt).toLocaleDateString() || '') + '</div></div><div class="inv-item-table"><div class="inv-item-head"><div>Product</div><div>Price</div><div>Stock</div><div>Status</div><div></div></div>' + (sub.items || []).map(function(i, idx) {
+          return '<div class="inv-card"><div class="inv-card-head"><div><strong>' + sub.businessName + '</strong> <span class="admin-meta">' + (sub.email || '') + '</span></div><div class="admin-meta">' + (sub.itemCount || 0) + ' items · ' + pendingCount + ' pending · ' + approvedCount + ' approved' + (rejectedCount ? ' · ' + rejectedCount + ' rejected' : '') + ' · ' + (new Date(sub.submittedAt).toLocaleDateString() || '') + ' <button class="admin-btn admin-btn-sm" type="button" data-sub-delete=\"' + sub.id + '\" style="color:#ff5252;margin-left:8px;">Delete all</button></div></div><div class="inv-item-table"><div class="inv-item-head"><div>Product</div><div>Price</div><div>Stock</div><div>Status</div><div></div></div>' + (sub.items || []).map(function(i, idx) {
             var isApproved = i._status === 'Approved';
             var isRejected = i._status === 'Rejected';
             return '<div class="inv-item-row' + (isApproved ? ' inv-row-approved' : (isRejected ? ' inv-row-rejected' : '')) + '"><div>' + (idx+1) + '. ' + (i.name || 'Unnamed') + '</div><div>' + (i.price || 'HK$0') + '</div><div>' + (i.availability || '—') + '</div><div><span class="' + (isApproved ? 'inv-status-approved' : (isRejected ? 'inv-status-rejected' : 'inv-status-pending')) + '">' + (isApproved ? 'Approved' : (isRejected ? 'Rejected' : 'Pending')) + '</span></div><div>' + (!isApproved ? '<button class="admin-btn admin-btn-sm" type="button" data-item-approve="' + sub.id + '_item_' + i._id + '">Approve</button>' : '') + ' ' + (!isRejected ? '<button class="admin-btn admin-btn-sm" type="button" data-item-reject="' + sub.id + '_item_' + i._id + '">Reject</button>' : '') + ' <button class="admin-btn admin-btn-sm" style="color:#ff5252;" type="button" data-item-delete="' + sub.id + '_item_' + i._id + '">Delete</button></div></div>';
@@ -2115,25 +2110,7 @@ function renderAdminDashboardPage() {
         <div id="admin-inventory-subs-notice" class="admin-notice"></div>
       </div>
     </div>`;`;
-        
-  // Register admin button handlers
-  function _adminHandler(e) {
-    if (document.body.dataset.page !== 'admin') return;
-    var btn = e.target.closest('[data-item-approve]');
-    var s, sep;
-    if (btn) { s = btn.dataset.itemApprove; sep = s.indexOf('_item_'); if (sep > 0) { adminApproveInventoryItem(s.slice(0, sep), s.slice(sep + 6)); renderAdminDashboardPage(); } return; }
-    btn = e.target.closest('[data-item-reject]');
-    if (btn) { s = btn.dataset.itemReject; sep = s.indexOf('_item_'); if (sep > 0) { adminRejectInventoryItem(s.slice(0, sep), s.slice(sep + 6)); renderAdminDashboardPage(); } return; }
-    btn = e.target.closest('[data-item-delete]');
-    if (btn) { s = btn.dataset.itemDelete; sep = s.indexOf('_item_'); if (sep > 0) { adminDeleteInventoryItem(s.slice(0, sep), s.slice(sep + 6)); renderAdminDashboardPage(); } return; }
-    btn = e.target.closest('[data-admin-delete]');
-    if (btn) { adminDeleteItem(btn.dataset.adminDelete, btn.dataset.adminId); renderAdminDashboardPage(); return; }
-    btn = e.target.closest('[data-sub-delete]');
-    if (btn) { adminDeleteInventorySubmission(btn.dataset.subDelete); renderAdminDashboardPage(); return; }
-  }
-  document.body.removeEventListener('click', _adminHandler);
-  document.body.addEventListener('click', _adminHandler);
-}).join('')}</div>
+        }).join('')}</div>
         <div id="admin-subscriptions-notice"></div>
       </div>
     </section>
@@ -2407,6 +2384,20 @@ document.addEventListener('DOMContentLoaded', () => {
   if (page === 'lead') renderLeadCapturePage();
   if (page === 'dashboard') renderBusinessDashboardPage();
   if (page === 'admin') renderAdminDashboardPage();
+  // Admin button handler
+  document.body.addEventListener('click', function __adminClick(e) {
+    if (document.body.dataset.page !== 'admin') return;
+    var b = e.target.closest('[data-item-approve]'); var s, x;
+    if (b) { s = b.dataset.itemApprove; x = s.indexOf('_item_'); if (x > 0) { adminApproveItem(s.slice(0, x), s.slice(x+6)); renderAdminDashboardPage(); } return; }
+    b = e.target.closest('[data-item-reject]');
+    if (b) { s = b.dataset.itemReject; x = s.indexOf('_item_'); if (x > 0) { adminRejectItem(s.slice(0, x), s.slice(x+6)); renderAdminDashboardPage(); } return; }
+    b = e.target.closest('[data-item-delete]');
+    if (b) { s = b.dataset.itemDelete; x = s.indexOf('_item_'); if (x > 0) { adminDeleteInventoryItem(s.slice(0, x), s.slice(x+6)); renderAdminDashboardPage(); } return; }
+    b = e.target.closest('[data-admin-delete]');
+    if (b) { adminDeleteItem(b.dataset.adminDelete, b.dataset.adminId); renderAdminDashboardPage(); return; }
+    b = e.target.closest('[data-sub-delete]');
+    if (b) { adminDeleteSubmission(b.dataset.subDelete); renderAdminDashboardPage(); return; }
+  });
   if (page === 'venue-profile') renderVenueProfile();
   if (page === 'supplier-profile') renderSupplierProfile();
   if (page === 'searcher-account') renderSearcherAccountPage();
@@ -2415,42 +2406,4 @@ document.addEventListener('DOMContentLoaded', () => {
   if (page === 'account') renderAccountPage();
   setupAnchorSpy();
   syncSaveButtons();
-
-  // Admin page click handler
-  document.body.addEventListener('click', function(e) {
-    if (document.body.dataset.page !== 'admin') return;
-    var btn = e.target.closest('[data-item-approve]');
-    if (btn) {
-      var sep = btn.dataset.itemApprove.indexOf('_item_');
-      if (sep > 0) { adminApproveInventoryItem(btn.dataset.itemApprove.slice(0, sep), btn.dataset.itemApprove.slice(sep + 6)); renderAdminDashboardPage(); }
-      return;
-    }
-    btn = e.target.closest('[data-item-reject]');
-    if (btn) {
-      var sep = btn.dataset.itemReject.indexOf('_item_');
-      if (sep > 0) { adminRejectInventoryItem(btn.dataset.itemReject.slice(0, sep), btn.dataset.itemReject.slice(sep + 6)); renderAdminDashboardPage(); }
-      return;
-    }
-    btn = e.target.closest('[data-item-delete]');
-    if (btn) {
-      var sep = btn.dataset.itemDelete.indexOf('_item_');
-      if (sep > 0) { adminDeleteInventoryItem(btn.dataset.itemDelete.slice(0, sep), btn.dataset.itemDelete.slice(sep + 6)); renderAdminDashboardPage(); }
-      return;
-    }
-    btn = e.target.closest('[data-admin-delete]');
-    if (btn) {
-      var stateKey = btn.dataset.adminDelete;
-      adminDeleteItem(stateKey, btn.dataset.adminId);
-      renderAdminDashboardPage();
-      return;
-    }
-  });
 });
-
-
-function adminDeleteInventorySubmission(subId) {
-  var state = JSON.parse(localStorage.getItem('ds_admin_state') || 'null');
-  if (!state || !state.inventorySubmissions) return;
-  state.inventorySubmissions = state.inventorySubmissions.filter(function(s) { return s.id !== subId; });
-  localStorage.setItem('ds_admin_state', JSON.stringify(state));
-}
