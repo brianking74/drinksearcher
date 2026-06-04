@@ -2287,32 +2287,7 @@ function renderAdminDashboardPage() {
   }));
 
   
-  $$('[data-item-approve]', app).forEach(function(btn) {
-    btn.addEventListener('click', function() {
-      var fullId = btn.dataset.itemApprove;
-      var sepIdx = fullId.indexOf('_item_');
-      if (sepIdx < 0) return;
-      var subId = fullId.slice(0, sepIdx);
-      var itemId = fullId.slice(sepIdx + 1);
-      var entry = storage.approveInventoryItem(subId, itemId);
-      var subsNotice = $('#admin-inventory-subs-notice', app);
-      if (subsNotice && entry) subsNotice.innerHTML = '<div class="notice">Approved: ' + (entry.name || 'item') + '</div>';
-      renderAdminDashboardPage();
-    });
-  });
-  $$('[data-item-reject]', app).forEach(function(btn) {
-    btn.addEventListener('click', function() {
-      var fullId = btn.dataset.itemReject;
-      var sepIdx = fullId.indexOf('_item_');
-      if (sepIdx < 0) return;
-      var subId = fullId.slice(0, sepIdx);
-      var itemId = fullId.slice(sepIdx + 1);
-      storage.rejectInventoryItem(subId, itemId);
-      var subsNotice = $('#admin-inventory-subs-notice', app);
-      if (subsNotice) subsNotice.innerHTML = '<div class="notice">Item rejected.</div>';
-      renderAdminDashboardPage();
-    });
-  });
+  // Handled by delegated __adminClick on document.body (below)
 $$('[data-import-promote]', app).forEach(btn => btn.addEventListener('click', () => {
     const index = Number(btn.dataset.importPromote);
     const job = state.importJobs[index];
