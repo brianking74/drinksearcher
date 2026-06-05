@@ -28,6 +28,20 @@ function adminApproveItem(subId, itemId) {
     localStorage.setItem('ds_published_items', JSON.stringify(pub));
   } }); });
 }
+// Retroactively publish all already-approved items to the drinks directory
+function publishApprovedItems() {
+  var s = adminGetState(); if (!s || !s.inventorySubmissions) return;
+  var pub = JSON.parse(localStorage.getItem('ds_published_items') || '[]');
+  var existing = {}; pub.forEach(function(p) { if (p.name) existing[p.name + '_' + p.supplier] = true; });
+  var added = 0;
+  s.inventorySubmissions.forEach(function(sub) { (sub.items||[]).forEach(function(i) {
+    if (i._status === 'Approved' && !existing[i.name + '_' + sub.businessName]) {
+      pub.unshift({name:i.name, supplier:sub.businessName, supplierSlug:'', area:sub.district || 'Hong Kong', type:'Drink', price:i.price, image:'', tier:'enhanced', buy:'', description:'Approved inventory item from ' + sub.businessName + '.', origin:'', abv:'', availability:i.availability});
+      added++;
+    }
+  }); });
+  if (added) localStorage.setItem('ds_published_items', JSON.stringify(pub));
+}
 function adminRejectItem(subId, itemId) {
   var s = adminGetState(); if (!s || !s.inventorySubmissions) return;
   s.inventorySubmissions.forEach(function(sub) { (sub.items||[]).forEach(function(i) { if (i._id === itemId) i._status = 'Rejected'; }); });
@@ -2270,6 +2284,7 @@ $$('[data-import-promote]', app).forEach(btn => btn.addEventListener('click', ()
     saveState(`Listing task created from import queue for ${job.businessName}.`, '#admin-imports-notice');
     renderAdminDashboardPage();
   }));
+  publishApprovedItems();
 }
 
 function setupAnchorSpy() {
