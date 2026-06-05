@@ -2305,16 +2305,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Admin delegated click handler — registered immediately (not inside DOMContentLoaded)
 // to ensure it always catches clicks even if DOMContentLoaded already fired
+var flashNotice = function(msg) { var el = document.getElementById('admin-inventory-subs-notice'); if (el) el.innerHTML = '<div class="notice" style="padding:8px 12px;margin:8px 0;background:#1a3a1a;color:#8fdf8f;border-radius:4px;">' + msg + '</div>'; setTimeout(function(){ if (el) el.innerHTML = ''; }, 2500); };
 document.body.addEventListener('click', function __adminClick(e) {
   if (document.body.dataset.page !== 'admin') return;
   var b = e.target.closest('[data-item-approve]'); var s, x;
-  if (b) { s = b.dataset.itemApprove; x = s.indexOf('_item_'); if (x > 0) { adminApproveItem(s.slice(0, x), s.slice(x+6)); renderAdminDashboardPage(); } return; }
+  if (b) { s = b.dataset.itemApprove; x = s.indexOf('_item_'); if (x > 0) { adminApproveItem(s.slice(0, x), s.slice(x+6)); renderAdminDashboardPage(); flashNotice('Item approved.'); } return; }
   b = e.target.closest('[data-item-reject]');
-  if (b) { s = b.dataset.itemReject; x = s.indexOf('_item_'); if (x > 0) { adminRejectItem(s.slice(0, x), s.slice(x+6)); renderAdminDashboardPage(); } return; }
+  if (b) { s = b.dataset.itemReject; x = s.indexOf('_item_'); if (x > 0) { adminRejectItem(s.slice(0, x), s.slice(x+6)); renderAdminDashboardPage(); flashNotice('Item rejected.'); } return; }
   b = e.target.closest('[data-item-delete]');
-  if (b) { s = b.dataset.itemDelete; x = s.indexOf('_item_'); if (x > 0) { adminDeleteInventoryItem(s.slice(0, x), s.slice(x+6)); renderAdminDashboardPage(); } return; }
+  if (b) { s = b.dataset.itemDelete; x = s.indexOf('_item_'); if (x > 0) { adminDeleteInventoryItem(s.slice(0, x), s.slice(x+6)); renderAdminDashboardPage(); flashNotice('Item deleted.'); } return; }
   b = e.target.closest('[data-admin-delete]');
-  if (b) { adminDeleteItem(b.dataset.adminDelete, b.dataset.adminId); renderAdminDashboardPage(); return; }
+  if (b) { adminDeleteItem(b.dataset.adminDelete, b.dataset.adminId); renderAdminDashboardPage(); flashNotice('Deleted.'); return; }
   b = e.target.closest('[data-sub-delete]');
-  if (b) { adminDeleteSubmission(b.dataset.subDelete); renderAdminDashboardPage(); return; }
+  if (b) { adminDeleteSubmission(b.dataset.subDelete); renderAdminDashboardPage(); flashNotice('Submission deleted.'); return; }
 });
