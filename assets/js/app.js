@@ -33,14 +33,26 @@ function publishApprovedItems() {
   var s = adminGetState(); if (!s || !s.inventorySubmissions) return;
   var pub = JSON.parse(localStorage.getItem('ds_published_items') || '[]');
   var existing = {}; pub.forEach(function(p) { if (p.name) existing[p.name + '_' + p.supplier] = true; });
-  var added = 0;
+  var changed = false;
   s.inventorySubmissions.forEach(function(sub) { (sub.items||[]).forEach(function(i) {
-    if (i._status === 'Approved' && !existing[i.name + '_' + sub.businessName]) {
-      pub.unshift({name:i.name, supplier:sub.businessName, supplierSlug:'', area:sub.district || 'Hong Kong', type:'Drink', price:i.price, image:i.image || '', tier:'enhanced', buy:i.buy || '', description:'Approved inventory item from ' + sub.businessName + '.', origin:'', abv:'', availability:i.availability, clicks:0});
-      added++;
+    if (i._status === 'Approved') {
+      var key = i.name + '_' + sub.businessName;
+      if (!existing[key]) {
+        pub.unshift({name:i.name, supplier:sub.businessName, supplierSlug:'', area:sub.district || 'Hong Kong', type:'Drink', price:i.price, image:i.image || '', tier:'enhanced', buy:i.buy || '', description:'Approved inventory item from ' + sub.businessName + '.', origin:'', abv:'', availability:i.availability, clicks:0});
+        changed = true;
+      } else {
+        // Update existing entries with missing fields
+        pub.forEach(function(p) {
+          if (p.name === i.name && p.supplier === sub.businessName) {
+            if (!p.buy && i.buy) { p.buy = i.buy; changed = true; }
+            if (!p.image && i.image) { p.image = i.image; changed = true; }
+            if (p.price !== i.price) { p.price = i.price; changed = true; }
+          }
+        });
+      }
     }
   }); });
-  if (added) localStorage.setItem('ds_published_items', JSON.stringify(pub));
+  if (changed) localStorage.setItem('ds_published_items', JSON.stringify(pub));
 }
 function adminRejectItem(subId, itemId) {
   var s = adminGetState(); if (!s || !s.inventorySubmissions) return;
@@ -677,7 +689,7 @@ function renderCard(item, options = {}) {
       ? [item.specialty, item.booking].filter(Boolean)
       : [];
   const fallbackMeta = (item.price || item.phone || item.booking)
-    ? `<div class="meta">${item.price ? `<span>${item.price}</span>` : ''}${item.phone ? `<span>${item.phone}</span>` : ''}${item.booking ? `<span>${item.booking}</span>` : ''}</div>`
+    ? `<div class="meta">${item.price ? `<span>${item.price}</span>` : ''}${item.phone ? `<span>${item.phone}</span>` : ''}${item.booking ? `<span>${item.booking}</span>` : ''}${type === 'drink' && item.supplier ? `<span class="muted" style="font-size:.75rem;">Supplier: ${item.supplier}</span>` : ''}</div>`
     : '';
   const inlineMeta = type === 'supplier'
     ? `<div class="card-inline-meta">${secondaryMeta ? `<span class="info-pill subtle-pill">${secondaryMeta}</span>` : ''}<span class="info-pill subtle-pill">Shop direct</span></div>`
