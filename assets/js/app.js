@@ -1753,7 +1753,7 @@ function renderBusinessDashboardPage() {
       renderBusinessDashboardPage();
     });
     const saveItems = () => {
-      config.items = $$('.dashboard-row', app).map((row, index) => ({
+      config.items = $$('.admin-table-row', app).map((row, index) => ({
         id: config.items[index]?.id || `${role}_${Date.now()}_${index}`,
         name: $('[data-item-name]', row).value,
         price: $('[data-item-price]', row).value,
