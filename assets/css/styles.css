@@ -896,35 +896,7 @@ hr.sep { border: 0; height: 1px; background: rgba(255,255,255,.06); margin: 18px
 .dashboard-table-head { background: rgba(255,255,255,.03); color: rgba(241,238,230,.4); font-size: .78rem; text-transform: uppercase; letter-spacing: .1em; }
 .dashboard-row { border-top: 1px solid rgba(255,255,255,.05); }
 
-/* Dashboard inventory table (div-based grid matching admin-table style) */
-.admin-table-head, .admin-table-row {
-  display: grid;
-  grid-template-columns: 2fr 120px 120px 90px 60px 40px;
-  gap: 8px;
-  align-items: center;
-  padding: 8px 12px;
-}
-.admin-table-head {
-  background: rgba(255,255,255,.03);
-  color: rgba(241,238,230,.4);
-  font-size: .75rem;
-  text-transform: uppercase;
-  letter-spacing: .08em;
-  font-weight: 500;
-  border-bottom: 1px solid rgba(255,255,255,.06);
-}
-.admin-table-row {
-  border-bottom: 1px solid rgba(255,255,255,.03);
-  font-size: .85rem;
-}
-.admin-table-row:hover {
-  background: rgba(255,255,255,.015);
-}
-.admin-inline {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-}
+.dashboard-shell { padding: 24px; max-width: 1400px; margin: 0 auto; }
 
 /* Admin */
 .admin-page { padding: 24px; max-width: 1400px; margin: 0 auto; }
