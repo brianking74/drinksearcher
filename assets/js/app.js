@@ -1605,6 +1605,7 @@ function renderBusinessDashboardPage() {
           </div>
         </div>
 
+        <div class="dashboard-panels-grid">
         <div class="admin-section">
           <div class="admin-section-head"><span>Details</span></div>
           <div class="panel" style="padding:12px;">
@@ -1636,12 +1637,13 @@ function renderBusinessDashboardPage() {
               </form>
             </div>
         </div>
+        </div>
 
         <div class="admin-section">
           <div class="admin-section-head"><span>Inventory</span></div>
           <div class="panel" style="padding:12px;">
             <div >
-              <div class="admin-table-head"><div>${listingLabels[0]}</div><div>${listingLabels[1]}</div><div>${listingLabels[2]}</div><div>Show in directory</div><div>Clicks</div></div>
+              <div class="admin-table-head"><div>${listingLabels[0]}</div><div>${listingLabels[1]}</div><div>${listingLabels[2]}</div><div>Show in directory</div><div>Clicks</div><div></div></div>
               <div id="dashboard-items">${config.items.map((item, index) => `
                 <div class="admin-table-row">
                   <input class="input" data-item-name="${index}" value="${item.name}" />

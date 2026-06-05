@@ -898,6 +898,48 @@ hr.sep { border: 0; height: 1px; background: rgba(255,255,255,.06); margin: 18px
 
 .dashboard-shell { padding: 24px; max-width: 1400px; margin: 0 auto; }
 
+/* Dashboard 2-column grid for profile + plan panels */
+.dashboard-panels-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+.dashboard-panels-grid .admin-section {
+  margin-bottom: 0;
+}
+.dashboard-panels-grid .admin-section-head span {
+  position: relative;
+  padding-left: 14px;
+}
+.dashboard-panels-grid .admin-section-head span::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 2px;
+  bottom: 2px;
+  width: 3px;
+  background: var(--gold);
+  border-radius: 2px;
+}
+
+/* Dashboard panel gold accents */
+.dashboard-shell .panel {
+  border-color: rgba(189, 161, 111, 0.08);
+  transition: border-color .25s ease, box-shadow .25s ease;
+}
+.dashboard-shell .panel:hover {
+  border-color: rgba(189, 161, 111, 0.2);
+  box-shadow: 0 8px 32px rgba(0,0,0,.18), 0 0 0 1px rgba(189,161,111,.04);
+}
+.dashboard-shell .admin-btn:hover {
+  border-color: rgba(189, 161, 111, 0.3);
+  color: var(--gold);
+}
+.dashboard-shell .admin-btn-sm {
+  border-color: rgba(189, 161, 111, 0.06);
+}
+
 /* Dashboard inventory grid */
 .admin-table-head, .admin-table-row {
   display: grid;
@@ -1091,6 +1133,7 @@ hr.sep { border: 0; height: 1px; background: rgba(255,255,255,.06); margin: 18px
 .badge-in-stock { background: rgba(0,200,120,.1); color: #00c878; }
 .badge-limited { background: rgba(255,183,77,.1); color: #ffb74d; }
 @media (max-width: 768px) {
+  .dashboard-panels-grid { grid-template-columns: 1fr; }
   .product-hero { flex-direction: column; gap: 24px; }
   .product-hero-image { flex: 0 0 auto; width: 60%; max-width: 220px; }
   .comparison-table th, .comparison-table td { padding: 12px; }
