@@ -1074,3 +1074,5 @@ hr.sep { border: 0; height: 1px; background: rgba(255,255,255,.06); margin: 18px
   .comparison-table th, .comparison-table td { padding: 12px; }
   .action-cell .btn { font-size: .8rem; padding: 6px 12px; }
 }
+
+.inv-stats { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 4px; }

@@ -1717,8 +1717,7 @@ function renderBusinessDashboardPage() {
 
         <section class="section-tight">
           <div class="container">
-            <div class="section-head"><span class="eyebrow">Inventory submissions</span><h2>Status of your submitted items.</h2></div>
-            <div id="dashboard-submissions-status">${(function() {
+            <span class="eyebrow">Submission status</span><div id="dashboard-submissions-status">${(function() {
               var as = JSON.parse(localStorage.getItem('ds_admin_state') || 'null');
               if (!as || !as.inventorySubmissions || !as.inventorySubmissions.length) return '<div class="muted">No inventory submissions yet.</div>';
               var mine = as.inventorySubmissions.filter(function(s) { return s.email === user.email; });
