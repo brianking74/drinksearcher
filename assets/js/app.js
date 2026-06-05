@@ -1607,6 +1607,7 @@ function renderBusinessDashboardPage() {
 
         <div class="admin-section">
           <div class="admin-section-head"><span>Details</span></div>
+          <div class="panel" style="padding:12px;">
           <form id="dashboard-profile-form" style="display:grid;gap:8px;max-width:600px;">
                 <input class="input full" name="listingName" value="${config.listingName}" placeholder="Listing name" />
                 <input class="input" name="website" value="${config.website}" placeholder="Website or booking URL" />
@@ -1619,9 +1620,11 @@ function renderBusinessDashboardPage() {
                 <button class="admin-btn" type="submit">Save</button>
               </form>
               <div id="dashboard-notice"></div>
+            </div>
         </div>
         <div class="admin-section">
           <div class="admin-section-head"><span>Plan & add-ons</span></div>
+          <div class="panel" style="padding:12px;">
           <form id="dashboard-plan-form" style="display:grid;gap:8px;max-width:400px;">
                 <label class="dashboard-field"><span>Membership tier</span><select class="select" name="membership">${(role === 'merchant' ? ['Merchant Starter','Merchant Enhanced','Merchant Premium'] : ['Venue Starter','Venue Enhanced','Venue Enhanced + Events']).map(option => `<option value="${option}" ${config.membership === option ? 'selected' : ''}>${option}</option>`).join('')}</select></label>
                 <label class="dashboard-field"><span>Billing cycle</span><select class="select" name="billing"><option value="Monthly" ${config.billing === 'Monthly' ? 'selected' : ''}>Monthly</option><option value="Annual" ${config.billing === 'Annual' ? 'selected' : ''}>Annual</option></select></label>
@@ -1631,10 +1634,12 @@ function renderBusinessDashboardPage() {
                 <button class="admin-btn" type="submit">Save</button>
                 <a class="admin-btn" href="pricing.html">Pricing</a>
               </form>
+            </div>
         </div>
 
         <div class="admin-section">
           <div class="admin-section-head"><span>Inventory</span></div>
+          <div class="panel" style="padding:12px;">
             <div >
               <div class="admin-table-head"><div>${listingLabels[0]}</div><div>${listingLabels[1]}</div><div>${listingLabels[2]}</div><div>Show in directory</div><div>Clicks</div></div>
               <div id="dashboard-items">${config.items.map((item, index) => `
@@ -1653,11 +1658,13 @@ function renderBusinessDashboardPage() {
                 <button class="admin-btn" id="save-items-btn" type="button">Save</button>
                 <button class="admin-btn admin-btn-sm" id="add-item-btn" type="button">Add row</button>
               </div>
+            </div>
         </div>
 
         ${role === 'merchant' ? `
         <div class="admin-section">
           <div class="admin-section-head"><span>Import from sheet</span></div>
+          <div class="panel" style="padding:12px;">
               <label class="dashboard-field"><span>Google Sheet CSV URL or pasted CSV</span><textarea class="input" rows="6" id="sheet-import-source" placeholder="https://docs.google.com/.../export?format=csv or pasted CSV rows"></textarea></label>
               <label class="dashboard-field"><span>Import mode</span><select class="select" id="sheet-import-mode"><option value="append">Append to current inventory</option><option value="replace">Replace current inventory</option></select></label>
               <div class="admin-inline"><button class="btn btn-primary" id="sheet-import-btn" type="button">Import inventory</button><button class="btn btn-ghost" id="sheet-template-btn" type="button">Insert sample template</button></div>
@@ -1666,24 +1673,27 @@ function renderBusinessDashboardPage() {
         </div>
         <div class="admin-section">
           <div class="admin-section-head"><span>Website scan</span></div>
+          <div class="panel" style="padding:12px;">
               <label class="dashboard-field"><span>Supplier ecommerce URL</span><input class="input" id="scan-site-url" placeholder="https://supplier-site.hk" /></label>
               <label class="dashboard-field"><span>Platform type</span><select class="select" id="scan-site-platform"><option value="Mixed">Mixed</option><option value="Shopify">Shopify</option><option value="WooCommerce">WooCommerce</option><option value="Custom">Custom</option></select></label>
               <label class="dashboard-field"><span>Founder note</span><textarea class="input" rows="4" id="scan-site-notes" placeholder="Optional notes about collections, categories, or important product pages"></textarea></label>
               <div class="admin-inline"><button class="btn btn-secondary" id="scan-site-btn" type="button">Queue scan request</button></div>
               <div class="small-note">Website scan requests are queued into Founder Admin for review. Shopify, WooCommerce, sitemap, feed, and structured-data connectors can be added as the next production step.</div>
               <div id="scan-site-notice"></div>
+              </div>
+            </div>
         </div>` : ''}
 
-        <section class="section-tight">
-          <div class="container grid grid-2">
-            <div class="panel">
-              <span class="eyebrow">Add-ons</span>
+        <div class="admin-section">
+          <div class="admin-section-head"><span>Add-ons</span></div>
+          <div class="panel" style="padding:12px;">
               <div class="addon-list" style="margin-top:10px;">
                 ${addOnRows.map(([key, label]) => `<div class="addon-card"><div><strong>${label}</strong><p class="muted">${config[key] ? 'Enabled' : 'Off'}</p></div></div>`).join('')}
               </div>
         </div>
         <div class="admin-section">
           <div class="admin-section-head"><span>Account</span></div>
+          <div class="panel" style="padding:12px;">
               <div class="muted" style="display:grid; gap:6px;margin-top:10px;">
                 <span>${user.name || 'Unnamed user'}</span>
                 <span>${user.email}</span>
@@ -1691,10 +1701,13 @@ function renderBusinessDashboardPage() {
               <div class="inline-actions" style="margin-top:12px;">
                 <a class="btn btn-ghost" href="suppliers.html">Directory</a>
                 <a class="btn btn-secondary" href="list-your-business.html?type=${role === 'merchant' ? 'merchant' : 'venue'}">Edit details</a>
+              </div>
+            </div>
         </div>
 
         <div class="admin-section">
           <div class="admin-section-head"><span>Submission status</span></div>
+          <div class="panel" style="padding:12px;">
           <div id="dashboard-submissions-status">${(function() {
               var as = JSON.parse(localStorage.getItem('ds_admin_state') || 'null');
               if (!as || !as.inventorySubmissions || !as.inventorySubmissions.length) return '<div class="muted">No inventory submissions yet.</div>';
