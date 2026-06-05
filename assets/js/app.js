@@ -24,7 +24,7 @@ function adminApproveItem(subId, itemId) {
   // Publish approved item to drinks directory
   s.inventorySubmissions.forEach(function(sub) { (sub.items||[]).forEach(function(i) { if (i._id === itemId && i._status === 'Approved') {
     var pub = JSON.parse(localStorage.getItem('ds_published_items') || '[]');
-    pub.unshift({name:i.name, supplier:sub.businessName, supplierSlug:'', area:sub.district || 'Hong Kong', type:'Drink', price:i.price, image:'', tier:'enhanced', buy:'', description:'Approved inventory item from ' + sub.businessName + '.', origin:'', abv:'', availability:i.availability});
+    pub.unshift({name:i.name, supplier:sub.businessName, supplierSlug:'', area:sub.district || 'Hong Kong', type:'Drink', price:i.price, image:i.image || '', tier:'enhanced', buy:'', description:'Approved inventory item from ' + sub.businessName + '.', origin:'', abv:'', availability:i.availability});
     localStorage.setItem('ds_published_items', JSON.stringify(pub));
   } }); });
 }
@@ -36,7 +36,7 @@ function publishApprovedItems() {
   var added = 0;
   s.inventorySubmissions.forEach(function(sub) { (sub.items||[]).forEach(function(i) {
     if (i._status === 'Approved' && !existing[i.name + '_' + sub.businessName]) {
-      pub.unshift({name:i.name, supplier:sub.businessName, supplierSlug:'', area:sub.district || 'Hong Kong', type:'Drink', price:i.price, image:'', tier:'enhanced', buy:'', description:'Approved inventory item from ' + sub.businessName + '.', origin:'', abv:'', availability:i.availability});
+      pub.unshift({name:i.name, supplier:sub.businessName, supplierSlug:'', area:sub.district || 'Hong Kong', type:'Drink', price:i.price, image:i.image || '', tier:'enhanced', buy:'', description:'Approved inventory item from ' + sub.businessName + '.', origin:'', abv:'', availability:i.availability});
       added++;
     }
   }); });
