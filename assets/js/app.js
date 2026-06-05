@@ -1652,7 +1652,7 @@ function renderBusinessDashboardPage() {
 
                   <label class="check-row" style="justify-content:center;"><input type="checkbox" data-item-displayed="${index}" ${item.displayed !== false ? 'checked' : ''} /><span class="sr-only">Show in directory</span></label>
                   <span class="muted" style="text-align:center;font-size:.82rem;">${(JSON.parse(localStorage.getItem('ds_click_counts') || '{}'))[(config.listingName || user.name || '') + ':' + (item.name || '')] || 0}</span>
-                  <button class="btn btn-ghost btn-icon" data-item-delete="${index}" type="button" title="Delete item">✕</button>
+                  <button class="admin-btn admin-btn-sm" data-item-delete="${index}" type="button" title="Delete item">✕</button>
                 </div>`).join('')}</div>
               <div class="inline-actions" style="padding:12px;gap:8px;">
                 <button class="admin-btn" id="save-items-btn" type="button">Save</button>
@@ -1667,7 +1667,7 @@ function renderBusinessDashboardPage() {
           <div class="panel" style="padding:12px;">
               <label class="dashboard-field"><span>Google Sheet CSV URL or pasted CSV</span><textarea class="input" rows="6" id="sheet-import-source" placeholder="https://docs.google.com/.../export?format=csv or pasted CSV rows"></textarea></label>
               <label class="dashboard-field"><span>Import mode</span><select class="select" id="sheet-import-mode"><option value="append">Append to current inventory</option><option value="replace">Replace current inventory</option></select></label>
-              <div class="admin-inline"><button class="btn btn-primary" id="sheet-import-btn" type="button">Import inventory</button><button class="btn btn-ghost" id="sheet-template-btn" type="button">Insert sample template</button></div>
+              <div class="admin-inline"><button class="admin-btn" id="sheet-import-btn" type="button">Import inventory</button><button class="admin-btn admin-btn-sm" id="sheet-template-btn" type="button">Insert sample template</button></div>
               <div class="small-note">Recommended columns: Name, Price, Availability, Visibility. You can extend the mapping later for SKU, size, pack, ABV, image, and product URL.</div>
               <div id="sheet-import-notice"></div>
         </div>
@@ -1677,7 +1677,7 @@ function renderBusinessDashboardPage() {
               <label class="dashboard-field"><span>Supplier ecommerce URL</span><input class="input" id="scan-site-url" placeholder="https://supplier-site.hk" /></label>
               <label class="dashboard-field"><span>Platform type</span><select class="select" id="scan-site-platform"><option value="Mixed">Mixed</option><option value="Shopify">Shopify</option><option value="WooCommerce">WooCommerce</option><option value="Custom">Custom</option></select></label>
               <label class="dashboard-field"><span>Founder note</span><textarea class="input" rows="4" id="scan-site-notes" placeholder="Optional notes about collections, categories, or important product pages"></textarea></label>
-              <div class="admin-inline"><button class="btn btn-secondary" id="scan-site-btn" type="button">Queue scan request</button></div>
+              <div class="admin-inline"><button class="admin-btn" id="scan-site-btn" type="button">Queue scan request</button></div>
               <div class="small-note">Website scan requests are queued into Founder Admin for review. Shopify, WooCommerce, sitemap, feed, and structured-data connectors can be added as the next production step.</div>
               <div id="scan-site-notice"></div>
               </div>
@@ -1699,8 +1699,8 @@ function renderBusinessDashboardPage() {
                 <span>${user.email}</span>
               </div>
               <div class="inline-actions" style="margin-top:12px;">
-                <a class="btn btn-ghost" href="suppliers.html">Directory</a>
-                <a class="btn btn-secondary" href="list-your-business.html?type=${role === 'merchant' ? 'merchant' : 'venue'}">Edit details</a>
+                <a class="admin-btn admin-btn-sm" href="suppliers.html">Directory</a>
+                <a class="admin-btn" href="list-your-business.html?type=${role === 'merchant' ? 'merchant' : 'venue'}">Edit details</a>
               </div>
             </div>
         </div>
