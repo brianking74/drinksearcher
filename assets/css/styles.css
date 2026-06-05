@@ -1245,6 +1245,7 @@ hr.sep { border: 0; height: 1px; background: rgba(255,255,255,.06); margin: 18px
 .badge-limited { background: rgba(255,183,77,.1); color: #ffb74d; }
 @media (max-width: 768px) {
   .dashboard-panels-grid { grid-template-columns: 1fr; }
+  .dashboard-shell .panel { padding: 20px; }
   .product-hero { flex-direction: column; gap: 24px; }
   .product-hero-image { flex: 0 0 auto; width: 60%; max-width: 220px; }
   .comparison-table th, .comparison-table td { padding: 12px; }
