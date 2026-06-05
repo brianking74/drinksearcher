@@ -1694,6 +1694,24 @@ function renderBusinessDashboardPage() {
             </div>
           </div>
         </section>
+
+        <section class="section-tight">
+          <div class="container">
+            <div class="section-head"><span class="eyebrow">Inventory submissions</span><h2>Status of your submitted items.</h2></div>
+            <div id="dashboard-submissions-status">${(function() {
+              var as = JSON.parse(localStorage.getItem('ds_admin_state') || 'null');
+              if (!as || !as.inventorySubmissions || !as.inventorySubmissions.length) return '<div class="muted">No inventory submissions yet.</div>';
+              var mine = as.inventorySubmissions.filter(function(s) { return s.email === user.email; });
+              if (!mine.length) return '<div class="muted">No submissions found for this account.</div>';
+              return mine.map(function(sub) {
+                var p = (sub.items||[]).filter(function(i){return i._status === 'Pending';}).length;
+                var a = (sub.items||[]).filter(function(i){return i._status === 'Approved';}).length;
+                var r = (sub.items||[]).filter(function(i){return i._status === 'Rejected';}).length;
+                return '<div class="admin-card" style="margin-bottom:12px;"><div class="admin-card-head"><strong>' + sub.businessName + '</strong> <span class="muted"> · ' + sub.itemCount + ' items</span></div><div class="admin-card-body"><div class="inv-stats"><span class="inv-stat-pending">' + p + ' pending</span><span class="inv-stat-approved">' + a + ' approved</span>' + (r ? '<span class="inv-stat-rejected">' + r + ' rejected</span>' : '') + '</div></div></div>';
+              }).join('');
+            })()}</div>
+          </div>
+        </section>
       </div>`;
 
     const profileForm = $('#dashboard-profile-form', app);
@@ -1735,7 +1753,7 @@ function renderBusinessDashboardPage() {
       if (config.membership === 'Merchant Starter' && displayedCount > 10) {
         notice.innerHTML = '<div class="notice" style="background:rgba(255,180,50,.08);border-color:rgba(255,180,50,.18);color:#ffecb3;">Your <strong>Merchant Starter</strong> plan allows up to <strong>10 items</strong> visible in the directory. Uncheck some items or upgrade your plan to show more.</div>';
       } else {
-        notice.innerHTML = '<div class="notice">Pricing and availability updated for this dashboard view.</div>';
+        notice.innerHTML = '<div class="notice" style="animation:flashNotice .3s ease;">Items saved successfully — pricing and availability updated.</div>';
       }
       persist();
     };
