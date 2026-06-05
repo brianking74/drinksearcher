@@ -2111,7 +2111,7 @@ function renderAdminDashboardPage() {
             </div>
             <div class="inv-item-table">
               <div class="inv-item-head"><div class="inv-col-name">Product</div><div class="inv-col-price">Price</div><div class="inv-col-avail">Stock</div><div class="inv-col-status">Status</div><div class="inv-col-actions">Actions</div></div>
-              ${(sub.items || []).map(function(i, idx) {
+              ${(sub.items || []).filter(function(i) { return i._status === 'Pending'; }).map(function(i, idx) {
                 var isApproved = i._status === 'Approved';
                 var isRejected = i._status === 'Rejected';
                 var statusClass = isApproved ? 'inv-status-approved' : (isRejected ? 'inv-status-rejected' : 'inv-status-pending');
