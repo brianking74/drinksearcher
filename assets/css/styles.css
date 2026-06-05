@@ -1019,7 +1019,6 @@ hr.sep { border: 0; height: 1px; background: rgba(255,255,255,.06); margin: 18px
 }
 
 /* ─── Notification/notice spacing ─── */
-.dashboard-shell .panel > #sheet-import-notice,
 .dashboard-shell .panel > #scan-site-notice {
   margin-top: 12px;
 }

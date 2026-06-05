@@ -1665,16 +1665,6 @@ function renderBusinessDashboardPage() {
 
         ${role === 'merchant' ? `
         <div class="admin-section">
-          <div class="admin-section-head"><span>Import from sheet</span></div>
-          <div class="panel">
-              <label class="dashboard-field"><span>Google Sheet CSV URL or pasted CSV</span><textarea class="input" rows="6" id="sheet-import-source" placeholder="https://docs.google.com/.../export?format=csv or pasted CSV rows"></textarea></label>
-              <label class="dashboard-field"><span>Import mode</span><select class="select" id="sheet-import-mode"><option value="append">Append to current inventory</option><option value="replace">Replace current inventory</option></select></label>
-              <div class="admin-inline"><button class="admin-btn" id="sheet-import-btn" type="button">Import inventory</button><button class="admin-btn admin-btn-sm" id="sheet-template-btn" type="button">Insert sample template</button></div>
-              <div class="small-note">Recommended columns: Name, Price, Availability, Visibility. You can extend the mapping later for SKU, size, pack, ABV, image, and product URL.</div>
-              <div id="sheet-import-notice"></div>
-          </div>
-        </div>
-        <div class="admin-section">
           <div class="admin-section-head"><span>Website scan</span></div>
           <div class="panel">
               <label class="dashboard-field"><span>Supplier ecommerce URL</span><input class="input" id="scan-site-url" placeholder="https://supplier-site.hk" /></label>
@@ -1786,60 +1776,7 @@ function renderBusinessDashboardPage() {
         renderBusinessDashboardPage();
       });
     });
-    if (role === 'merchant' && $('#sheet-template-btn', app)) {
-      $('#sheet-template-btn', app).addEventListener('click', () => {
-        $('#sheet-import-source', app).value = 'Name,Price,Availability,Visibility\nChardonnay Reserve,188,In stock,Enhanced\nSmall Batch Gin,420,Low stock,Featured\nZero-Proof Spritz,98,Pre-order,Enhanced';
-      });
-      $('#sheet-import-btn', app).addEventListener('click', async () => {
-        const source = $('#sheet-import-source', app).value.trim();
-        const mode = $('#sheet-import-mode', app).value;
-        const holder = $('#sheet-import-notice', app);
-        if (!source) {
-          holder.innerHTML = '<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Add a Google Sheet CSV URL or paste CSV rows first.</div>';
-          return;
-        }
-        try {
-          const text = await loadImportSourceText(source);
-          const imported = importItemsFromCSV(text);
-          if (!imported.length) throw new Error('No inventory rows were detected.');
-          config.items = mode === 'replace' ? imported : [...config.items, ...imported];
-          if (source.startsWith('http')) config.sheetUrl = source;
-          persist();
-          storage.addImportJob({
-            businessName: config.listingName,
-            email: config.contactEmail || user.email,
-            method: 'Google Sheets',
-            platform: 'Mixed',
-            source: source.slice(0, 180),
-            status: 'Imported',
-            itemCount: imported.length,
-            notes: `${mode === 'replace' ? 'Replaced' : 'Appended'} inventory from supplier sheet.`
-          });
-          // Auto-submit for admin review
-          storage.addInventorySubmission({
-            businessName: config.listingName || (user ? user.name : '') || 'Unknown',
-            email: user ? user.email : '',
-            items: imported
-          });
-          holder.innerHTML = `<div class="notice">Imported <strong>${imported.length}</strong> inventory rows and submitted for admin review.</div>`;
-          if (imported.length && imported[0].name && !imported[0].price) {
-            holder.innerHTML += `<div class="notice" style="margin-top:8px;background:rgba(255,180,50,.08);border-color:rgba(255,180,50,.18);color:#ffecb3;">No price column detected. Make sure your Google Sheet has a column named &quot;Price&quot; or &quot;Cost&quot; with HKD values.</div>`;
-          }
-          setTimeout(() => renderBusinessDashboardPage(), 300);
-        } catch (error) {
-          holder.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;white-space:pre-wrap;">${error.message || 'Import failed. Try using pasted CSV rows or a public CSV URL.'}</div>`;
-        }
-      });
-      $('#submit-inventory-btn', app)?.addEventListener('click', () => {
-        if (!config.items.length) return;
-        storage.addInventorySubmission({
-          businessName: config.listingName || user.name || 'Unknown',
-          email: user.email,
-          items: config.items
-        });
-        var submitNotice = $('#sheet-import-notice', app);
-        if (submitNotice) submitNotice.innerHTML = '<div class="notice">Submitted <strong>' + config.items.length + '</strong> items for admin review. You will show in Submission status below.</div>';
-      });
+    if (role === 'merchant') {
       $('#scan-site-btn', app).addEventListener('click', () => {
         const source = $('#scan-site-url', app).value.trim();
         const platform = $('#scan-site-platform', app).value;
