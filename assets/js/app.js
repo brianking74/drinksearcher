@@ -2293,20 +2293,6 @@ document.addEventListener('DOMContentLoaded', () => {
   if (page === 'lead') renderLeadCapturePage();
   if (page === 'dashboard') renderBusinessDashboardPage();
   if (page === 'admin') renderAdminDashboardPage();
-  // Admin button handler
-  document.body.addEventListener('click', function __adminClick(e) {
-    if (document.body.dataset.page !== 'admin') return;
-    var b = e.target.closest('[data-item-approve]'); var s, x;
-    if (b) { s = b.dataset.itemApprove; x = s.indexOf('_item_'); if (x > 0) { adminApproveItem(s.slice(0, x), s.slice(x+6)); renderAdminDashboardPage(); } return; }
-    b = e.target.closest('[data-item-reject]');
-    if (b) { s = b.dataset.itemReject; x = s.indexOf('_item_'); if (x > 0) { adminRejectItem(s.slice(0, x), s.slice(x+6)); renderAdminDashboardPage(); } return; }
-    b = e.target.closest('[data-item-delete]');
-    if (b) { s = b.dataset.itemDelete; x = s.indexOf('_item_'); if (x > 0) { adminDeleteInventoryItem(s.slice(0, x), s.slice(x+6)); renderAdminDashboardPage(); } return; }
-    b = e.target.closest('[data-admin-delete]');
-    if (b) { adminDeleteItem(b.dataset.adminDelete, b.dataset.adminId); renderAdminDashboardPage(); return; }
-    b = e.target.closest('[data-sub-delete]');
-    if (b) { adminDeleteSubmission(b.dataset.subDelete); renderAdminDashboardPage(); return; }
-  });
   if (page === 'venue-profile') renderVenueProfile();
   if (page === 'supplier-profile') renderSupplierProfile();
   if (page === 'searcher-account') renderSearcherAccountPage();
@@ -2315,4 +2301,20 @@ document.addEventListener('DOMContentLoaded', () => {
   if (page === 'account') renderAccountPage();
   setupAnchorSpy();
   syncSaveButtons();
+});
+
+// Admin delegated click handler — registered immediately (not inside DOMContentLoaded)
+// to ensure it always catches clicks even if DOMContentLoaded already fired
+document.body.addEventListener('click', function __adminClick(e) {
+  if (document.body.dataset.page !== 'admin') return;
+  var b = e.target.closest('[data-item-approve]'); var s, x;
+  if (b) { s = b.dataset.itemApprove; x = s.indexOf('_item_'); if (x > 0) { adminApproveItem(s.slice(0, x), s.slice(x+6)); renderAdminDashboardPage(); } return; }
+  b = e.target.closest('[data-item-reject]');
+  if (b) { s = b.dataset.itemReject; x = s.indexOf('_item_'); if (x > 0) { adminRejectItem(s.slice(0, x), s.slice(x+6)); renderAdminDashboardPage(); } return; }
+  b = e.target.closest('[data-item-delete]');
+  if (b) { s = b.dataset.itemDelete; x = s.indexOf('_item_'); if (x > 0) { adminDeleteInventoryItem(s.slice(0, x), s.slice(x+6)); renderAdminDashboardPage(); } return; }
+  b = e.target.closest('[data-admin-delete]');
+  if (b) { adminDeleteItem(b.dataset.adminDelete, b.dataset.adminId); renderAdminDashboardPage(); return; }
+  b = e.target.closest('[data-sub-delete]');
+  if (b) { adminDeleteSubmission(b.dataset.subDelete); renderAdminDashboardPage(); return; }
 });
