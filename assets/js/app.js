@@ -24,7 +24,7 @@ function adminApproveItem(subId, itemId) {
   // Publish approved item to drinks directory
   s.inventorySubmissions.forEach(function(sub) { (sub.items||[]).forEach(function(i) { if (i._id === itemId && i._status === 'Approved') {
     var pub = JSON.parse(localStorage.getItem('ds_published_items') || '[]');
-    pub.unshift({name:i.name, supplier:sub.businessName, supplierSlug:'', area:sub.district || 'Hong Kong', type:'Drink', price:i.price, image:i.image || '', tier:'enhanced', buy:'', description:'Approved inventory item from ' + sub.businessName + '.', origin:'', abv:'', availability:i.availability});
+    pub.unshift({name:i.name, supplier:sub.businessName, supplierSlug:'', area:sub.district || 'Hong Kong', type:'Drink', price:i.price, image:i.image || '', tier:'enhanced', buy:i.buy || '', description:'Approved inventory item from ' + sub.businessName + '.', origin:'', abv:'', availability:i.availability, clicks:0});
     localStorage.setItem('ds_published_items', JSON.stringify(pub));
   } }); });
 }
@@ -36,7 +36,7 @@ function publishApprovedItems() {
   var added = 0;
   s.inventorySubmissions.forEach(function(sub) { (sub.items||[]).forEach(function(i) {
     if (i._status === 'Approved' && !existing[i.name + '_' + sub.businessName]) {
-      pub.unshift({name:i.name, supplier:sub.businessName, supplierSlug:'', area:sub.district || 'Hong Kong', type:'Drink', price:i.price, image:i.image || '', tier:'enhanced', buy:'', description:'Approved inventory item from ' + sub.businessName + '.', origin:'', abv:'', availability:i.availability});
+      pub.unshift({name:i.name, supplier:sub.businessName, supplierSlug:'', area:sub.district || 'Hong Kong', type:'Drink', price:i.price, image:i.image || '', tier:'enhanced', buy:i.buy || '', description:'Approved inventory item from ' + sub.businessName + '.', origin:'', abv:'', availability:i.availability, clicks:0});
       added++;
     }
   }); });
@@ -997,7 +997,7 @@ function renderDrinksPage() {
   const filteredDrinks = drinksInventory.concat(JSON.parse(localStorage.getItem('ds_published_items') || '[]')).filter(d => matchesSearch([d.name, d.supplier, d.type, d.area], query) && (!area || d.area === area));
   app.innerHTML = `
     <section class="hero" style="min-height:56vh;"><div class="hero-media" style="background-image:url('${siteImages.trio}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Drinks</span><h1>Bottles in Hong Kong.</h1><p class="lead">From cellar icons to sake, Champagne, beer, spirits, and no-alcohol discoveries — all routed to local suppliers.</p></div><div class="search-shell"><div class="search-tabs"><span class="search-tab active">Search results</span></div><div class="notice">Showing <strong>${filteredDrinks.length}</strong> drinks${query ? ` for “${query}”` : ''}${area ? ` in ${area}` : ''}.</div><div class="panel" style="padding:18px; background:transparent; border:none; box-shadow:none;"><div class="muted" style="display:grid; gap:10px;"><span>Direct links to local supplier stores</span><span>HK pricing and neighbourhood context</span><span>A mix of discovery bottles and everyday favourites</span></div></div></div></div></section>
-    <section class="section"><div class="container"><div class="section-head"><div><span class="eyebrow">Featured bottles</span><h2>Popular drinks from Hong Kong suppliers.</h2></div></div>${filteredDrinks.length ? `<div class="grid grid-4">${filteredDrinks.map(d => renderCard({...d, tierLabel:d.tier==='enhanced' ? 'Available now' : 'Featured'}, {type:'drink', portrait:true, href:'product.html?slug=' + slugify(d.name), cta:d.tier==='enhanced' ? ctaLink('Buy online', d.buy || 'product.html?slug=' + slugify(d.name), 'btn btn-primary btn-small', 'View details') : ctaLink('View', 'product.html?slug=' + slugify(d.name), 'btn btn-ghost btn-small', 'View details')})).join('')}</div>` : '<div class="empty-state">No drinks match that search yet. Try a broader bottle name, category, or area.</div>'}</div></section>`;
+    <section class="section"><div class="container"><div class="section-head"><div><span class="eyebrow">Featured bottles</span><h2>Popular drinks from Hong Kong suppliers.</h2></div></div>${filteredDrinks.length ? `<div class="grid grid-4">${filteredDrinks.map(d => renderCard({...d, tierLabel:d.tier==='enhanced' ? 'Available now' : 'Featured'}, {type:'drink', portrait:true, href:'product.html?slug=' + slugify(d.name), cta:d.tier==='enhanced' ? (function(d){var u=d.buy||'';return u&&u!=='#'?'<a class="btn btn-primary btn-small" href="'+u+'" target="_blank" rel="noreferrer" data-track-drink="1" data-name="'+(d.name||'').replace(/"/g,'&quot;')+'" data-supplier="'+(d.supplier||'').replace(/"/g,'&quot;')+'">Buy online</a>':'<span class="btn btn-ghost btn-small is-disabled" aria-disabled="true">View details</span>'})(d) : ctaLink('View', 'product.html?slug=' + slugify(d.name), 'btn btn-ghost btn-small', 'View details')})).join('')}</div>` : '<div class="empty-state">No drinks match that search yet. Try a broader bottle name, category, or area.</div>'}</div></section>`;
     bindSaveButtons(app);
 }function renderEventsPage() {
   const app = $('#app');
@@ -1643,7 +1643,7 @@ function renderBusinessDashboardPage() {
             <div class="section-head"><div><span class="eyebrow">Pricing & availability</span><h2>${role === 'merchant' ? 'Manage stock visibility and current pricing.' : 'Manage offers, ticketing, tables, and availability.'}</h2></div></div>
             <div class="plan-info">${config.membership === 'Merchant Starter' ? '<span class="muted">Merchant Starter plan — up to <strong>10 items</strong> visible in the directory. Upgrade your plan to show more.</span>' : ''}</div>
             <div class="dashboard-table-wrap">
-              <div class="dashboard-table-head"><div>${listingLabels[0]}</div><div>${listingLabels[1]}</div><div>${listingLabels[2]}</div><div>Show in directory</div></div>
+              <div class="dashboard-table-head"><div>${listingLabels[0]}</div><div>${listingLabels[1]}</div><div>${listingLabels[2]}</div><div>Show in directory</div><div>Clicks</div></div>
               <div id="dashboard-items">${config.items.map((item, index) => `
                 <div class="dashboard-row">
                   <input class="input" data-item-name="${index}" value="${item.name}" />
@@ -1653,6 +1653,7 @@ function renderBusinessDashboardPage() {
                   </select>
 
                   <label class="check-row" style="justify-content:center;"><input type="checkbox" data-item-displayed="${index}" ${item.displayed !== false ? 'checked' : ''} /><span class="sr-only">Show in directory</span></label>
+                  <span class="muted" style="text-align:center;font-size:.82rem;">${(JSON.parse(localStorage.getItem('ds_click_counts') || '{}'))[user.email + ':' + (item.name || '')] || 0}</span>
                   <button class="btn btn-ghost btn-icon" data-item-delete="${index}" type="button" title="Delete item">✕</button>
                 </div>`).join('')}</div>
               <div class="inline-actions" style="padding:20px; border-top:1px solid rgba(255,255,255,.06);">
@@ -2006,6 +2007,7 @@ function importItemsFromCSV(text) {
   const availabilityIndex = inventoryColumnIndex(headers, ['availability', 'stock status', 'stock', 'inventory', 'status', 'qty', 'quantity', 'count']);
   const visibilityIndex = inventoryColumnIndex(headers, ['visibility', 'tier', 'listing tier', 'listing', 'type', 'category']);
   const imageIndex = inventoryColumnIndex(headers, ['image url', 'image', 'photo', 'img', 'picture', 'media', 'thumbnail', 'product image']);
+  const urlIndex = inventoryColumnIndex(headers, ['url', 'buy', 'buy url', 'product url', 'link', 'website', 'order link', 'purchase url']);
   const items = rows.slice(1).map((row, index) => {
     const name = row[nameIndex] || row[0];
     if (!name) return null;
@@ -2015,7 +2017,8 @@ function importItemsFromCSV(text) {
       price: normalizeImportPrice(row[priceIndex]),
       availability: normalizeImportAvailability(row[availabilityIndex]),
       visibility: row[visibilityIndex] || 'Enhanced',
-      image: row[imageIndex] || ''
+      image: row[imageIndex] || '',
+      buy: row[urlIndex] || ''
     };
   }).filter(Boolean);
   return items;
@@ -2341,6 +2344,20 @@ document.addEventListener('DOMContentLoaded', () => {
   if (page === 'account') renderAccountPage();
   setupAnchorSpy();
   syncSaveButtons();
+});
+
+// Track clicks on Buy Online / View buttons in drinks directory
+document.body.addEventListener('click', function(e) {
+  var btn = e.target.closest('a.btn-primary, a[href*="buy"]');
+  if (!btn) return;
+  var card = btn.closest('[data-save-id]');
+  if (!card) return;
+  var saveData = JSON.parse(card.dataset.saveId || 'null');
+  if (!saveData || !saveData.name || !saveData.kind) return;
+  var key = (saveData.kind === 'supplier' ? (saveData.meta || '') : saveData.name) + ':' + saveData.name;
+  var counts = JSON.parse(localStorage.getItem('ds_click_counts') || '{}');
+  counts[key] = (counts[key] || 0) + 1;
+  localStorage.setItem('ds_click_counts', JSON.stringify(counts));
 });
 
 // Admin delegated click handler — registered immediately (not inside DOMContentLoaded)
