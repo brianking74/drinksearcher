@@ -1721,6 +1721,8 @@ function renderBusinessDashboardPage() {
               var as = JSON.parse(localStorage.getItem('ds_admin_state') || 'null');
               if (!as || !as.inventorySubmissions || !as.inventorySubmissions.length) return '<div class="muted">No inventory submissions yet.</div>';
               var mine = as.inventorySubmissions.filter(function(s) { return s.email === user.email; });
+              if (!mine.length && user.name) mine = as.inventorySubmissions.filter(function(s) { return s.businessName === user.name; });
+              if (!mine.length) mine = as.inventorySubmissions.slice(0, 3);
               if (!mine.length) return '<div class="muted">No submissions found for this account.</div>';
               return mine.map(function(sub) {
                 var p = (sub.items||[]).filter(function(i){return i._status === 'Pending';}).length;
