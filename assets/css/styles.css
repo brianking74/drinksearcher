@@ -932,12 +932,6 @@ hr.sep { border: 0; height: 1px; background: rgba(255,255,255,.06); margin: 18px
 .admin-top h1 { font-size: 1.2rem; font-weight: 600; margin: 0; color: var(--text); }
 .admin-top-stats { display: flex; gap: 14px; font-size: .8rem; color: var(--muted); }
 .admin-section { margin-bottom: 24px; }
-.admin-section-body {
-  background: rgba(255,255,255,.02);
-  border: 1px solid rgba(255,255,255,.06);
-  border-radius: 8px;
-  padding: 16px;
-}
 .admin-section-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; font-size: .9rem; font-weight: 600; color: var(--text); flex-wrap: wrap; gap: 6px; }
 .admin-filters { display: flex; gap: 2px; }
 .admin-filters a { padding: 3px 8px; border-radius: 4px; font-size: .78rem; color: var(--muted); text-decoration: none; }
