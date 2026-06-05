@@ -2116,9 +2116,9 @@ function renderAdminDashboardPage() {
                 var isRejected = i._status === 'Rejected';
                 var statusClass = isApproved ? 'inv-status-approved' : (isRejected ? 'inv-status-rejected' : 'inv-status-pending');
                 var statusLabel = isApproved ? 'Approved' : (isRejected ? 'Rejected' : 'Pending');
-                var approveBtn = !isApproved ? '<button class="btn btn-primary btn-small" type="button" data-item-approve="' + sub.id + '_item_' + i._id + '">Approve</button>' : '';
-                var rejectBtn = !isRejected ? '<button class="btn btn-ghost btn-small" type="button" data-item-reject="' + sub.id + '_item_' + i._id + '">Reject</button>' : '';
-                return '<div class="inv-item-row ' + (isApproved ? 'inv-row-approved' : (isRejected ? 'inv-row-rejected' : '')) + '"><div class="inv-col-name"><span class="inv-idx">' + (idx+1) + '.</span> ' + (i.name || 'Unnamed') + '</div><div class="inv-col-price">' + (i.price || 'HK$0') + '</div><div class="inv-col-avail">' + (i.availability || '—') + '</div><div class="inv-col-status"><span class="' + statusClass + '">' + statusLabel + '</span></div><div class="inv-col-actions">' + approveBtn + rejectBtn + ' <button class="btn btn-ghost btn-small" style="color:#ff5252;" type="button" data-item-delete="' + sub.id + '_item_' + i._id + '">Delete</button></div></div>';
+                var approveBtn = !isApproved ? '<button class="admin-btn admin-btn-sm" type="button" data-item-approve="' + sub.id + '_item_' + i._id + '">Approve</button>' : '';
+                var rejectBtn = !isRejected ? '<button class="admin-btn admin-btn-sm" type="button" data-item-reject="' + sub.id + '_item_' + i._id + '">Reject</button>' : '';
+                return '<div class="inv-item-row ' + (isApproved ? 'inv-row-approved' : (isRejected ? 'inv-row-rejected' : '')) + '"><div class="inv-col-name"><span class="inv-idx">' + (idx+1) + '.</span> ' + (i.name || 'Unnamed') + '</div><div class="inv-col-price">' + (i.price || 'HK$0') + '</div><div class="inv-col-avail">' + (i.availability || '—') + '</div><div class="inv-col-status"><span class="' + statusClass + '">' + statusLabel + '</span></div><div class="inv-col-actions">' + approveBtn + rejectBtn + ' <button class="admin-btn admin-btn-sm" style="color:#ff5252;" type="button" data-item-delete="' + sub.id + '_item_' + i._id + '">Delete</button></div></div>';
               }).join('')}
             </div>
           </div>`;
