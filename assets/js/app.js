@@ -1672,6 +1672,7 @@ function renderBusinessDashboardPage() {
               <div class="admin-inline"><button class="admin-btn" id="sheet-import-btn" type="button">Import inventory</button><button class="admin-btn admin-btn-sm" id="sheet-template-btn" type="button">Insert sample template</button></div>
               <div class="small-note">Recommended columns: Name, Price, Availability, Visibility. You can extend the mapping later for SKU, size, pack, ABV, image, and product URL.</div>
               <div id="sheet-import-notice"></div>
+          </div>
         </div>
         <div class="admin-section">
           <div class="admin-section-head"><span>Website scan</span></div>
@@ -1682,8 +1683,7 @@ function renderBusinessDashboardPage() {
               <div class="admin-inline"><button class="admin-btn" id="scan-site-btn" type="button">Queue scan request</button></div>
               <div class="small-note">Website scan requests are queued into Founder Admin for review. Shopify, WooCommerce, sitemap, feed, and structured-data connectors can be added as the next production step.</div>
               <div id="scan-site-notice"></div>
-              </div>
-            </div>
+          </div>
         </div>` : ''}
 
         <div class="admin-section">
@@ -1692,6 +1692,7 @@ function renderBusinessDashboardPage() {
               <div class="addon-list" style="margin-top:10px;">
                 ${addOnRows.map(([key, label]) => `<div class="addon-card"><div><strong>${label}</strong><p class="muted">${config[key] ? 'Enabled' : 'Off'}</p></div></div>`).join('')}
               </div>
+          </div>
         </div>
         <div class="admin-section">
           <div class="admin-section-head"><span>Account</span></div>
