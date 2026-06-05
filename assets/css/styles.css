@@ -981,8 +981,11 @@ hr.sep { border: 0; height: 1px; background: rgba(255,255,255,.06); margin: 18px
 /* ─── Inventory table ─── */
 .dashboard-shell .admin-table-head,
 .dashboard-shell .admin-table-row {
-  padding: 12px 0;
+  display: grid;
+  grid-template-columns: 2.5fr 120px 130px 100px 60px 36px;
   gap: 12px;
+  align-items: center;
+  padding: 12px 0;
   border: none;
 }
 .dashboard-shell .admin-table-head {
