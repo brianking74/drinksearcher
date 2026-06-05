@@ -2053,6 +2053,7 @@ function renderAdminDashboardPage() {
     return;
   }
   const state = storage.getAdminState();
+  publishApprovedItems();
   const appFilter = queryParam('filter') || 'all';
   const filteredApplications = state.applications.filter(entry => appFilter === 'all' || entry.listingType === appFilter);
   const counts = {
@@ -2283,7 +2284,6 @@ $$('[data-import-promote]', app).forEach(btn => btn.addEventListener('click', ()
     saveState(`Listing task created from import queue for ${job.businessName}.`, '#admin-imports-notice');
     renderAdminDashboardPage();
   }));
-  publishApprovedItems();
 }
 
 function setupAnchorSpy() {
