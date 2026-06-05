@@ -1592,35 +1592,23 @@ function renderBusinessDashboardPage() {
       : ['Offer / event / table inventory', 'Price', 'Availability'];
     app.innerHTML = `
       <div class="dashboard-shell">
-        <section class="hero" style="min-height:52vh;">
-          <div class="hero-media" style="background-image:url('${role === 'merchant' ? siteImages.shop : siteImages.rooftop}')"></div>
-          <div class="container hero-grid">
-            <div class="hero-copy">
-              <span class="kicker">Business dashboard</span>
-              <h1>${roleTitle} for <span class="text-jade">${user.name || 'your account'}</span>.</h1>
-              <p class="lead">Manage listings, pricing, availability, featured add-ons, membership position, and account-facing business details from one place.</p>
-              <div class="stats-row">
-                <div class="stat"><strong>${config.items.length}</strong><span class="muted">active entries</span></div>
-                <div class="stat"><strong>${config.membership}</strong><span class="muted">current plan</span></div>
-                <div class="stat"><strong>${config.billing}</strong><span class="muted">billing cycle</span></div>
-              </div>
-            </div>
-            <div class="search-shell">
-              <span class="eyebrow">Workspace mode</span>
-              <div class="role-switch" style="margin-top:16px;">
-                <button class="toggle-pill ${role === 'merchant' ? 'active' : ''}" data-role-switch="merchant">Merchant view</button>
-                <button class="toggle-pill ${role === 'venue' ? 'active' : ''}" data-role-switch="venue">Venue view</button>
-              </div>
-              <div class="notice">Changes made here stay tied to your signed-in account, so you can manage supplier and venue workflows from one place.</div>
+        <div class="admin-top">
+          <h1>${roleTitle}</h1>
+          <div class="admin-top-stats">
+            <span>${config.items.length} entries</span>
+            <span>${config.membership}</span>
+            <span>${config.billing}</span>
+            <div class="role-switch" style="display:inline-flex;">
+              <button class="toggle-pill ${role === 'merchant' ? 'active' : ''}" data-role-switch="merchant" style="font-size:.8rem;padding:4px 10px;">Merchant</button>
+              <button class="toggle-pill ${role === 'venue' ? 'active' : ''}" data-role-switch="venue" style="font-size:.8rem;padding:4px 10px;">Venue</button>
             </div>
           </div>
-        </section>
+        </div>
 
         <section class="section-tight">
           <div class="container grid grid-2">
             <div class="panel">
-              <span class="eyebrow">Listing controls</span>
-              <h2 style="margin:14px 0;">${roleLabel} setup</h2>
+              <span class="eyebrow">Details</span>
               <form id="dashboard-profile-form" class="form-grid">
                 <input class="input full" name="listingName" value="${config.listingName}" placeholder="Listing name" />
                 <input class="input" name="website" value="${config.website}" placeholder="Website or booking URL" />
@@ -1635,8 +1623,7 @@ function renderBusinessDashboardPage() {
               <div id="dashboard-notice"></div>
             </div>
             <div class="panel">
-              <span class="eyebrow">Membership & add-ons</span>
-              <h2 style="margin:14px 0;">Plan, billing, and visibility boosts</h2>
+              <span class="eyebrow">Plan & add-ons</span>
               <form id="dashboard-plan-form" class="dashboard-stack">
                 <label class="dashboard-field"><span>Membership tier</span><select class="select" name="membership">${(role === 'merchant' ? ['Merchant Starter','Merchant Enhanced','Merchant Premium'] : ['Venue Starter','Venue Enhanced','Venue Enhanced + Events']).map(option => `<option value="${option}" ${config.membership === option ? 'selected' : ''}>${option}</option>`).join('')}</select></label>
                 <label class="dashboard-field"><span>Billing cycle</span><select class="select" name="billing"><option value="Monthly" ${config.billing === 'Monthly' ? 'selected' : ''}>Monthly</option><option value="Annual" ${config.billing === 'Annual' ? 'selected' : ''}>Annual</option></select></label>
@@ -1652,8 +1639,7 @@ function renderBusinessDashboardPage() {
 
         <section class="section-tight">
           <div class="container">
-            <div class="section-head"><div><span class="eyebrow">Pricing & availability</span><h2>${role === 'merchant' ? 'Manage stock visibility and current pricing.' : 'Manage offers, ticketing, tables, and availability.'}</h2></div></div>
-            <div class="plan-info">${config.membership === 'Merchant Starter' ? '<span class="muted">Merchant Starter plan — up to <strong>10 items</strong> visible in the directory. Upgrade your plan to show more.</span>' : ''}</div>
+            <span class="eyebrow">Inventory</span>
             <div class="dashboard-table-wrap">
               <div class="dashboard-table-head"><div>${listingLabels[0]}</div><div>${listingLabels[1]}</div><div>${listingLabels[2]}</div><div>Show in directory</div><div>Clicks</div></div>
               <div id="dashboard-items">${config.items.map((item, index) => `
@@ -1665,7 +1651,7 @@ function renderBusinessDashboardPage() {
                   </select>
 
                   <label class="check-row" style="justify-content:center;"><input type="checkbox" data-item-displayed="${index}" ${item.displayed !== false ? 'checked' : ''} /><span class="sr-only">Show in directory</span></label>
-                  <span class="muted" style="text-align:center;font-size:.82rem;">${(JSON.parse(localStorage.getItem('ds_click_counts') || '{}'))[user.email + ':' + (item.name || '')] || 0}</span>
+                  <span class="muted" style="text-align:center;font-size:.82rem;">${(JSON.parse(localStorage.getItem('ds_click_counts') || '{}'))[(config.listingName || user.name || '') + ':' + (item.name || '')] || 0}</span>
                   <button class="btn btn-ghost btn-icon" data-item-delete="${index}" type="button" title="Delete item">✕</button>
                 </div>`).join('')}</div>
               <div class="inline-actions" style="padding:20px; border-top:1px solid rgba(255,255,255,.06);">
@@ -1680,9 +1666,7 @@ function renderBusinessDashboardPage() {
         <section class="section-tight">
           <div class="container grid grid-2">
             <div class="panel admin-stack">
-              <span class="eyebrow">Google Sheets import</span>
-              <h2 style="margin:14px 0;">Load inventory from a supplier sheet.</h2>
-              <p class="muted">Paste a published CSV URL from Google Sheets or paste CSV rows directly. This is the fastest path for suppliers who already manage stock in a spreadsheet.</p>
+              <span class="eyebrow">Import from sheet</span>
               <label class="dashboard-field"><span>Google Sheet CSV URL or pasted CSV</span><textarea class="input" rows="6" id="sheet-import-source" placeholder="https://docs.google.com/.../export?format=csv or pasted CSV rows"></textarea></label>
               <label class="dashboard-field"><span>Import mode</span><select class="select" id="sheet-import-mode"><option value="append">Append to current inventory</option><option value="replace">Replace current inventory</option></select></label>
               <div class="admin-inline"><button class="btn btn-primary" id="sheet-import-btn" type="button">Import inventory</button><button class="btn btn-ghost" id="sheet-template-btn" type="button">Insert sample template</button></div>
@@ -1691,8 +1675,6 @@ function renderBusinessDashboardPage() {
             </div>
             <div class="panel admin-stack">
               <span class="eyebrow">Website scan</span>
-              <h2 style="margin:14px 0;">Queue an ecommerce scan for mixed platforms.</h2>
-              <p class="muted">For mixed supplier websites, the strongest production setup is connector-first and crawler-second: use platform APIs or feeds where available, then fall back to product structured data and page crawling.</p>
               <label class="dashboard-field"><span>Supplier ecommerce URL</span><input class="input" id="scan-site-url" placeholder="https://supplier-site.hk" /></label>
               <label class="dashboard-field"><span>Platform type</span><select class="select" id="scan-site-platform"><option value="Mixed">Mixed</option><option value="Shopify">Shopify</option><option value="WooCommerce">WooCommerce</option><option value="Custom">Custom</option></select></label>
               <label class="dashboard-field"><span>Founder note</span><textarea class="input" rows="4" id="scan-site-notes" placeholder="Optional notes about collections, categories, or important product pages"></textarea></label>
@@ -1703,26 +1685,23 @@ function renderBusinessDashboardPage() {
           </div>
         </section>` : ''}
 
-        <section class="section">
+        <section class="section-tight">
           <div class="container grid grid-2">
             <div class="panel">
-              <span class="eyebrow">Featured placement</span>
-              <h2 style="margin:14px 0;">Commercial upgrades in one glance.</h2>
-              <div class="addon-list">
-                ${addOnRows.map(([key, label]) => `<div class="addon-card"><div><strong>${label}</strong><p class="muted">${config[key] ? 'Enabled on this account.' : 'Currently off. Enable it above to add this placement.'}</p></div><div class="addon-price">${config[key] ? 'On' : 'Off'}</div></div>`).join('')}
+              <span class="eyebrow">Add-ons</span>
+              <div class="addon-list" style="margin-top:10px;">
+                ${addOnRows.map(([key, label]) => `<div class="addon-card"><div><strong>${label}</strong><p class="muted">${config[key] ? 'Enabled' : 'Off'}</p></div></div>`).join('')}
               </div>
             </div>
             <div class="panel">
-              <span class="eyebrow">Account details</span>
-              <h2 style="margin:14px 0;">User account + business workspace</h2>
-              <div class="muted" style="display:grid; gap:10px;">
+              <span class="eyebrow">Account</span>
+              <div class="muted" style="display:grid; gap:6px;margin-top:10px;">
                 <span>${user.name || 'Unnamed user'}</span>
                 <span>${user.email}</span>
-                <span>${user.city || 'Hong Kong'}</span>
               </div>
-              <div class="inline-actions" style="margin-top:18px;">
-                <a class="btn btn-ghost" href="suppliers.html">View supplier directory</a>
-                <a class="btn btn-secondary" href="list-your-business.html?type=${role === 'merchant' ? 'merchant' : 'venue'}">Edit business details</a>
+              <div class="inline-actions" style="margin-top:12px;">
+                <a class="btn btn-ghost" href="suppliers.html">Directory</a>
+                <a class="btn btn-secondary" href="list-your-business.html?type=${role === 'merchant' ? 'merchant' : 'venue'}">Edit details</a>
               </div>
             </div>
           </div>
@@ -1858,7 +1837,7 @@ function renderBusinessDashboardPage() {
           items: config.items
         });
         var submitNotice = $('#sheet-import-notice', app);
-        if (submitNotice) submitNotice.innerHTML = '<div class="notice">Submitted <strong>' + config.items.length + '</strong> items for admin review. You will be notified once they are approved.</div>';
+        if (submitNotice) submitNotice.innerHTML = '<div class="notice">Submitted <strong>' + config.items.length + '</strong> items for admin review. You will show in Submission status below.</div>';
       });
       $('#scan-site-btn', app).addEventListener('click', () => {
         const source = $('#scan-site-url', app).value.trim();
