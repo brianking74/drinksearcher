@@ -2095,55 +2095,9 @@ function renderAdminDashboardPage() {
         <div id="admin-imports-notice" class="admin-notice"></div>
       </div>
 
-    <section class="section-tight">
-      <div class="container grid grid-2">
-        <div>
-          <div class="section-head"><div><span class="eyebrow">Featured placements</span><h2>Control paid visibility inventory.</h2></div></div>
-          <div class="admin-card-grid" style="grid-template-columns:1fr;" id="admin-placements">${state.placements.map((slot, index) => `
-            <article class="panel admin-stack">
-              <div class="admin-inline" style="justify-content:space-between;"><div><strong>${slot.slot}</strong><div class="small-note">${slot.listingType === 'venue' ? 'Venue inventory' : 'Supplier inventory'}</div></div>${adminStatusChip(slot.status)}</div>
-              <label class="dashboard-field"><span>Current occupant</span><input class="input" data-placement-occupant="${index}" value="${slot.occupant}" /></label>
-              <label class="dashboard-field"><span>Status</span><select class="select" data-placement-status="${index}"><option value="Live" ${slot.status === 'Live' ? 'selected' : ''}>Live</option><option value="Scheduled" ${slot.status === 'Scheduled' ? 'selected' : ''}>Scheduled</option><option value="Review" ${slot.status === 'Review' ? 'selected' : ''}>Review</option><option value="Open" ${slot.status === 'Open' ? 'selected' : ''}>Open</option></select></label>
-              <label class="dashboard-field"><span>Founder note</span><textarea class="input" rows="3" data-placement-notes="${index}">${slot.notes || ''}</textarea></label>
-              <button class="btn btn-primary btn-small" type="button" data-placement-save="${index}">Save placement</button>
-            </article>`).join('')}</div>
-          <div id="admin-placements-notice"></div>
-        </div>
-        <div>
-          <div class="section-head"><div><span class="eyebrow">Moderation queue</span><h2>Keep listings, events, and stock clean.</h2></div></div>
-          <div class="admin-card-grid" style="grid-template-columns:1fr;" id="admin-moderation">${state.moderation.map((item, index) => `
-            <article class="panel admin-stack">
-              <div class="admin-inline" style="justify-content:space-between;"><div><span class="eyebrow">${item.kind}</span><h3 style="margin-top:12px;">${item.title}</h3></div>${adminStatusChip(item.status)}</div>
-              <div class="small-note">Owner: ${item.owner} · Flag: ${item.flag}</div>
-              <label class="dashboard-field"><span>Status</span><select class="select" data-moderation-status="${index}"><option value="Queued" ${item.status === 'Queued' ? 'selected' : ''}>Queued</option><option value="Reviewing" ${item.status === 'Reviewing' ? 'selected' : ''}>Reviewing</option><option value="Approved" ${item.status === 'Approved' ? 'selected' : ''}>Approved</option><option value="Needs Edit" ${item.status === 'Needs Edit' ? 'selected' : ''}>Needs Edit</option><option value="Rejected" ${item.status === 'Rejected' ? 'selected' : ''}>Rejected</option></select></label>
-              <label class="dashboard-field"><span>Moderator note</span><textarea class="input" rows="3" data-moderation-notes="${index}">${item.notes || ''}</textarea></label>
-              <button class="btn btn-primary btn-small" type="button" data-moderation-save="${index}">Save moderation decision</button>
-            </article>`).join('')}</div>
-          <div id="admin-moderation-notice"></div>
-        </div>
-      </div>
-    </section>
 
-    <section class="section-tight">
-      <div class="container">
-        <div class="section-head"><div><span class="eyebrow">Inventory imports</span><h2>Google Sheets and website scans in one queue.</h2></div></div>
-        <div class="admin-table">
-          <div class="admin-table-head"><div>Business</div><div>Method</div><div>Source</div><div>Status</div><div>Actions</div></div>
-          <div id="admin-import-jobs">${state.importJobs.map((job, index) => `
-            <div class="admin-table-row">
-              <div><strong>${job.businessName}</strong><div class="small-note">${job.email || 'No email'} · ${job.platform || 'Mixed'} platform</div></div>
-              <div><div>${job.method}</div><div class="small-note">${job.itemCount || 0} items</div></div>
-              <div><div class="small-note">${job.source || 'No source provided'}</div><div class="small-note">${job.notes || ''}</div></div>
-              <div>${adminStatusChip(job.status)}<select class="select admin-select" data-import-status="${index}" style="margin-top:10px;"><option value="Queued" ${job.status === 'Queued' ? 'selected' : ''}>Queued</option><option value="Scanning" ${job.status === 'Scanning' ? 'selected' : ''}>Scanning</option><option value="Needs Review" ${job.status === 'Needs Review' ? 'selected' : ''}>Needs Review</option><option value="Imported" ${job.status === 'Imported' ? 'selected' : ''}>Imported</option><option value="Failed" ${job.status === 'Failed' ? 'selected' : ''}>Failed</option></select></div>
-              <div class="admin-inline"><button class="btn btn-primary btn-small" type="button" data-import-save="${index}">Save</button><button class="btn btn-ghost btn-small" type="button" data-import-promote="${index}">Create listing task</button></div>
-            </div>`).join('')}</div>
-        </div>
-        <div id="admin-imports-notice"></div>
-      </div>
-
-        <section class="section-tight">
-      <div class="container">
-        <div class="section-head"><div><span class="eyebrow">Inventory submissions</span><h2>Supplier inventory awaiting approval.</h2></div></div>
+      <div class="admin-section">
+        <div class="admin-section-head"><span>Inventory submissions</span></div>
         <div id="admin-inventory-subs">${state.inventorySubmissions && state.inventorySubmissions.length ? state.inventorySubmissions.map(function(sub, index) {
           var approvedCount = (sub.items||[]).filter(function(it) { return it._status === 'Approved'; }).length;
           var pendingCount = (sub.items||[]).filter(function(it) { return it._status === 'Pending'; }).length;
@@ -2171,7 +2125,7 @@ function renderAdminDashboardPage() {
         }).join('') : '<div class="empty-state">No inventory submissions yet. Suppliers submit items from their dashboard after importing a Google Sheet.</div>'}</div>
         <div id="admin-inventory-subs-notice"></div>
       </div>
-    </section>`;
+    </div>`;
 
   const saveState = (message, selector) => {
     storage.setAdminState(state);
