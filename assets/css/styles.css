@@ -919,6 +919,9 @@ hr.sep { border: 0; height: 1px; background: rgba(255,255,255,.06); margin: 18px
 }
 
 /* ─── Dashboard section heading gold accent ─── */
+.dashboard-shell .admin-section-head {
+  margin-bottom: 16px;
+}
 .dashboard-shell .admin-section-head span {
   position: relative;
   padding-left: 16px;
@@ -999,6 +1002,26 @@ hr.sep { border: 0; height: 1px; background: rgba(255,255,255,.06); margin: 18px
 }
 .dashboard-shell .admin-table-row:last-child {
   border-bottom: none;
+}
+
+/* ─── Dashboard fields inside panels (non-form) ─── */
+.dashboard-shell .panel > .dashboard-field + .dashboard-field {
+  margin-top: 18px;
+}
+.dashboard-shell .panel > .dashboard-field + .admin-inline {
+  margin-top: 18px;
+}
+.dashboard-shell .panel > .dashboard-field + .small-note {
+  margin-top: 8px;
+}
+.dashboard-shell .panel > .admin-inline + .small-note {
+  margin-top: 10px;
+}
+
+/* ─── Notification/notice spacing ─── */
+.dashboard-shell .panel > #sheet-import-notice,
+.dashboard-shell .panel > #scan-site-notice {
+  margin-top: 12px;
 }
 
 /* ─── Action button rows ─── */
