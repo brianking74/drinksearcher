@@ -1659,6 +1659,7 @@ function renderBusinessDashboardPage() {
               <div class="inline-actions" style="padding:12px;gap:8px;">
                 <button class="admin-btn" id="save-items-btn" type="button">Save</button>
                 <button class="admin-btn admin-btn-sm" id="add-item-btn" type="button">Add row</button>
+                <button class="admin-btn admin-btn-sm" id="import-sheet-btn" type="button">Import sheet</button>
               </div>
             </div>
         </div>
@@ -1766,6 +1767,24 @@ function renderBusinessDashboardPage() {
       config.items.push({ id: `${role}_${Date.now()}`, name: role === 'merchant' ? 'New product' : 'New venue offer', price: 'HK$0', availability: 'In stock', visibility: 'Standard', displayed: true });
       persist();
       renderBusinessDashboardPage();
+    });
+    $('#import-sheet-btn', app).addEventListener('click', async () => {
+      const url = config.sheetUrl;
+      if (!url) {
+        notice.innerHTML = '<div class="notice" style="background:rgba(255,180,50,.08);border-color:rgba(255,180,50,.18);color:#ffecb3;">Save a Google Sheet CSV URL in the Details section first.</div>';
+        return;
+      }
+      try {
+        const text = await loadImportSourceText(url);
+        const imported = importItemsFromCSV(text);
+        if (!imported.length) throw new Error('No inventory rows found in the sheet.');
+        config.items = [...config.items, ...imported];
+        persist();
+        notice.innerHTML = `<div class="notice">Imported <strong>${imported.length}</strong> items from your sheet.</div>`;
+        renderBusinessDashboardPage();
+      } catch (error) {
+        notice.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;white-space:pre-wrap;">${error.message || 'Import failed.'}</div>`;
+      }
     });
     $$('[data-item-delete]', app).forEach(function(btn) {
       btn.addEventListener('click', function() {
