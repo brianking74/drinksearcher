@@ -39,22 +39,46 @@ function onAuthChange(callback) {
 async function fetchDrinks(filters = {}) {
   let query = sb.from('drinks').select('*').eq('status', 'approved');
   if (filters.search) query = query.or(`name.ilike.%${filters.search}%,supplier_name.ilike.%${filters.search}%,type.ilike.%${filters.search}%`);
-  if (filters.area) query = query.eq('area', filters.area);
+  if (filters.area && filters.area !== 'all') query = query.eq('area', filters.area);
   const { data, error } = await query.order('created_at', { ascending: false });
   if (error) { console.error('fetchDrinks error:', error); return []; }
-  return data || [];
+  // Map to drinksInventory shape for backward compat
+  return (data || []).map(d => ({
+    name: d.name,
+    supplier: d.supplier_name || '',
+    supplierSlug: d.supplier_name ? slugify(d.supplier_name) : '',
+    area: '',
+    type: d.type || '',
+    price: d.price || '',
+    image: d.image || '',
+    tier: d.tier || 'standard',
+    buy: d.buy_url || '',
+    description: d.description || '',
+    origin: d.origin || '',
+    abv: d.abv || ''
+  }));
 }
 
 // --- Suppliers ---
 async function fetchSuppliers() {
   const { data } = await sb.from('suppliers').select('*').order('name');
-  return data || [];
+  const rows = data || [];
+  return {
+    enhanced: rows.filter(s => s.tier === 'enhanced'),
+    featured: rows.filter(s => s.tier === 'featured'),
+    standard: rows.filter(s => s.tier === 'standard').map(s => [s.name, s.area, s.phone, s.specialty])
+  };
 }
 
 // --- Venues ---
 async function fetchVenues() {
   const { data } = await sb.from('venues').select('*').order('name');
-  return data || [];
+  const rows = data || [];
+  return {
+    enhanced: rows.filter(v => v.tier === 'enhanced'),
+    featured: rows.filter(v => v.tier === 'featured'),
+    standard: rows.filter(v => v.tier === 'standard').map(v => [v.name, v.area, v.phone, v.cuisine])
+  };
 }
 
 // --- Events ---

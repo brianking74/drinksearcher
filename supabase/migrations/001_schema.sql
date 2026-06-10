@@ -1,8 +1,8 @@
 -- drinksearcher.hk — initial schema
 -- Run this in Supabase SQL Editor: https://kktlbznmhxaortogqspy.supabase.co
 
--- Enable UUID generation
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+-- Enable UUID generation (pgcrypto is pre-installed on Supabase)
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- ============================================================
 -- PROFILES (extends auth.users with business info)
@@ -37,7 +37,7 @@ CREATE TRIGGER on_auth_user_created
 -- SUPPLIERS
 -- ============================================================
 CREATE TABLE suppliers (
-  id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   slug        TEXT UNIQUE,
   name        TEXT NOT NULL,
   area        TEXT,
@@ -57,7 +57,7 @@ CREATE TABLE suppliers (
 -- VENUES (bars & restaurants)
 -- ============================================================
 CREATE TABLE venues (
-  id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   slug        TEXT UNIQUE,
   name        TEXT NOT NULL,
   area        TEXT,
@@ -79,7 +79,7 @@ CREATE TABLE venues (
 -- DRINKS
 -- ============================================================
 CREATE TABLE drinks (
-  id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name        TEXT NOT NULL,
   supplier_id UUID REFERENCES suppliers(id),
   supplier_name TEXT,
@@ -103,7 +103,7 @@ CREATE TABLE drinks (
 -- EVENTS
 -- ============================================================
 CREATE TABLE events (
-  id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name        TEXT NOT NULL,
   venue       TEXT,
   area        TEXT,
@@ -119,7 +119,7 @@ CREATE TABLE events (
 -- SAVED ITEMS (favorites/bookmarks)
 -- ============================================================
 CREATE TABLE saved_items (
-  id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id     UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   item_type   TEXT NOT NULL CHECK (item_type IN ('drink','venue','supplier','event')),
   item_id     UUID NOT NULL,
@@ -131,7 +131,7 @@ CREATE TABLE saved_items (
 -- CLICK EVENTS (analytics)
 -- ============================================================
 CREATE TABLE click_events (
-  id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   drink_id    UUID REFERENCES drinks(id) ON DELETE SET NULL,
   drink_name  TEXT,
   supplier    TEXT,

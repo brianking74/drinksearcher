@@ -735,7 +735,7 @@ function bindCarouselButtons(scope = document) {
   });
 }
 
-function renderHomepage() {
+async function renderHomepage() {
   const app = $('#app');
   const featuredSlugs = [
     'Cincoro Blanco Tequila',
@@ -744,7 +744,8 @@ function renderHomepage() {
     'Alfred GIRAUD Heritage 700ml',
     'Alfred GIRAUD Harmonie 700ml'
   ];
-  const featuredDrinks = featuredSlugs.map(slug => drinksInventory.find(d => d.name === slug)).filter(Boolean).map(d => ({...d, area: d.supplier + ' · ' + d.area}));
+  const drinksList = await fetchDrinks();
+  const featuredDrinks = featuredSlugs.map(slug => drinksList.find(d => d.name === slug)).filter(Boolean).map(d => ({...d, area: d.supplier + ' · ' + d.area}));
   const featuredSuppliers = [
     { slug:'watsons-wine', name:"Watson's Wine", area:'Central · 1,200+ listings', tierLabel:'Wine Merchant', specialty:'Global cellar', image:'assets/images/watsons-wine.jpg', description:'Established wine retailer with an extensive global portfolio and a strong footprint across Hong Kong.' },
     { slug:'hkdrinks', name:'HK Drinks', area:'Central · Cincoro & Clase Azul', tierLabel:'Premium Spirits', specialty:'Tequila specialist', image:'assets/images/hongkong-view.jpg', description:"Hong Kong's premium tequila and spirits specialist. Stocking Cincoro, Clase Azul, and Alfred GIRAUD — direct from the world's finest distilleries." },
@@ -912,8 +913,8 @@ function renderHomepage() {
   }));
 }
 
-function renderVenueDirectory() {
-  mergeUserListings();
+async function renderVenueDirectory() {
+  const venueListings = await fetchVenues();
   const app = $('#app');
   app.innerHTML = `
     <nav class="breadcrumb"><a href="index.html">Home</a><span class="sep">/</span><span>Bars & Restaurants</span></nav>
@@ -967,8 +968,8 @@ function renderVenueDirectory() {
   render();
 }
 
-function renderSupplierDirectory() {
-  mergeUserListings();
+async function renderSupplierDirectory() {
+  const supplierListings = await fetchSuppliers();
   const app = $('#app');
   app.innerHTML = `
     <nav class="breadcrumb"><a href="index.html">Home</a><span class="sep">/</span><span>Suppliers</span></nav>
@@ -1003,10 +1004,11 @@ function renderSupplierDirectory() {
   render();
 }
 
-function renderDrinksPage() {
+async function renderDrinksPage() {
   const app = $('#app');
   const query = queryParam('q') || '';
   const area = queryParam('area') || '';
+  const drinksInventory = await fetchDrinks({ search: query });
   var pubItems = JSON.parse(localStorage.getItem('ds_published_items') || '[]'); var existingKeys = {}; drinksInventory.forEach(function(d) { if (d.name && d.supplier) existingKeys[d.name + '_' + d.supplier] = true; }); var dedupedPub = pubItems.filter(function(p) { return !existingKeys[p.name + '_' + p.supplier]; }); const filteredDrinks = drinksInventory.concat(dedupedPub).filter(d => matchesSearch([d.name, d.supplier, d.type, d.area], query) && (!area || d.area === area));
   app.innerHTML = `
     <section class="hero" style="min-height:56vh;"><div class="hero-media" style="background-image:url('${siteImages.trio}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Drinks</span><h1>Bottles in Hong Kong.</h1><p class="lead">From cellar icons to sake, Champagne, beer, spirits, and no-alcohol discoveries — all routed to local suppliers.</p></div><div class="search-shell"><div class="search-tabs"><span class="search-tab active">Search results</span></div><div class="notice">Showing <strong>${filteredDrinks.length}</strong> drinks${query ? ` for “${query}”` : ''}${area ? ` in ${area}` : ''}.</div><div class="panel" style="padding:18px; background:transparent; border:none; box-shadow:none;"><div class="muted" style="display:grid; gap:10px;"><span>Direct links to local supplier stores</span><span>HK pricing and neighbourhood context</span><span>A mix of discovery bottles and everyday favourites</span></div></div></div></div></section>
@@ -1212,7 +1214,7 @@ async function renderLeadCapturePage() {
   const typeField = $('[name="listingType"]', app);
   const leadNotice = $('#lead-notice', app);
 
-  $('#lead-form').addEventListener('submit', function(e) {
+  $('#lead-form').addEventListener('submit', async function(e) {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
     const formData = {
@@ -1245,7 +1247,7 @@ async function renderLeadCapturePage() {
       return;
     }
     var password = String(form.get('password') || '');
-    var signUpResult = storage.signUp({
+    var signUpResult = await dsAuth.signUp({
       name: formData.contactName,
       email: formData.email,
       password: password,
@@ -1277,10 +1279,11 @@ async function renderLeadCapturePage() {
   });
 }
 
-function renderProductPage() {
+async function renderProductPage() {
   const slug = queryParam('slug');
   if (!slug) { $('#app').innerHTML = '<section class=\"section\"><div class=\"container\"><h1>Product not found</h1><p class=\"lead\">No product specified. <a href=\"drinks.html\">Browse all drinks</a></p></div></section>'; return; }
-  const matching = drinksInventory.filter(d => slugify(d.name) === slug);
+  const drinksList = await fetchDrinks();
+  const matching = drinksList.filter(d => slugify(d.name) === slug);
   if (!matching.length) { $('#app').innerHTML = '<section class=\"section\"><div class=\"container\"><h1>Product not found</h1><p class=\"lead\">We can\'t find this product. <a href=\"drinks.html\">Browse all drinks</a></p></div></section>'; return; }
   const product = matching[0];
   const img = product.image || 'assets/images/placeholder-bottle.svg';
@@ -1366,45 +1369,6 @@ function renderSupplierProfile() {
 
 async function renderSearcherAccountPage() {
   const app = $('#app');
-  var params = new URLSearchParams(window.location.search);
-  if (params.get('seed') === 'hkdrinks') {
-    var result = storage.seedDemoAccount('hkdrinks@demo.hk', 'demo123', 'HK Drinks', {
-      businessName: 'HK Drinks — Premium Spirits & Tequila',
-      contactEmail: 'info@hkdrinks.shop',
-      phone: '+852 6119 4233',
-      district: 'Central',
-      items: [
-        { name: 'Cincoro Blanco Tequila', price: 'HK$1,498', availability: 'In stock', visibility: 'Featured' },
-        { name: 'Cincoro Reposado Tequila', price: 'HK$1,898', availability: 'In stock', visibility: 'Featured' },
-        { name: 'Cincoro Anejo Tequila', price: 'HK$2,288', availability: 'In stock', visibility: 'Featured' },
-        { name: 'Cincoro Extra Anejo Tequila', price: 'HK$15,988', availability: 'In stock', visibility: 'Enhanced' },
-        { name: 'Cincoro Gold Tequila', price: 'HK$3,488', availability: 'In stock', visibility: 'Enhanced' },
-        { name: 'Cincoro Collection (6 bottles)', price: 'HK$24,498', availability: 'Pre-order', visibility: 'Featured' },
-        { name: 'Clase Azul Plata', price: 'HK$1,898', availability: 'In stock', visibility: 'Enhanced' },
-        { name: 'Clase Azul Reposado', price: 'HK$1,898', availability: 'In stock', visibility: 'Enhanced' },
-        { name: 'Clase Azul Gold', price: 'HK$3,998', availability: 'In stock', visibility: 'Enhanced' },
-        { name: 'Clase Azul Anejo', price: 'HK$8,198', availability: 'Pre-order', visibility: 'Featured' },
-        { name: 'Clase Azul Ultra', price: 'HK$29,888', availability: 'Pre-order', visibility: 'Featured' },
-        { name: 'Clase Azul Durango Mezcal', price: 'HK$4,498', availability: 'In stock', visibility: 'Enhanced' },
-        { name: 'Clase Azul Guerrero Mezcal', price: 'HK$4,498', availability: 'In stock', visibility: 'Enhanced' },
-        { name: 'Clase Azul San Luis Potosi Mezcal', price: 'HK$4,998', availability: 'In stock', visibility: 'Enhanced' },
-        { name: 'Clase Azul Ahumado', price: 'HK$3,898', availability: 'In stock', visibility: 'Enhanced' },
-        { name: 'Clase Azul Spirit of Champions', price: 'HK$17,998', availability: 'Pre-order', visibility: 'Featured' },
-        { name: 'Alfred GIRAUD Heritage 700ml', price: 'HK$1,668', availability: 'In stock', visibility: 'Featured' },
-        { name: 'Alfred GIRAUD Harmonie 700ml', price: 'HK$2,578', availability: 'In stock', visibility: 'Enhanced' },
-        { name: 'Alfred GIRAUD Voyage 700ml', price: 'HK$2,588', availability: 'In stock', visibility: 'Enhanced' },
-        { name: 'Alfred GIRAUD Intrigue 700ml', price: 'HK$4,718', availability: 'Pre-order', visibility: 'Featured' },
-        { name: 'Alfred GIRAUD Horizon 700ml', price: 'HK$1,768', availability: 'In stock', visibility: 'Enhanced' },
-        { name: 'Alfred GIRAUD Une Odyssee 700ml', price: 'HK$24,988', availability: 'Pre-order', visibility: 'Featured' }
-      ]
-    });
-    if (result.ok) {
-      app.innerHTML = '<section class="hero" style="min-height:50vh;"><div class="hero-media" style="background-image:url(\'' + siteImages.hero + '\')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Demo Account Seeded</span><h1>Ready to explore.</h1><p class="lead">HK Drinks account is ready. You\'re signed in — head to the dashboard to see the full supplier panel.</p></div><div class="search-shell"><a class="btn btn-primary btn-block" href="dashboard.html">Go to Dashboard</a></div></div></section>';
-    } else {
-      app.innerHTML = '<section class="hero" style="min-height:50vh;"><div class="container hero-grid"><div class="hero-copy"><h1>Something went wrong</h1><p class="lead">' + result.message + '</p></div></div></section>';
-    }
-    return;
-  }
   const user = await dsAuth.getCurrentUser();
   const hasPending = !!storage.getPendingSave() || new URLSearchParams(window.location.search).get('intent') === 'save';
   if (user) {
@@ -1419,39 +1383,29 @@ async function renderSearcherAccountPage() {
     <section class="section"><div class="container grid grid-2"><div class="search-shell"><span class="eyebrow">Welcome back</span><h3 style="margin:10px 0 4px;">Sign in</h3>${hasPending ? '<div class="notice">Sign in to finish saving the item you just selected.</div>' : ''}<form id="sa-signin-form" class="form-grid" style="margin-top:14px;"><input class="input full" name="email" type="email" placeholder="Email" required /><input class="input full" name="password" type="password" placeholder="Password" required /><button class="btn btn-primary full" type="submit">Sign In</button></form><div id="sa-signin-notice"></div></div><div class="search-shell"><span class="eyebrow">New here</span><h3 style="margin:10px 0 4px;">Create account</h3><form id="sa-signup-form" class="form-grid" style="margin-top:14px;"><input class="input" name="name" placeholder="Full name" required /><input class="input full" name="email" type="email" placeholder="Email" required /><input class="input full" name="password" type="password" placeholder="Create password" required /><button class="btn btn-primary full" type="submit">Create Account</button></form><div id="sa-signup-notice"></div></div></div></section>
     <section class="section-tight"><div class="container"><div class="panel" style="max-width:600px; margin:0 auto; text-align:center;"><span class="kicker">For businesses</span><h3 style="margin:10px 0 4px;">Supplier / Venue account</h3><p class="muted\">List your products or claim your venue. Manage inventory, pricing, and visibility from your business dashboard.</p><div class="search-shell" style="margin-top:20px;"><form id="sa-biz-form" class="form-grid"><input class="input" name="bizname" placeholder="Business name" required /><div class="grid grid-2" style="gap:12px;"><input class="input" name="email" type="email" placeholder="Email" required /><input class="input" name="password" type="password" placeholder="Create password" required /><input class="input" name="phone" type="tel" placeholder="Phone (e.g. +852...)" /><select class="input" name="district"><option value="">Select district</option><option>Central</option><option>Sheung Wan</option><option>Wan Chai</option><option>Causeway Bay</option><option>Tsim Sha Tsui</option><option>Mong Kok</option><option>Kowloon City</option><option>Sai Kung</option><option>Discovery Bay</option><option>Hong Kong-wide</option></select></div><div class="inline-actions" style="margin-top:10px;"><button class="btn btn-primary" type="submit">Create Business Account</button></div></form><div id="sa-biz-notice"></div></div></div></div></section>`;
   var signinForm = document.getElementById('sa-signin-form');
-  if (signinForm) signinForm.addEventListener('submit', function(e) {
+  if (signinForm) signinForm.addEventListener('submit', async function(e) {
     e.preventDefault();
     var form = new FormData(e.currentTarget);
     var email = form.get('email');
     var password = form.get('password');
-    var result = storage.signIn(email, password);
-    if (!result.ok && email === 'hkdrinks@demo.hk' && password === 'demo123') {
-      result = storage.seedDemoAccount(email, password, 'HK Drinks', { businessName:'HK Drinks — Premium Spirits & Tequila', contactEmail:'info@hkdrinks.shop', phone:'+852 6119 4233', district:'Central', items:[ {name:'Cincoro Blanco Tequila',price:'HK$1,498'},{name:'Cincoro Reposado Tequila',price:'HK$1,898'},{name:'Cincoro Anejo Tequila',price:'HK$2,288'},{name:'Cincoro Extra Anejo Tequila',price:'HK$15,988'},{name:'Cincoro Gold Tequila',price:'HK$3,488'},{name:'Cincoro Collection (6 bottles)',price:'HK$24,498'},{name:'Clase Azul Plata',price:'HK$1,898'},{name:'Clase Azul Reposado',price:'HK$1,898'},{name:'Clase Azul Gold',price:'HK$3,998'},{name:'Clase Azul Anejo',price:'HK$8,198'},{name:'Clase Azul Ultra',price:'HK$29,888'},{name:'Clase Azul Durango Mezcal',price:'HK$4,498'},{name:'Clase Azul Guerrero Mezcal',price:'HK$4,498'},{name:'Clase Azul San Luis Potosi Mezcal',price:'HK$4,998'},{name:'Clase Azul Ahumado',price:'HK$3,898'},{name:'Clase Azul Spirit of Champions',price:'HK$17,998'},{name:'Alfred GIRAUD Heritage 700ml',price:'HK$1,668'},{name:'Alfred GIRAUD Harmonie 700ml',price:'HK$2,578'},{name:'Alfred GIRAUD Voyage 700ml',price:'HK$2,588'},{name:'Alfred GIRAUD Intrigue 700ml',price:'HK$4,718'},{name:'Alfred GIRAUD Horizon 700ml',price:'HK$1,768'},{name:'Alfred GIRAUD Une Odyssee 700ml',price:'HK$24,988'}] });
-
-      if (result.ok) { storage.clearPostAuthRedirect(); window.location.href = 'dashboard.html'; return; }
-    }
+    var result = await dsAuth.signIn(email, password);
     document.getElementById('sa-signin-notice').innerHTML = result.ok ? '<div class="notice">Signed in successfully. Taking you to your account…</div>' : '<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">' + result.message + '</div>';
     if (result.ok) {
-      var role = result.user.role;
-      if (email === 'hkdrinks@demo.hk' && role !== 'merchant') {
-        var users = storage.getUsers();
-        var match = users.find(function(u) { return u.email === email; });
-        if (match) { match.role = 'merchant'; storage.setUsers(users); role = 'merchant'; }
-      }
       storage.clearPostAuthRedirect();
+      var role = result.user.role;
       setTimeout(function() { finishAuthFlow(role === 'merchant' || role === 'venue' ? 'dashboard.html' : 'account.html'); }, 300);
     }
   });
   var signupForm = document.getElementById('sa-signup-form');
-  if (signupForm) signupForm.addEventListener('submit', function(e) {
+  if (signupForm) signupForm.addEventListener('submit', async function(e) {
     e.preventDefault();
     var form = new FormData(e.currentTarget);
-    var result = storage.signUp({ name: form.get('name'), email: form.get('email'), password: form.get('password') });
+    var result = await dsAuth.signUp({ name: form.get('name'), email: form.get('email'), password: form.get('password') });
     document.getElementById('sa-signup-notice').innerHTML = result.ok ? '<div class="notice">Account created successfully. Taking you to your profile…</div>' : '<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">' + result.message + '</div>';
     if (result.ok) { storage.clearPostAuthRedirect(); setTimeout(function() { finishAuthFlow('account.html'); }, 300); }
   });
   var bizForm = document.getElementById('sa-biz-form');
-  if (bizForm) bizForm.addEventListener('submit', function(e) {
+  if (bizForm) bizForm.addEventListener('submit', async function(e) {
     e.preventDefault();
     var form = new FormData(e.currentTarget);
     var bizname = form.get('bizname');
@@ -1459,7 +1413,7 @@ async function renderSearcherAccountPage() {
     var password = form.get('password');
     var phone = form.get('phone');
     var district = form.get('district') || 'Central';
-    var result = storage.signUp({ name: bizname, email: email, password: password, role: 'merchant' });
+    var result = await dsAuth.signUp({ name: bizname, email: email, password: password, role: 'merchant' });
     if (result.ok) {
       storage.updateDashboardState(email, {
         activeRole: 'merchant',
@@ -2255,7 +2209,7 @@ function setupAnchorSpy() {
   update();
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   const page = document.body.dataset.page;
   const activeMap = {
     home: 'Home',
