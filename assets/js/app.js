@@ -541,14 +541,14 @@ function buildSearchHref(base, query = '', area = '') {
   return `${base}${params.toString() ? `?${params.toString()}` : ''}`;
 }
 
-function navHTML(active = '') {
+async function navHTML(active = '') {
   const links = [
     ['index.html','Home'],
     ['drinks.html','Drinks'],
     ['events.html','Events'],
     ['bars-restaurants.html','Bars & Restaurants']
   ];
-  const user = storage.getCurrentUser();
+  const user = await dsAuth.getCurrentUser();
   const authActions = user
     ? (user.role === 'merchant' || user.role === 'venue'
       ? `<a class="btn btn-ghost btn-small" href="dashboard.html">${user.name || 'Dashboard'}</a><button class="btn btn-primary btn-small" id="signout-btn" type="button">Sign Out</button>`
@@ -604,10 +604,10 @@ function footerHTML() {
     </footer>`;
 }
 
-function setupChrome(activeLabel) {
+async function setupChrome(activeLabel) {
   const nav = document.createElement('header');
   nav.className = 'nav';
-  nav.innerHTML = navHTML(activeLabel);
+  nav.innerHTML = await navHTML(activeLabel);
   document.body.prepend(nav);
   const footerWrap = document.createElement('div');
   footerWrap.innerHTML = footerHTML();
@@ -616,15 +616,16 @@ function setupChrome(activeLabel) {
   const links = $('.nav-links');
   if (toggle && links) toggle.addEventListener('click', () => links.classList.toggle('open'));
   const signOutBtn = $('#signout-btn');
-  if (signOutBtn) signOutBtn.addEventListener('click', () => {
-    storage.signOut();
+  if (signOutBtn) signOutBtn.addEventListener('click', async () => {
+    await dsAuth.signOut();
     window.location.href = 'index.html';
   });
   window.addEventListener('scroll', () => nav.classList.toggle('scrolled', window.scrollY > 8));
 }
 
-function saveItem(item) {
-  if (!storage.getCurrentUser()) {
+async function saveItem(item) {
+  const currentUser = await dsAuth.getCurrentUser();
+  if (!currentUser) {
     storage.setPendingSave(item);
     storage.setPostAuthRedirect(currentPagePath());
     window.location.href = 'searcher-account.html?intent=save';
@@ -1195,9 +1196,9 @@ function renderPricingPage() {
   setBilling('monthly');
 }
 
-function renderLeadCapturePage() {
+async function renderLeadCapturePage() {
   const app = $('#app');
-  const user = storage.getCurrentUser();
+  const user = await dsAuth.getCurrentUser();
   if (!user) storage.setPostAuthRedirect(currentPagePath());
   const requestedType = queryParam('type') || 'merchant';
   const source = queryParam('source') || 'site';
@@ -1363,7 +1364,7 @@ function renderSupplierProfile() {
   }
 }
 
-function renderSearcherAccountPage() {
+async function renderSearcherAccountPage() {
   const app = $('#app');
   var params = new URLSearchParams(window.location.search);
   if (params.get('seed') === 'hkdrinks') {
@@ -1404,13 +1405,13 @@ function renderSearcherAccountPage() {
     }
     return;
   }
-  const user = storage.getCurrentUser();
+  const user = await dsAuth.getCurrentUser();
   const hasPending = !!storage.getPendingSave() || new URLSearchParams(window.location.search).get('intent') === 'save';
   if (user) {
     app.innerHTML = `
       <section class="hero" style="min-height:50vh;"><div class="hero-media" style="background-image:url('${siteImages.hero}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Searcher Account</span><h1>Welcome back, ${user.name || 'friend'}.</h1><p class="lead">Your account is already active. Head to your account to manage saved drinks, events, and venues.</p></div><div class="search-shell"><div class="inline-actions"><a class="btn btn-primary btn-block" href="${user.role === 'merchant' || user.role === 'venue' ? 'dashboard.html' : 'account.html'}">${user.role === 'merchant' || user.role === 'venue' ? 'Go to dashboard' : 'Go to account'}</a><button id="inline-signout" class="btn btn-ghost btn-block" type="button">Sign out</button></div></div></div></section>`;
     var so = document.getElementById('inline-signout');
-    if (so) so.addEventListener('click', function() { storage.signOut(); window.location.reload(); });
+    if (so) so.addEventListener('click', async function() { await dsAuth.signOut(); window.location.reload(); });
     return;
   }
   app.innerHTML = `
@@ -1477,47 +1478,47 @@ function renderSearcherAccountPage() {
   });
 }
 
-function renderSignInPage() {
+async function renderSignInPage() {
   const app = $('#app');
-  const currentUser = storage.getCurrentUser();
+  const currentUser = await dsAuth.getCurrentUser();
   const hasPending = !!storage.getPendingSave() || new URLSearchParams(window.location.search).get('intent') === 'save';
   if (currentUser) {
     app.innerHTML = `
       <section class="hero" style="min-height:50vh;"><div class="hero-media" style="background-image:url('${siteImages.hero}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Already signed in</span><h1>Welcome back, ${currentUser.name || 'friend'}.</h1><p class="lead">Your account is already active in this browser. Head to your dashboard to manage saved drinks, events, and venues.</p></div><div class="search-shell"><div class="inline-actions"><a class="btn btn-primary btn-block" href="${currentUser.role === 'merchant' || currentUser.role === 'venue' ? 'dashboard.html' : 'account.html'}">${currentUser.role === 'merchant' || currentUser.role === 'venue' ? 'Go to dashboard' : 'Go to account'}</a><button id="inline-signout" class="btn btn-ghost btn-block" type="button">Sign out first</button></div></div></div></section>`;
-    $('#inline-signout').addEventListener('click', () => { storage.signOut(); window.location.reload(); });
+    $('#inline-signout').addEventListener('click', async () => { await dsAuth.signOut(); window.location.reload(); });
     return;
   }
   app.innerHTML = `
     <section class="hero" style="min-height:56vh;"><div class="hero-media" style="background-image:url('${siteImages.hero}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Sign in</span><h1>Your saved shortlist.</h1><p class="lead">Sign in to save drinks, events, and bars to your account, manage enquiries, and access your business dashboard.</p></div><div class="search-shell"><span class="eyebrow">Account sign in</span>${hasPending ? '<div class="notice">Sign in to finish saving the item you just selected.</div>' : ''}<form id="signin-form" class="form-grid" style="margin-top:14px;"><input class="input full" name="email" type="email" placeholder="Email" required /><input class="input full" name="password" type="password" placeholder="Password" required /><button class="btn btn-primary full" type="submit">Sign In</button></form><div id="signin-notice"></div><p class="muted" style="margin-top:16px;">New here? <a class="text-jade" href="signup.html">Create an account</a></p></div></div></section>`;
-  $('#signin-form').addEventListener('submit', e => {
+  $('#signin-form').addEventListener('submit', async e => {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
-    const result = storage.signIn(form.get('email'), form.get('password'));
+    const result = await dsAuth.signIn(form.get('email'), form.get('password'));
     $('#signin-notice').innerHTML = result.ok ? '<div class="notice">Signed in successfully. Taking you to your account…</div>' : `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">${result.message}</div>`;
     if (result.ok) { storage.clearPostAuthRedirect(); var _rt = (result.user.role === 'merchant' || result.user.role === 'venue') ? 'dashboard.html' : 'account.html'; setTimeout(() => finishAuthFlow(_rt), 300); }
   });
 }
 
-function renderSignUpPage() {
+async function renderSignUpPage() {
   const app = $('#app');
-  if (storage.getCurrentUser()) {
+  if (await dsAuth.getCurrentUser()) {
     window.location.href = 'account.html';
     return;
   }
   app.innerHTML = `
     <section class="hero" style="min-height:58vh;"><div class="hero-media" style="background-image:url('${siteImages.event}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Create account</span><h1>Create your account.</h1><p class="lead">Create an account to save bottles, venues, and events, track enquiries, and manage your business profile in one place.</p></div><div class="search-shell"><span class="eyebrow">Sign up</span><form id="signup-form" class="form-grid" style="margin-top:14px;"><input class="input" name="name" placeholder="Full name" required /><input class="input" name="city" placeholder="Preferred district" required /><input class="input full" name="email" type="email" placeholder="Email" required /><input class="input full" name="password" type="password" placeholder="Create password" required /><button class="btn btn-primary full" type="submit">Create account</button></form><div id="signup-notice"></div><p class="muted" style="margin-top:16px;">Already have an account? <a class="text-jade" href="searcher-account.html">Sign in</a></p></div></div></section>`;
-  $('#signup-form').addEventListener('submit', e => {
+  $('#signup-form').addEventListener('submit', async e => {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
-    const result = storage.signUp({ name: form.get('name'), city: form.get('city'), email: form.get('email'), password: form.get('password') });
+    const result = await dsAuth.signUp({ name: form.get('name'), city: form.get('city'), email: form.get('email'), password: form.get('password') });
     $('#signup-notice').innerHTML = result.ok ? '<div class="notice">Account created successfully. Taking you to your profile…</div>' : `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">${result.message}</div>`;
     if (result.ok) { storage.clearPostAuthRedirect(); var _ut = (result.user.role === 'merchant' || result.user.role === 'venue') ? 'dashboard.html' : 'account.html'; setTimeout(() => finishAuthFlow(_ut), 300); }
 });
 }
 
-function renderAccountPage() {
+async function renderAccountPage() {
   const app = $('#app');
-  const user = storage.getCurrentUser();
+  const user = await dsAuth.getCurrentUser();
   if (!user) {
     storage.setPostAuthRedirect('account.html');
     window.location.href = 'searcher-account.html';
@@ -1531,10 +1532,10 @@ function renderAccountPage() {
     <section class="hero" style="min-height:48vh;"><div class="hero-media" style="background-image:url('${siteImages.rooftop}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">My account</span><h1>${user.name || 'Your account'} <span class="text-jade">dashboard</span>.</h1><p class="lead">Manage your profile, keep a shortlist of drinks and venues, and stay on top of your enquiries and saved discoveries.</p></div><div class="search-shell"><span class="eyebrow">Profile details</span><form id="account-form" class="form-grid" style="margin-top:14px;"><input class="input" name="name" value="${user.name || ''}" placeholder="Full name" required /><input class="input" name="city" value="${user.city || ''}" placeholder="Preferred district" required /><input class="input full" value="${user.email}" disabled /><button class="btn btn-primary full" type="submit">Update profile</button></form><div id="account-notice"></div></div></div></section>
     <section class="section"><div class="container grid grid-2"><div class="panel"><span class="eyebrow">Saved items</span><h2 style="margin:14px 0;">Your shortlist</h2><div id="saved-items"></div></div><div class="panel"><span class="eyebrow">Account actions</span><h2 style="margin:14px 0;">Keep track of what matters.</h2><div class="muted" style="display:grid; gap:12px;"><span>• Save bottles, bars, and events for later.</span><span>• Review your enquiries and listing requests.</span><span>• Access your business dashboard if you manage a supplier or venue profile.</span></div><div class="inline-actions" style="margin-top:18px;"><a class="btn btn-ghost" href="drinks.html">Save more drinks</a><a class="btn btn-secondary" href="list-your-business.html">List your business</a><a class="btn btn-primary" href="dashboard.html">Open business dashboard</a></div></div></div></section>
     <section class="section-tight"><div class="container"><div class="panel"><span class="eyebrow">My business enquiries</span><h2 style="margin:14px 0;">Submitted lead capture forms</h2><div id="account-leads"></div></div></div></section>`;
-  $('#account-form').addEventListener('submit', e => {
+  $('#account-form').addEventListener('submit', async e => {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
-    storage.updateCurrentUserProfile({ name: form.get('name'), city: form.get('city') });
+    await dsAuth.updateProfile({ name: form.get('name'), area: form.get('city') });
     $('#account-notice').innerHTML = '<div class="notice">Profile updated successfully.</div>';
   });
   renderAccountSaved();
@@ -1560,9 +1561,9 @@ function renderAccountLeads() {
   holder.innerHTML = leads.length ? `<div class="grid grid-2">${leads.map(lead => `<div class="panel"><div class="eyebrow">${lead.listingType === 'venue' ? 'Venue enquiry' : 'Merchant enquiry'}</div><h3 style="margin:12px 0;">${lead.businessName}</h3><p class="muted">${(lead.planInterest || 'Standard').replace(/-/g, ' ')} · ${lead.district}</p><div class="muted" style="display:grid; gap:8px; margin-top:14px;"><span>${lead.contactName}</span><span>${lead.email}</span><span>${lead.phone}</span></div><div class="inline-actions" style="margin-top:16px;"><a class="btn btn-ghost btn-small" href="list-your-business.html?type=${lead.listingType}&plan=${lead.planInterest || 'standard'}">Edit / submit another</a><a class="btn btn-primary btn-small" href="dashboard.html?role=${lead.listingType}">Open dashboard</a></div></div>`).join('')}</div>` : '<div class="empty-state">No business enquiries yet. Use the lead capture page to submit your first supplier or venue application.</div>';
 }
 
-function renderBusinessDashboardPage() {
+async function renderBusinessDashboardPage() {
   const app = $('#app');
-  const user = storage.getCurrentUser();
+  const user = await dsAuth.getCurrentUser();
   if (!user) {
     storage.setPostAuthRedirect(currentPagePath());
     window.location.href = 'searcher-account.html';
@@ -1997,9 +1998,9 @@ async function loadImportSourceText(source) {
   return bodyText;
 }
 
-function renderAdminDashboardPage() {
+async function renderAdminDashboardPage() {
   const app = $('#app');
-  const user = storage.getCurrentUser();
+  const user = await dsAuth.getCurrentUser();
   if (!user) {
     storage.setPostAuthRedirect('admin.html');
     window.location.href = 'searcher-account.html';
