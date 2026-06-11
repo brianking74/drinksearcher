@@ -598,12 +598,15 @@ textarea:focus-visible {
 .venue-card-copy { line-height: 1.58; }
 .venue-card .card-inline-meta { padding-top: 14px; margin-top: 4px; border-top: 1px solid rgba(255,255,255,.07); }
 .venue-card-foot {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
   padding: 16px 20px 20px;
   border-top: 1px solid rgba(255,255,255,.07);
 }
-.venue-card-foot .btn-secondary { flex: 1 1 100%; min-height: 46px; }
+.venue-card-foot .btn-primary { grid-column: 1 / -1; min-height: 46px; width: 100%; }
 .venue-card-foot .btn-ghost,
-.venue-card-foot .save-btn { flex: 1 1 calc(50% - 6px); justify-content: center; }
+.venue-card-foot .save-btn { justify-content: center; }
 
 /* ── Event Cards ── */
 
