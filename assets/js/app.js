@@ -271,7 +271,7 @@ function currentPagePath() {
 
 function consumePendingSave() {
   const pending = storage.getPendingSave();
-  if (!pending || !await dsAuth.getCurrentUser()) return;
+  if (!pending || !storage.getCurrentUser()) return;
   const saved = storage.getSaved();
   if (!saved.some(item => item.id === pending.id)) {
     storage.setSaved([pending, ...saved]);
@@ -322,17 +322,17 @@ function buildSearchHref(base, query = '', area = '') {
   return `${base}${params.toString() ? `?${params.toString()}` : ''}`;
 }
 
-async function navHTML(active = '') {
+function navHTML(active = '') {
   const links = [
     ['index.html','Home'],
     ['drinks.html','Drinks'],
     ['events.html','Events'],
     ['bars-restaurants.html','Bars & Restaurants'],
     ];
-  const user = await dsAuth.getCurrentUser();
+  const user = storage.getCurrentUser();
   const authActions = user
     ? `<a class="btn btn-ghost btn-small" href="account.html">👤 Account</a>`
-    : `<a class="btn btn-secondary btn-small" href="signup.html">Signup</a>`;
+    : `<a class="btn btn-ghost btn-small" href="signin.html">Sign In</a><a class="btn btn-secondary btn-small" href="signup.html">Sign Up</a>`;
   return `
     <div class="container nav-inner">
       <a class="logo" href="index.html">drinksearcher<span>.hk</span></a>
@@ -383,7 +383,7 @@ function footerHTML() {
     </footer>`;
 }
 
-async function setupChrome(activeLabel) {
+function setupChrome(activeLabel) {
   const nav = document.createElement('header');
   nav.className = 'nav';
   nav.innerHTML = navHTML(activeLabel);
@@ -395,15 +395,15 @@ async function setupChrome(activeLabel) {
   const links = $('.nav-links');
   if (toggle && links) toggle.addEventListener('click', () => links.classList.toggle('open'));
   const signOutBtn = $('#signout-btn');
-  if (signOutBtn) signOutBtn.addEventListener('click', async () => {
-    await dsAuth.signOut();
+  if (signOutBtn) signOutBtn.addEventListener('click', () => {
+    storage.signOut();
     window.location.href = 'index.html';
   });
   window.addEventListener('scroll', () => nav.classList.toggle('scrolled', window.scrollY > 8));
 }
 
-async function saveItem(item) {
-  if (!await dsAuth.getCurrentUser()) {
+function saveItem(item) {
+  if (!storage.getCurrentUser()) {
     storage.setPendingSave(item);
     storage.setPostAuthRedirect(currentPagePath());
     window.location.href = 'signin.html?intent=save';
@@ -1005,9 +1005,9 @@ function renderPricingPage() {
   setBilling('monthly');
 }
 
-async function renderLeadCapturePage() {
+function renderLeadCapturePage() {
   const app = $('#app');
-  const user = await dsAuth.getCurrentUser();
+  const user = storage.getCurrentUser();
   if (!user) storage.setPostAuthRedirect(currentPagePath());
   const requestedType = queryParam('type') || 'merchant';
   const requestedPlan = queryParam('plan') || (requestedType === 'venue' ? 'venue-enhanced' : 'merchant-enhanced');
@@ -1100,14 +1100,14 @@ function renderSupplierProfile() {
   bindSaveButtons(app);
 }
 
-async function renderSignInPage() {
+function renderSignInPage() {
   const app = $('#app');
-  const currentUser = await dsAuth.getCurrentUser();
+  const currentUser = storage.getCurrentUser();
   const hasPending = !!storage.getPendingSave() || new URLSearchParams(window.location.search).get('intent') === 'save';
   if (currentUser) {
     app.innerHTML = `
       <section class="hero" style="min-height:50vh;"><div class="hero-media" style="background-image:url('${siteImages.hero}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Already signed in</span><h1>Welcome back, ${currentUser.name || 'friend'}.</h1><p class="lead">Your account is already active in this browser. Head to your dashboard to manage saved drinks, events, and venues.</p></div><div class="search-shell"><div class="inline-actions"><a class="btn btn-primary btn-block" href="account.html">Go to account</a><button id="inline-signout" class="btn btn-ghost btn-block" type="button">Sign out first</button></div></div></div></section>`;
-    $('#inline-signout').addEventListener('click', () => { await dsAuth.signOut(); window.location.reload(); });
+    $('#inline-signout').addEventListener('click', () => { storage.signOut(); window.location.reload(); });
     return;
   }
   app.innerHTML = `
@@ -1115,15 +1115,15 @@ async function renderSignInPage() {
   $('#signin-form').addEventListener('submit', e => {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
-    const result = await dsAuth.signIn(form.get('email'), form.get('password'));
+    const result = storage.signIn(form.get('email'), form.get('password'));
     $('#signin-notice').innerHTML = result.ok ? '<div class="notice">Signed in successfully. Taking you to your account…</div>' : `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">${result.message}</div>`;
     if (result.ok) setTimeout(() => finishAuthFlow('account.html'), 300);
   });
 }
 
-async function renderSignUpPage() {
+function renderSignUpPage() {
   const app = $('#app');
-  if (await dsAuth.getCurrentUser()) {
+  if (storage.getCurrentUser()) {
     window.location.href = 'account.html';
     return;
   }
@@ -1132,15 +1132,15 @@ async function renderSignUpPage() {
   $('#signup-form').addEventListener('submit', e => {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
-    const result = await dsAuth.signUp({ name: form.get('name'), city: form.get('city'), email: form.get('email'), password: form.get('password'), role: 'searcher' });
+    const result = storage.signUp({ name: form.get('name'), city: form.get('city'), email: form.get('email'), password: form.get('password') });
     $('#signup-notice').innerHTML = result.ok ? '<div class="notice">Account created successfully. Taking you to your profile…</div>' : `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">${result.message}</div>`;
     if (result.ok) setTimeout(() => finishAuthFlow('account.html'), 300);
   });
 }
 
-async function renderAccountPage() {
+function renderAccountPage() {
   const app = $('#app');
-  const user = await dsAuth.getCurrentUser();
+  const user = storage.getCurrentUser();
   if (!user) {
     storage.setPostAuthRedirect('account.html');
     window.location.href = 'signin.html';
@@ -1153,7 +1153,7 @@ async function renderAccountPage() {
   $('#account-form').addEventListener('submit', e => {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
-    await dsAuth.updateProfile({ name: form.get('name'), city: form.get('city') });
+    storage.updateCurrentUserProfile({ name: form.get('name'), city: form.get('city') });
     $('#account-notice').innerHTML = '<div class="notice">Profile updated successfully.</div>';
   });
   renderAccountSaved();
@@ -1179,9 +1179,9 @@ function renderAccountLeads() {
   holder.innerHTML = leads.length ? `<div class="grid grid-2">${leads.map(lead => `<div class="panel"><div class="eyebrow">${lead.listingType === 'venue' ? 'Venue enquiry' : 'Merchant enquiry'}</div><h3 style="margin:12px 0;">${lead.businessName}</h3><p class="muted">${lead.planInterest.replace(/-/g, ' ')} · ${lead.district}</p><div class="muted" style="display:grid; gap:8px; margin-top:14px;"><span>${lead.contactName}</span><span>${lead.email}</span><span>${lead.phone}</span></div><div class="inline-actions" style="margin-top:16px;"><a class="btn btn-ghost btn-small" href="list-your-business.html?type=${lead.listingType}&plan=${lead.planInterest}">Edit / submit another</a><a class="btn btn-primary btn-small" href="dashboard.html?role=${lead.listingType}">Open dashboard</a></div></div>`).join('')}</div>` : '<div class="empty-state">No business enquiries yet. Use the lead capture page to submit your first supplier or venue application.</div>';
 }
 
-async function renderBusinessDashboardPage() {
+function renderBusinessDashboardPage() {
   const app = $('#app');
-  const user = await dsAuth.getCurrentUser();
+  const user = storage.getCurrentUser();
   if (!user) {
     storage.setPostAuthRedirect(currentPagePath());
     window.location.href = 'signin.html';
@@ -1368,7 +1368,7 @@ async function renderBusinessDashboardPage() {
       addOnRows.forEach(([key]) => { config[key] = form.get(key) === 'on'; });
       persist();
       notice.innerHTML = '<div class="notice">Membership and add-on preferences saved.</div>';
-      await renderBusinessDashboardPage();
+      renderBusinessDashboardPage();
     });
     const saveItems = () => {
       config.items = $$('.dashboard-row', app).map((row, index) => ({
@@ -1385,7 +1385,7 @@ async function renderBusinessDashboardPage() {
     $('#add-item-btn', app).addEventListener('click', () => {
       config.items.push({ id: `${role}_${Date.now()}`, name: role === 'merchant' ? 'New product' : 'New venue offer', price: 'HK$0', availability: 'In stock', visibility: 'Standard' });
       persist();
-      await renderBusinessDashboardPage();
+      renderBusinessDashboardPage();
     });
     if (role === 'merchant' && $('#sheet-template-btn', app)) {
       $('#sheet-template-btn', app).addEventListener('click', () => {
@@ -1446,7 +1446,7 @@ async function renderBusinessDashboardPage() {
     $$('[data-role-switch]', app).forEach(btn => btn.addEventListener('click', () => {
       state.activeRole = btn.dataset.roleSwitch;
       persist();
-      await renderBusinessDashboardPage();
+      renderBusinessDashboardPage();
     }));
   };
   renderRole(state.activeRole || 'merchant');
@@ -1575,9 +1575,9 @@ async function loadImportSourceText(source) {
   return response.text();
 }
 
-async function renderAdminDashboardPage() {
+function renderAdminDashboardPage() {
   const app = $('#app');
-  const user = await dsAuth.getCurrentUser();
+  const user = storage.getCurrentUser();
   if (!user) {
     storage.setPostAuthRedirect('admin.html');
     window.location.href = 'signin.html';
@@ -1733,7 +1733,7 @@ async function renderAdminDashboardPage() {
     if (sourceIndex === -1) return;
     state.applications[sourceIndex].status = $(`[data-application-status="${index}"]`, app).value;
     saveState(`Application status updated for ${entry.businessName}.`, '#admin-applications-notice');
-    await renderAdminDashboardPage();
+    renderAdminDashboardPage();
   }));
 
   $$('[data-create-subscription]', app).forEach(btn => btn.addEventListener('click', () => {
@@ -1761,7 +1761,7 @@ async function renderAdminDashboardPage() {
     const sourceIndex = state.applications.findIndex(item => item.id === entry.id);
     if (sourceIndex > -1) state.applications[sourceIndex].status = 'Approved';
     saveState(`Subscription record created for ${entry.businessName}.`, '#admin-applications-notice');
-    await renderAdminDashboardPage();
+    renderAdminDashboardPage();
   }));
 
   $$('[data-subscription-save]', app).forEach(btn => btn.addEventListener('click', () => {
@@ -1779,7 +1779,7 @@ async function renderAdminDashboardPage() {
     });
     sub.invoiceStatus = sub.status === 'Past Due' ? 'Overdue' : sub.status === 'Cancelled' ? 'Closed' : 'Paid';
     saveState(`Subscription updated for ${sub.businessName}.`, '#admin-subscriptions-notice');
-    await renderAdminDashboardPage();
+    renderAdminDashboardPage();
   }));
 
   $$('[data-placement-save]', app).forEach(btn => btn.addEventListener('click', () => {
@@ -1790,7 +1790,7 @@ async function renderAdminDashboardPage() {
     slot.status = $(`[data-placement-status="${index}"]`, app).value;
     slot.notes = $(`[data-placement-notes="${index}"]`, app).value;
     saveState(`Featured placement updated: ${slot.slot}.`, '#admin-placements-notice');
-    await renderAdminDashboardPage();
+    renderAdminDashboardPage();
   }));
 
   $$('[data-moderation-save]', app).forEach(btn => btn.addEventListener('click', () => {
@@ -1800,7 +1800,7 @@ async function renderAdminDashboardPage() {
     item.status = $(`[data-moderation-status="${index}"]`, app).value;
     item.notes = $(`[data-moderation-notes="${index}"]`, app).value;
     saveState(`Moderation updated for ${item.title}.`, '#admin-moderation-notice');
-    await renderAdminDashboardPage();
+    renderAdminDashboardPage();
   }));
 
   $$('[data-import-save]', app).forEach(btn => btn.addEventListener('click', () => {
@@ -1809,7 +1809,7 @@ async function renderAdminDashboardPage() {
     if (!job) return;
     job.status = $(`[data-import-status="${index}"]`, app).value;
     saveState(`Import job updated for ${job.businessName}.`, '#admin-imports-notice');
-    await renderAdminDashboardPage();
+    renderAdminDashboardPage();
   }));
 
   $$('[data-import-promote]', app).forEach(btn => btn.addEventListener('click', () => {
@@ -1834,7 +1834,7 @@ async function renderAdminDashboardPage() {
     }
     job.status = 'Needs Review';
     saveState(`Listing task created from import queue for ${job.businessName}.`, '#admin-imports-notice');
-    await renderAdminDashboardPage();
+    renderAdminDashboardPage();
   }));
 }
 
@@ -1871,21 +1871,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     'venue-profile': 'Bars & Restaurants',
     'supplier-profile': 'Suppliers'
   };
-  await setupChrome(activeMap[page] || '');
+  setupChrome(activeMap[page] || '');
   if (page === 'home') await renderHomepage();
   if (page === 'venues') await renderVenueDirectory();
   if (page === 'suppliers') await renderSupplierDirectory();
   if (page === 'drinks') await renderDrinksPage();
   if (page === 'events') await renderEventsPage();
   if (page === 'pricing') renderPricingPage();
-  if (page === 'lead') await renderLeadCapturePage();
-  if (page === 'dashboard') await renderBusinessDashboardPage();
-  if (page === 'admin') await renderAdminDashboardPage();
+  if (page === 'lead') renderLeadCapturePage();
+  if (page === 'dashboard') renderBusinessDashboardPage();
+  if (page === 'admin') renderAdminDashboardPage();
   if (page === 'venue-profile') renderVenueProfile();
   if (page === 'supplier-profile') renderSupplierProfile();
-  if (page === 'signin') await renderSignInPage();
-  if (page === 'signup') await renderSignUpPage();
-  if (page === 'account') await renderAccountPage();
+  if (page === 'signin') renderSignInPage();
+  if (page === 'signup') renderSignUpPage();
+  if (page === 'account') renderAccountPage();
   setupAnchorSpy();
   syncSaveButtons();
 });
