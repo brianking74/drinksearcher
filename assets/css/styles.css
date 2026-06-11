@@ -108,8 +108,8 @@ h1, h2, h3, h4 {
   letter-spacing: -.01em;
   color: #f3efe6;
 }
-h1 { font-weight: 700; font-size: clamp(3rem, 7vw, 5.6rem); }
-h2 { font-weight: 600; font-size: clamp(2rem, 4vw, 3.4rem); }
+h1 { font-weight: 700; font-size: clamp(2.2rem, 4.5vw, 4.2rem); }
+h2 { font-weight: 600; font-size: clamp(1.6rem, 3vw, 2.6rem); }
 h3 { font-weight: 600; font-size: clamp(1.2rem, 2vw, 1.75rem); }
 h4 { font-weight: 600; }
 p { margin: 0; }
