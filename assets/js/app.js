@@ -332,7 +332,7 @@ function navHTML(active = '') {
   ];
   const user = storage.getCurrentUser();
   const authActions = user
-    ? `<div class="account-dropdown"><button class="btn btn-ghost btn-small account-toggle" type="button">👤 Account</button><div class="account-menu"><a href="account.html">${user.name || 'My Account'}</a><a href="dashboard.html">Dashboard</a><button id="signout-btn" type="button">Sign Out</button></div></div>`
+    ? `<a class="btn btn-ghost btn-small" href="account.html">👤 Account</a>`
     : `<a class="btn btn-ghost btn-small" href="signin.html">Sign In</a><a class="btn btn-secondary btn-small" href="signup.html">Sign Up</a>`;
   return `
     <div class="container nav-inner">
@@ -395,16 +395,6 @@ function setupChrome(activeLabel) {
   const toggle = $('.mobile-toggle');
   const links = $('.nav-links');
   if (toggle && links) toggle.addEventListener('click', () => links.classList.toggle('open'));
-  // Account dropdown toggle
-  const accountToggle = $('.account-toggle');
-  const accountMenu = $('.account-menu');
-  if (accountToggle && accountMenu) {
-    accountToggle.addEventListener('click', (e) => {
-      e.stopPropagation();
-      accountMenu.classList.toggle('open');
-    });
-    document.addEventListener('click', () => accountMenu.classList.remove('open'));
-  }
   const signOutBtn = $('#signout-btn');
   if (signOutBtn) signOutBtn.addEventListener('click', () => {
     storage.signOut();
