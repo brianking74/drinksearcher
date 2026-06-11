@@ -640,7 +640,7 @@ async function renderHomepage() {
       <div class="container">
         <div class="section-head section-head-center"><div><span class="eyebrow">Venue discovery</span><h2>Where Hong Kong <span class="text-pink headline-script">drinks</span></h2><p class="lead" style="margin-top:14px;">Cocktail bars, rooftops, hotel lounges, and neighbourhood favourites — compare by area, style, and drinks focus.</p></div></div>
         <div class="chip-row section-filter-pills"><span class="chip chip-active">All Venues</span><span class="chip">Cocktail Bars</span><span class="chip">Wine Bars</span><span class="chip">Rooftop</span><span class="chip">Hidden Speakeasies</span></div>
-        <div class="grid grid-4">${featuredVenues.map(v => renderCard(v, {type:'venue', href:`venue-template.html?slug=${v.slug}`, cta:`${ctaLink('View', `venue-template.html?slug=${v.slug}`, 'btn btn-primary btn-small')}${ctaLink('Book', v.website, 'btn btn-ghost btn-small', 'View')}`})).join('')}</div>
+        <div class="grid grid-4">${featuredVenues.map(v => renderCard(v, {type:'venue', href:`venue-template.html?slug=${v.slug}`, cta:`${ctaLink('View', `venue-template.html?slug=${v.slug}`, 'btn btn-primary btn-small')}${ctaLink('Book', v.website, 'btn btn-ghost btn-small', 'Book')}`})).join('')}</div>
       </div>
     </section>
 
@@ -754,7 +754,7 @@ async function renderVenueDirectory() {
     const enhanced = vData.enhanced.filter(v => filterMatch(v.area, v.cuisine, 'enhanced', [v.name, v.area, v.cuisine, v.specialty, v.booking])).slice(0, 12);
     const featured = vData.featured.filter(v => filterMatch(v.area, v.cuisine, 'featured', [v.name, v.area, v.cuisine])).slice(0, 20);
     const standard = vData.standard.filter(v => filterMatch(v[1], v[3], 'standard', [v[0], v[1], v[3]]));
-    $('#venue-enhanced').innerHTML = enhanced.length ? enhanced.map(v => renderCard({...v, tierLabel:'Enhanced'}, {type:'venue', href:`venue-template.html?slug=${v.slug}`, cta:`${ctaLink('View', `venue-template.html?slug=${v.slug}`, 'btn btn-primary btn-small')}${ctaLink('Book', v.website, 'btn btn-ghost btn-small', 'Details soon')}`})).join('') : '<div class="empty-state">No enhanced venues match these filters yet.</div>';
+    $('#venue-enhanced').innerHTML = enhanced.length ? enhanced.map(v => renderCard({...v, tierLabel:'Enhanced'}, {type:'venue', href:`venue-template.html?slug=${v.slug}`, cta:`${ctaLink('View', `venue-template.html?slug=${v.slug}`, 'btn btn-primary btn-small')}${ctaLink('Book', v.website, 'btn btn-ghost btn-small', 'Book')}`})).join('') : '<div class="empty-state">No enhanced venues match these filters yet.</div>';
     $('#venue-featured').innerHTML = featured.length ? featured.map(v => renderCard({...v, tierLabel:'Featured'}, {type:'venue', small:true, href:buildSearchHref('bars-restaurants.html', v.name, v.area), cta:ctaLink('View listing', buildSearchHref('bars-restaurants.html', v.name, v.area), 'btn btn-ghost btn-small')})).join('') : '<div class="empty-state">No featured venues match these filters.</div>';
     const totalPages = Math.max(1, Math.ceil(standard.length / perPage));
     page = Math.min(page, totalPages);
