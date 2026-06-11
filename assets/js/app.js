@@ -534,28 +534,46 @@ function bindCarouselButtons(scope = document) {
   });
 }
 
-function renderHomepage() {
+async function renderHomepage() {
   const app = $('#app');
-  const featuredDrinks = [
-    { name:'Château Margaux 2015', area:"Watson's Wine • Central", type:'Wine', price:'HK$7,980', image:'https://sspark.genspark.ai/cfimages?u1=HYxuWUXvNjTUE%2BBOamMTeKCBwd8J%2BjAwHV4s%2FCpJ%2BLNSoYykNK%2BiPnxLmM5iV2UPQS0lD7H%2F5nN1WNm3qrtwD7v6ER0KZqL%2FWdW%2FRk%2BaZNAo5ak2&u2=%2FcMqBkMC5B1mB%2Bxe&width=1024', buy:'https://www.watsonswine.com/' },
-    { name:'Yamazaki 12 Year Old', area:'Whisky & Words • Sheung Wan', type:'Whisky', price:'HK$1,880', image:'https://sspark.genspark.ai/cfimages?u1=WbIGltlVOd1X45AK9eKZBfejwnAXDcsGNmVNIOSxiu1j0K6%2FtC7MgBcqoQzcBDlagI%2B765Yi%2FG049O8eS%2Fea8emJW9qMQkjEkup4hEBScqC4i5A13PO8a%2Fva47O7xiOip%2F19Gnf6Fx5RrcFEWL0OM8wYpKp8azfTR7MJAlmhfGZW2g%3D%3D&u2=nvQ8W8yLHbrvJhe1&width=1024', buy:'drinks.html' },
-    { name:'Dassai 23 Junmai Daiginjo', area:'Sake Central • PMQ', type:'Sake', price:'HK$880', image:'https://sspark.genspark.ai/cfimages?u1=AE49xLLfrbNwJ2Hn99fzIsI2wpcYRrMO7Vh0EUINFqa5cAZHT7EHUwnDiW4YRnvbxJfcZMuyBruvXXDlYOaI0mnny4X8zax6SA%3D%3D&u2=ENcGQUtXVehEL91S&width=1024', buy:'https://www.sakecentral.com.hk/' },
-    { name:'Krug Grande Cuvée 170ème', area:'Ponti Wine Cellars • Causeway Bay', type:'Champagne', price:'HK$1,950', image:'https://sspark.genspark.ai/cfimages?u1=hiLjsS7vf1zio1tiogadllJHJZSp%2B5i11TTezkVAO6i15UxTnQSEmVJ9xdb3khHtvQGQwgy%2BXIiBkexIWpIK4BwLfP73i3iHPlSfDiPtoSHUhQ%3D%3D&u2=BMiemw7K6wPHZig5&width=1024', buy:'https://www.pontiwinecellars.com.hk/' },
-    { name:'Dom Pérignon Vintage 2013', area:'Berry Bros. & Rudd HK • Central', type:'Champagne', price:'HK$1,680', image:'https://sspark.genspark.ai/cfimages?u1=glilOzQhYhiLp5sLyes770i7e4DwLvbBeVsiLRMzjyfJO3ovkoNNSW6LrcYodXcOHMPZgBOXNxfrgygd2DdclrJyWrAtJDoTK2mHDHq8rTVgcIiM&u2=z2%2F7R4JbSxEZxb2q&width=1024', buy:'drinks.html' },
-    { name:'Opus One 2018', area:"Watson's Wine • Admiralty", type:'Wine', price:'HK$3,650', image:'https://sspark.genspark.ai/cfimages?u1=dw6iar7M%2F8kGHCzCgpyhoqT600wr0eJW%2BaNH5lHnOE9FlDlC3E2%2BrTVve8XGiyhDCIeglXCC31Ecnul3jStvyShHtHaWFmN%2BkEQjn9v7VgmiqtCUyJWvuCarZs3WYaq%2B&u2=prX1%2FMDbWvJ%2FCaou&width=1024', buy:'https://www.watsonswine.com/' }
-  ];
-  const featuredSuppliers = [
-    { slug:'watsons-wine', name:"Watson's Wine", area:'Central · 1,200+ listings', tierLabel:'Wine Merchant', specialty:'Global cellar', image:'https://sspark.genspark.ai/cfimages?u1=obtQEBU36wbc5mBK9Tg%2FiebVk%2FuomsNMUhyF5wkURaS0ho%2BE%2F0P5oY769NOM8j6X1spyrI6dQ6utzeG5SqOz4NKYjclj5KRZq1M%3D&u2=DrU%2FvhT8zLT%2BPjgV&width=1024', description:'Established wine retailer with an extensive global portfolio and a strong footprint across Hong Kong.' },
-    { slug:'ponti', name:'Ponti Wine Cellars', area:'Central · 850+ listings', tierLabel:'Fine Wine', specialty:'Collector bottles', image:'https://sspark.genspark.ai/cfimages?u1=Mp4E39nBBWl%2FPaRggT4NOGVFfNxCnxMHldnqLMmau%2FWE%2BueYmOXiap0ygoHRxEwQ3zMZq1gs0z%2FnWmkkh98VYeBXPXv8xWGJm9S0aAHm%2BFmSAeBtKD4S1IOr%2BFZMY0Bv17dHQ5WiiwDPk%2BFITek%3D&u2=ZWL5Hiy7kCpWQSSN&width=1024', description:'Central-based specialist known for rare vintages, collector bottles, and a tightly curated premium cellar.' },
-    { slug:'sake-central-supplier', name:'Sake Central', area:'PMQ, Central · 400+ listings', tierLabel:'Sake Specialist', specialty:'Tasting-led retail', image:'https://sspark.genspark.ai/cfimages?u1=p%2B45Qq2b%2B%2FiPBkEWTVQC1zrpz2OvcjqQg3IZGJVwV61HgHIXwrTKGbNJOvbR0Es8xLvd9DgfWKyhE1EHPSAGim2BgBFbv7hOETXGnuGeuOQdPp%2FQS%2BR5jMF%2BimA%2BhS30kP%2F%2BGvRbe5TemCqelWa4d5TEvAEd%2B5QU3Ii4AWdj%2Bx8%3D&u2=F4aQQy%2FRGA7gCNi7&width=1024', description:"A design-led sake retail and tasting destination with one of Hong Kong's broadest craft sake selections." },
-    { slug:'young-master', name:'Young Master Ales', area:'Wong Chuk Hang · 45+ listings', tierLabel:'Craft Brewery', specialty:'Fresh local releases', image:'https://sspark.genspark.ai/cfimages?u1=CR2Q3M%2Fkd%2FyEV1C%2BxGG9rF%2BH1B9QcAOHtFYCXLzLLzA4fY5JInm77euRtTjsZTqkYg3wMe8lrLIskF%2Fm3XSjs202NMQ2MU6E3Ue4NuF2qKTbv6e4IgnhgSqhcrV0lMQqJdgcBRb1J7Av3%2BItKBJsjgMXJ0FzZKXVWIpKHHqGJ%2BQ%3D&u2=z88egw86F9OPbT4S&width=1024', description:"Hong Kong's flagship independent brewery, bringing locally brewed beers and fresh small-batch releases to market." }
-  ];
-  const featuredVenues = [
-    { slug:'the-old-man', name:'The Old Man', area:'Central', tierLabel:'Central Cocktail Bar', rating:'4.9', specialty:'Late-night favourite', image:'https://sspark.genspark.ai/cfimages?u1=9mYF8%2FKfAvKZ1cGt69P7HxtKZIa3lcSco6YPQhtGNPgn6kIPwWBcpN5Q%2FLbwu0mTg5r3qvpMjmUvntVO%2FMO3JQTHFAE%3D&u2=dZhlVzV2gY1bFJeU&width=1024', description:'A moody, Hemingway-inspired cocktail den with intimate lighting, serious drinks craft, and global best-bar credentials.', website:'https://www.theoldmanhk.com/' },
-    { slug:'penicillin', name:'Penicillin', area:'Sheung Wan', tierLabel:'Sustainable Cocktails', rating:'4.8', specialty:'Design-led', image:'https://sspark.genspark.ai/cfimages?u1=%2BO6NL2dK8V8CaCFuMH7%2FmqJRPVNHbC%2FxU26yDOf7pEPBTOROrX1a0ArLlsxcyYgyzWRaNL%2BE%2BYVtqbvKB6XfK%2BGKC6gf7QnIqr0kNVt81YffgV1lbCNbfKmk8DUzjHhe%2Bpej96F%2FKs6OUzR6uzgD8RsGth61l486x31nCLhBeQxY%2Bqy1MmuWDH1yrmlGF8MvEoykzB%2FbEtQL5VZT9P6ALAXy2D%2BFK53zryXxs65VcdL03TM%3D&u2=%2BGhr3n8ZtSuvezup&width=1024', description:"Hong Kong's acclaimed closed-loop cocktail bar, known for experimental serves, white-tile interiors, and local ingredient storytelling.", website:'http://www.penicillinbarhk.com/' },
-    { slug:'argo', name:'ARGO', area:'Central', tierLabel:'Four Seasons Hotel Bar', rating:'4.9', specialty:'Rare spirits', image:'https://sspark.genspark.ai/cfimages?u1=iV%2BXFCgpRFo9iqWM%2B1T%2BXzXBBPKayWpH6L3Kq4goIcJkxuOt8%2FU9iS8ELfg8pGadfMatKB91ToNnAI%2Bf4QrqUgBaOhMz8CeY%2B9YiCTV9U7nRtLczSgG5Qq85fRuLBFgLtgYwPIj5lAZPVuw%3D%3D&u2=PeIMZsJyhiu0WHco&width=1024', description:"A lush, architectural luxury bar with a rare spirits library, dramatic interiors, and one of Central's most polished hotel drinking rooms.", website:'https://www.fourseasons.com/hongkong/dining/lounges/argo/' },
-    { slug:'quinary', name:'Quinary', area:'Central', tierLabel:'Iconic Cocktails', rating:'4.7', specialty:'Date night', image:'https://sspark.genspark.ai/cfimages?u1=lApsHk%2FhfJ7ym0CyS1YfXXb0Ulhd4MOpTqtgwdhicGk4irRqJgfZgYTTi3ZxaJo7qmrv9o%2Bpo%2B8%2BS0nK%2FvaFcWG1QGe9%2FI%2BIA2lXBg%3D%3D&u2=fIj5D6EdutCnyZ1%2B&width=1024', description:"Antonio Lai's multisensory cocktail institution, blending theatrical presentation, texture, and precision in one of HK's most recognisable bars.", website:'https://www.quinary.hk/' }
-  ];
+  // Fetch live data from Supabase
+  const allDrinks = await fetchDrinks();
+  const featuredDrinks = allDrinks.filter(d => d.tier === 'featured' || d.tier === 'enhanced').slice(0, 6);
+  const sData = await fetchSuppliers();
+  const featuredSuppliers = sData.enhanced.concat(sData.featured).slice(0, 4).map(s => ({
+    slug: s.slug || '',
+    name: s.name,
+    area: s.area || '',
+    tierLabel: s.specialty || '',
+    specialty: s.specialty || '',
+    image: s.image || '',
+    description: s.summary || ''
+  }));
+  const vData = await fetchVenues();
+  const featuredVenues = vData.enhanced.concat(vData.featured).slice(0, 4).map(v => ({
+    slug: v.slug || '',
+    name: v.name,
+    area: v.area || '',
+    tierLabel: v.cuisine || '',
+    rating: v.rating || '4.5',
+    specialty: v.specialty || '',
+    image: v.image || '',
+    description: '',
+    website: v.website || '#'
+  }));
+  // Fall back to hardcoded if DB returns nothing
+  if (!featuredDrinks.length) {
+    featuredDrinks.push(
+      { name:'Cincoro Blanco Tequila', area:'HK Drinks • Jalisco', type:'Tequila', price:'HK$1,498', image:'https://www.hkdrinks.shop/images/cincoro-blanco.jpg', buy:'https://www.hkdrinks.shop/' },
+      { name:'Clase Azul Reposado', area:'HK Drinks • Jalisco', type:'Tequila', price:'HK$1,898', image:'https://www.hkdrinks.shop/images/clase-azul-reposado.jpg', buy:'https://www.hkdrinks.shop/' },
+      { name:'Alfred GIRAUD Harmonie 700ml', area:'HK Drinks • Guadalajara', type:'Whisky', price:'HK$2,578', image:'https://www.hkdrinks.shop/images/alfred-giraud-harmonie.png', buy:'https://www.hkdrinks.shop/' }
+    );
+  }
+  if (!featuredSuppliers.length) {
+    featuredSuppliers.push(
+      { slug:'hkdrinks', name:'HK Drinks', area:'Central', tierLabel:'Premium Spirits', specialty:'Tequila & Whisky', image:'assets/images/hongkong-view.jpg', description:'Premium spirits and craft tequila available now in Hong Kong.' }
+    );
+  }
   const events = [
     { name:'Burgundy Grand Cru Masterclass', venue:'Mandarin Oriental, Central', date:'Nov 18', type:'Masterclass', image:siteImages.event },
     { name:'Japanese Whisky Flight Night', venue:'Quinary, Central', date:'Nov 22', type:'Whisky', image:siteImages.rooftop },
@@ -1863,7 +1881,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     'supplier-profile': 'Suppliers'
   };
   setupChrome(activeMap[page] || '');
-  if (page === 'home') renderHomepage();
+  if (page === 'home') await renderHomepage();
   if (page === 'venues') await renderVenueDirectory();
   if (page === 'suppliers') await renderSupplierDirectory();
   if (page === 'drinks') await renderDrinksPage();

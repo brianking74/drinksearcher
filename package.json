@@ -18,6 +18,7 @@
   },
   "homepage": "https://github.com/brianking74/drinksearcher#readme",
   "devDependencies": {
-    "supabase": "^2.105.0"
+    "supabase": "^2.105.0",
+    "vercel": "^54.11.1"
   }
 }
