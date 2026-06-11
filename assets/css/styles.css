@@ -175,6 +175,23 @@ h1 em, h2 em, h3 em { font-style: normal; font-weight: 500; letter-spacing: .04e
 }
 .nav-links a.active, .nav-links a:hover { color: var(--gold); }
 .nav-actions { display: flex; align-items: center; gap: 12px; }
+/* Account dropdown */
+.account-dropdown { position: relative; }
+.account-menu {
+  display: none;
+  position: absolute; top: calc(100% + 8px); right: 0;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+  min-width: 160px; box-shadow: 0 12px 32px rgba(0,0,0,.48); z-index: 100;
+  padding: 6px; flex-direction: column;
+}
+.account-menu.open { display: flex; }
+.account-menu a, .account-menu button {
+  display: block; width: 100%; text-align: left; padding: 10px 14px;
+  border-radius: 10px; font-size: .82rem; color: var(--text);
+  background: transparent; border: none; cursor: pointer;
+  text-decoration: none; transition: background .15s;
+}
+.account-menu a:hover, .account-menu button:hover { background: rgba(189,161,111,.10); }
 .mobile-toggle { display: none; background: transparent; border: 1px solid var(--border); color: var(--text); border-radius: 12px; width: 44px; height: 44px; align-items: center; justify-content: center; }
 
 /* ── Buttons ── */
