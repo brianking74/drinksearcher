@@ -579,7 +579,7 @@ async function renderHomepage() {
       <div class="container hero-grid">
         <div class="hero-copy">
           <span class="kicker">Hong Kong drinks discovery</span>
-          <h1>Every bottle in Hong Kong.<br><span class="text-jade headline-script">Finally findable.</span></h1>
+          <h1>Hong Kong's Favourite Drinks<br><span class="text-jade headline-script">All in One Place</span></h1>
           <p class="lead">Discover wine, whisky, sake, craft beer, and more — from suppliers we verify are actually in stock, right here in HK.</p>
         </div>
         <div class="search-shell homepage-search-shell">
