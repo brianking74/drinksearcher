@@ -1,69 +1,3 @@
-
-function adminGetState() {
-  return JSON.parse(localStorage.getItem('ds_admin_state') || 'null');
-}
-function adminSaveState(state) {
-  localStorage.setItem('ds_admin_state', JSON.stringify(state));
-}
-function adminDeleteItem(stateKey, itemId) {
-  var s = adminGetState(); if (!s || !s[stateKey]) return;
-  s[stateKey] = s[stateKey].filter(function(i) { return i.id !== itemId; });
-  adminSaveState(s);
-}
-function adminDeleteInventoryItem(subId, itemId) {
-  var s = adminGetState(); if (!s || !s.inventorySubmissions) return;
-  s.inventorySubmissions.forEach(function(sub) {
-    if (sub.id === subId) { sub.items = (sub.items||[]).filter(function(i) { return i._id !== itemId; }); sub.itemCount = sub.items.length; }
-  });
-  adminSaveState(s);
-}
-function adminApproveItem(subId, itemId) {
-  var s = adminGetState(); if (!s || !s.inventorySubmissions) return;
-  s.inventorySubmissions.forEach(function(sub) { (sub.items||[]).forEach(function(i) { if (i._id === itemId) i._status = 'Approved'; }); });
-  adminSaveState(s);
-  // Publish approved item to drinks directory
-  s.inventorySubmissions.forEach(function(sub) { (sub.items||[]).forEach(function(i) { if (i._id === itemId && i._status === 'Approved') {
-    var pub = JSON.parse(localStorage.getItem('ds_published_items') || '[]');
-    pub.unshift({name:i.name, supplier:sub.businessName, supplierSlug:'', area:sub.district || 'Hong Kong', type:'Drink', price:i.price, image:i.image || '', tier:'enhanced', buy:i.buy || '', description:'Approved inventory item from ' + sub.businessName + '.', origin:'', abv:'', availability:i.availability, clicks:0});
-    localStorage.setItem('ds_published_items', JSON.stringify(pub));
-  } }); });
-}
-// Retroactively publish all already-approved items to the drinks directory
-function publishApprovedItems() {
-  var s = adminGetState(); if (!s || !s.inventorySubmissions) return;
-  var pub = JSON.parse(localStorage.getItem('ds_published_items') || '[]');
-  var existing = {}; pub.forEach(function(p) { if (p.name) existing[p.name + '_' + p.supplier] = true; });
-  var changed = false;
-  s.inventorySubmissions.forEach(function(sub) { (sub.items||[]).forEach(function(i) {
-    if (i._status === 'Approved') {
-      var key = i.name + '_' + sub.businessName;
-      if (!existing[key]) {
-        pub.unshift({name:i.name, supplier:sub.businessName, supplierSlug:'', area:sub.district || 'Hong Kong', type:'Drink', price:i.price, image:i.image || '', tier:'enhanced', buy:i.buy || '', description:'Approved inventory item from ' + sub.businessName + '.', origin:'', abv:'', availability:i.availability, clicks:0});
-        changed = true;
-      } else {
-        // Update existing entries with missing fields
-        pub.forEach(function(p) {
-          if (p.name === i.name && p.supplier === sub.businessName) {
-            if (!p.buy && i.buy) { p.buy = i.buy; changed = true; }
-            if (!p.image && i.image) { p.image = i.image; changed = true; }
-            if (p.price !== i.price) { p.price = i.price; changed = true; }
-          }
-        });
-      }
-    }
-  }); });
-  if (changed) localStorage.setItem('ds_published_items', JSON.stringify(pub));
-}
-function adminRejectItem(subId, itemId) {
-  var s = adminGetState(); if (!s || !s.inventorySubmissions) return;
-  s.inventorySubmissions.forEach(function(sub) { (sub.items||[]).forEach(function(i) { if (i._id === itemId) i._status = 'Rejected'; }); });
-  adminSaveState(s);
-}
-function adminDeleteSubmission(subId) {
-  var s = adminGetState(); if (!s || !s.inventorySubmissions) return;
-  s.inventorySubmissions = s.inventorySubmissions.filter(function(x) { return x.id !== subId; });
-  adminSaveState(s);
-}
 function $(sel, root = document) { return root.querySelector(sel); }
 function $$(sel, root = document) { return Array.from(root.querySelectorAll(sel)); }
 
@@ -90,7 +24,6 @@ const storage = {
       name: String(data.name || '').trim(),
       email,
       password: String(data.password || ''),
-      role: data.role || 'searcher',
       city: String(data.city || '').trim(),
       createdAt: new Date().toISOString()
     };
@@ -173,18 +106,22 @@ const storage = {
     return {
       activeRole: 'merchant',
       merchant: {
-        membership: 'Merchant Starter',
+        membership: 'Merchant Enhanced',
         billing: 'Monthly',
-        featuredSupplier: false,
+        featuredSupplier: true,
         featuredEvent: false,
-        extraProducts: false,
+        extraProducts: true,
         listingName: `${user?.name ? `${user.name}'s` : 'Founder'} Merchant Listing`,
-        website: '',
+        website: 'https://example-store.hk',
         contactEmail: user?.email || '',
-        phone: '',
+        phone: '+852 1234 5678',
         district: user?.city || 'Central',
-        notes: '',
-        items: []
+        notes: 'Importer / retailer / drinks merchant profile with listing controls.',
+        items: [
+          { id: 'm1', name: 'Château Margaux 2015', price: 'HK$7,980', availability: 'In stock', visibility: 'Featured' },
+          { id: 'm2', name: 'Yamazaki 12 Year Old', price: 'HK$1,880', availability: 'Low stock', visibility: 'Enhanced' },
+          { id: 'm3', name: 'Dassai 23 Junmai Daiginjo', price: 'HK$880', availability: 'Pre-order', visibility: 'Enhanced' }
+        ]
       },
       venue: {
         membership: 'Venue Enhanced',
@@ -222,88 +159,9 @@ const storage = {
     const key = this.getDashboardKey();
     if (key) localStorage.setItem(key, JSON.stringify(state));
   },
-  updateDashboardState(email, partial) {
-    if (!email) return;
-    const key = `ds_dashboard_${email}`;
-    var existing = {};
-    try { existing = JSON.parse(localStorage.getItem(key) || 'null'); } catch {}
-    if (!existing) {
-      var u = this.getUsers().find(usr => usr.email === email);
-      existing = this.defaultDashboardState(u || { email: email, name: '', city: '' });
-    }
-    ['merchant', 'venue'].forEach(function(side) {
-      if (partial[side]) Object.assign(existing[side], partial[side]);
-    });
-    Object.keys(partial).forEach(function(k) {
-      if (k !== 'merchant' && k !== 'venue') existing[k] = partial[k];
-    });
-    localStorage.setItem(key, JSON.stringify(existing));
-  },
   getDashboardStateForEmail(email) {
     if (!email) return null;
     try { return JSON.parse(localStorage.getItem(`ds_dashboard_${email}`) || 'null'); } catch { return null; }
-  },
-  getInventorySubmissions() {
-    const state = this.getAdminState();
-    state.inventorySubmissions ||= [];
-    return state.inventorySubmissions;
-  },
-  addInventorySubmission(data) {
-    const submissions = this.getInventorySubmissions();
-    const entry = {
-      id: `invsub_${Date.now()}`,
-      businessName: data.businessName || 'Unknown',
-      email: data.email || '',
-      items: (data.items || []).map(function(it, idx) { return Object.assign({}, it, { _id: 'item_' + Date.now() + '_' + idx, _status: 'Pending' }); }),
-      itemCount: (data.items || []).length,
-      submittedAt: new Date().toISOString(),
-      status: 'Pending'
-    };
-    submissions.unshift(entry);
-    const state = this.getAdminState();
-    state.inventorySubmissions = submissions;
-    localStorage.setItem('ds_admin_state', JSON.stringify(state));
-    return entry;
-  },
-  approveInventoryItem(subId, itemId) {
-    const submissions = this.getInventorySubmissions();
-    var foundItem = null;
-    submissions.forEach(function(sub) {
-      if (sub.id === subId) {
-        (sub.items || []).forEach(function(item) {
-          if (item._id === itemId) { item._status = 'Approved'; foundItem = item; }
-        });
-      }
-    });
-    const state = this.getAdminState();
-    state.inventorySubmissions = submissions;
-    localStorage.setItem('ds_admin_state', JSON.stringify(state));
-    return foundItem;
-  },
-  rejectInventoryItem(subId, itemId) {
-    const submissions = this.getInventorySubmissions();
-    submissions.forEach(function(sub) {
-      if (sub.id === subId) {
-        (sub.items || []).forEach(function(item) {
-          if (item._id === itemId) { item._status = 'Rejected'; }
-        });
-      }
-    });
-    const state = this.getAdminState();
-    state.inventorySubmissions = submissions;
-    localStorage.setItem('ds_admin_state', JSON.stringify(state));
-  },
-  getApprovedInventoryItems() {
-    const submissions = this.getInventorySubmissions();
-    const items = [];
-    submissions.forEach(sub => {
-      (sub.items || []).forEach(item => {
-        if (item._status === 'Approved') {
-          items.push(Object.assign({}, item, { supplierName: sub.businessName, supplierEmail: sub.email }));
-        }
-      });
-    });
-    return items;
   },
   addAdminApplication(lead) {
     const state = this.getAdminState();
@@ -352,8 +210,7 @@ const storage = {
       importJobs: [
         { id: 'import_seed_1', businessName: 'Watson\'s Wine', email: 'trade@watsonswine.hk', method: 'Google Sheets', platform: 'Mixed', source: 'https://docs.google.com/spreadsheets/d/example', status: 'Imported', itemCount: 18, submittedAt: '2026-05-18T10:20:00.000Z', notes: 'Mapped public sheet to merchant inventory.' },
         { id: 'import_seed_2', businessName: 'Cardinal Point', email: 'events@cardinalpoint.hk', method: 'Website Scan', platform: 'Custom', source: 'https://cardinal-point.example', status: 'Queued', itemCount: 0, submittedAt: '2026-05-21T09:10:00.000Z', notes: 'Needs structured-data crawl review.' }
-      ],
-      inventorySubmissions: []
+      ]
     };
   },
   getAdminState() {
@@ -365,7 +222,6 @@ const storage = {
     state.placements ||= [];
     state.moderation ||= [];
     state.importJobs ||= [];
-    state.inventorySubmissions ||= [];
     this.getLeads().forEach(lead => {
       if (!state.applications.some(entry => entry.id === lead.id)) {
         state.applications.unshift({
@@ -405,83 +261,8 @@ const storage = {
       notes: job.notes || ''
     });
     this.setAdminState(state);
-  },
-  seedDemoAccount(email, password, name, opts) {
-    email = String(email || '').trim().toLowerCase();
-    if (!email || !password) return { ok: false, message: 'Email and password required.' };
-    var users = this.getUsers();
-    var existing = users.find(function(u) { return u.email === email; });
-    if (existing) {
-      existing.role = 'merchant';
-      this.setUsers(users);
-      this.setCurrentUser(email);
-      return { ok: true, user: existing, existed: true };
-    }
-    var user = { name: name || email.split('@')[0], email: email, password: password, role: 'merchant', city: (opts && opts.city) || '', createdAt: new Date().toISOString() };
-    users.push(user);
-    this.setUsers(users);
-    this.setCurrentUser(email);
-    var dashKey = 'ds_dashboard_' + email;
-    var dashState = this.getDashboardStateForEmail(email) || this.defaultDashboardState(user);
-    if (opts && opts.dashboard) {
-      Object.assign(dashState, opts.dashboard);
-    }
-    dashState.merchant.listingName = (opts && opts.businessName) || (name || email.split('@')[0]) + "'s Listing";
-    if (opts && opts.businessName) dashState.merchant.listingName = opts.businessName;
-    if (opts && opts.contactEmail) dashState.merchant.contactEmail = opts.contactEmail;
-    if (opts && opts.phone) dashState.merchant.phone = opts.phone;
-    if (opts && opts.district) { dashState.merchant.district = opts.district; dashState.venue.district = opts.district; }
-    if (opts && opts.items) dashState.merchant.items = opts.items.map(function(it, i) {
-      return { id: 'm' + (i+1), name: it.name, price: it.price || '—', availability: it.availability || 'In stock', visibility: it.visibility || 'Enhanced' };
-    });
-    localStorage.setItem(dashKey, JSON.stringify(dashState));
-    return { ok: true, user: user };
-  },
-  getUserListings() {
-    try { return JSON.parse(localStorage.getItem('ds_user_listings') || '[]'); } catch { return []; }
-  },
-  setUserListings(list) {
-    localStorage.setItem('ds_user_listings', JSON.stringify(list));
-  },
-  addUserListing(data) {
-    const list = this.getUserListings();
-    const entry = { ...data, id: `listing_${Date.now()}`, submittedAt: new Date().toISOString() };
-    list.unshift(entry);
-    this.setUserListings(list);
-    return entry;
   }
 };
-
-function mergeUserListings() {
-  const listings = storage.getUserListings();
-  listings.forEach(function(l) {
-    if (l.listingType === 'venue') {
-      var exists = typeof venueListings !== 'undefined' && venueListings.standard.some(function(v) { return v[0] === l.businessName; });
-      if (!exists && typeof venueListings !== 'undefined') venueListings.standard.unshift([l.businessName, l.district || 'TBD', l.phone || '—', 'Venue / Bar']);
-    } else {
-      var exists = typeof supplierListings !== 'undefined' && supplierListings.standard.some(function(s) { return s[0] === l.businessName; });
-      if (!exists && typeof supplierListings !== 'undefined') supplierListings.standard.unshift([l.businessName, l.district || 'TBD', l.phone || '—', 'Supplier / Merchant']);
-    }
-  });
-  // Merge approved inventory submissions into drinks directory
-  if (typeof drinksInventory !== 'undefined') {
-    var approvedItems = storage.getApprovedInventoryItems();
-    approvedItems.forEach(function(item) {
-      if (!drinksInventory.some(function(d) { return d.name === item.name && d.supplier === item.supplierName; })) {
-        drinksInventory.push({
-          name: item.name,
-          price: item.price || 'HK$0',
-          supplier: item.supplierName || 'Supplier',
-          area: 'Hong Kong',
-          type: 'Spirits & Wine',
-          tier: 'standard',
-          buy: '',
-          image: item.image || ''
-        });
-      }
-    });
-  }
-}
 
 function currentPagePath() {
   const file = window.location.pathname.split('/').pop() || 'index.html';
@@ -541,19 +322,19 @@ function buildSearchHref(base, query = '', area = '') {
   return `${base}${params.toString() ? `?${params.toString()}` : ''}`;
 }
 
-async function navHTML(active = '') {
+function navHTML(active = '') {
   const links = [
     ['index.html','Home'],
     ['drinks.html','Drinks'],
     ['events.html','Events'],
-    ['bars-restaurants.html','Bars & Restaurants']
+    ['bars-restaurants.html','Bars & Restaurants'],
+    ['suppliers.html','Suppliers'],
+    ['pricing.html','Pricing']
   ];
-  const user = await dsAuth.getCurrentUser();
+  const user = storage.getCurrentUser();
   const authActions = user
-    ? (user.role === 'merchant' || user.role === 'venue'
-      ? `<a class="btn btn-ghost btn-small" href="dashboard.html">${user.name || 'Dashboard'}</a><button class="btn btn-primary btn-small" id="signout-btn" type="button">Sign Out</button>`
-      : `<a class="btn btn-ghost btn-small" href="account.html">${user.name || 'Account'}</a><button class="btn btn-primary btn-small" id="signout-btn" type="button">Sign Out</button>`)
-    : `<a class="btn btn-primary btn-small" href="searcher-account.html">Searcher Account</a>`;
+    ? `<a class="btn btn-ghost btn-small" href="account.html">${user.name || 'Account'}</a><a class="btn btn-ghost btn-small" href="dashboard.html">Dashboard</a><button class="btn btn-secondary btn-small" id="signout-btn" type="button">Sign Out</button>`
+    : `<a class="btn btn-ghost btn-small" href="signin.html">Sign In</a><a class="btn btn-secondary btn-small" href="signup.html">Sign Up</a>`;
   return `
     <div class="container nav-inner">
       <a class="logo" href="index.html">drinksearcher<span>.hk</span></a>
@@ -604,10 +385,10 @@ function footerHTML() {
     </footer>`;
 }
 
-async function setupChrome(activeLabel) {
+function setupChrome(activeLabel) {
   const nav = document.createElement('header');
   nav.className = 'nav';
-  nav.innerHTML = await navHTML(activeLabel);
+  nav.innerHTML = navHTML(activeLabel);
   document.body.prepend(nav);
   const footerWrap = document.createElement('div');
   footerWrap.innerHTML = footerHTML();
@@ -616,19 +397,18 @@ async function setupChrome(activeLabel) {
   const links = $('.nav-links');
   if (toggle && links) toggle.addEventListener('click', () => links.classList.toggle('open'));
   const signOutBtn = $('#signout-btn');
-  if (signOutBtn) signOutBtn.addEventListener('click', async () => {
-    await dsAuth.signOut();
+  if (signOutBtn) signOutBtn.addEventListener('click', () => {
+    storage.signOut();
     window.location.href = 'index.html';
   });
   window.addEventListener('scroll', () => nav.classList.toggle('scrolled', window.scrollY > 8));
 }
 
-async function saveItem(item) {
-  const currentUser = await dsAuth.getCurrentUser();
-  if (!currentUser) {
+function saveItem(item) {
+  if (!storage.getCurrentUser()) {
     storage.setPendingSave(item);
     storage.setPostAuthRedirect(currentPagePath());
-    window.location.href = 'searcher-account.html?intent=save';
+    window.location.href = 'signin.html?intent=save';
     return;
   }
   const saved = storage.getSaved();
@@ -689,8 +469,17 @@ function renderCard(item, options = {}) {
     : type === 'venue'
       ? [item.specialty, item.booking].filter(Boolean)
       : [];
+  const badgeTone = type === 'venue' ? 'pink' : type === 'event' ? 'jade' : 'gold';
+  const topBadges = [
+    item.tierLabel ? `<span class="badge ${badgeTone}">${item.tierLabel}</span>` : '',
+    item.type && type !== 'event' ? `<span class="badge pink">${item.type}</span>` : '',
+    type === 'supplier' && primaryMeta ? `<span class="badge supplier-location-badge">${primaryMeta}</span>` : '',
+    type === 'venue' && primaryMeta ? `<span class="badge venue-location-badge">${primaryMeta}</span>` : '',
+    type === 'event' && item.date ? `<span class="badge event-date-badge">${item.date}</span>` : '',
+    type !== 'supplier' && type !== 'venue' && type !== 'event' && item.specialty ? `<span class="badge gold">${item.specialty}</span>` : ''
+  ].filter(Boolean).join('');
   const fallbackMeta = (item.price || item.phone || item.booking)
-    ? `<div class="meta">${item.price ? `<span>${item.price}</span>` : ''}${item.phone ? `<span>${item.phone}</span>` : ''}${item.booking ? `<span>${item.booking}</span>` : ''}${type === 'drink' && item.supplier ? `<span class="muted" style="font-size:.75rem;">Supplier: ${item.supplier}</span>` : ''}</div>`
+    ? `<div class="meta">${item.price ? `<span>${item.price}</span>` : ''}${item.phone ? `<span>${item.phone}</span>` : ''}${item.booking ? `<span>${item.booking}</span>` : ''}</div>`
     : '';
   const inlineMeta = type === 'supplier'
     ? `<div class="card-inline-meta">${secondaryMeta ? `<span class="info-pill subtle-pill">${secondaryMeta}</span>` : ''}<span class="info-pill subtle-pill">Shop direct</span></div>`
@@ -705,12 +494,13 @@ function renderCard(item, options = {}) {
       <div class="${imageClass}">
         <img src="${item.image}" alt="${item.name}" />
         <div class="card-overlay"></div>
+        <div class="badge-row">${topBadges}</div>
       </div>
       <div class="card-body">
         ${overline ? `<div class="card-kicker">${overline}</div>` : ''}
         ${type === 'generic' ? `<div class="meta">${item.area ? `<span>${item.area}</span>` : ''}${item.cuisine ? `<span>${item.cuisine}</span>` : ''}${item.rating ? `<span>★ ${item.rating}</span>` : ''}</div>` : ''}
         <h3>${item.name}</h3>
-        ${item.description && type !== 'drink' ? `<p class="${type === 'supplier' ? 'muted supplier-card-copy' : type === 'venue' ? 'muted venue-card-copy' : type === 'event' ? 'muted event-card-copy' : 'muted'}">${item.description}</p>` : ''}
+        ${item.description ? `<p class="${type === 'supplier' ? 'muted supplier-card-copy' : type === 'venue' ? 'muted venue-card-copy' : type === 'event' ? 'muted event-card-copy' : 'muted'}">${item.description}</p>` : ''}
         ${detailTags.length ? `<div class="card-tags">${detailTags.map(tag => `<span class="info-pill${type === 'supplier' || type === 'event' ? ' subtle-pill' : ''}">${tag}</span>`).join('')}</div>` : ''}
         ${inlineMeta}
       </div>
@@ -735,28 +525,27 @@ function bindCarouselButtons(scope = document) {
   });
 }
 
-async function renderHomepage() {
+function renderHomepage() {
   const app = $('#app');
-  const featuredSlugs = [
-    'Cincoro Blanco Tequila',
-    'Clase Azul Reposado',
-    'Clase Azul Durango Mezcal',
-    'Alfred GIRAUD Heritage 700ml',
-    'Alfred GIRAUD Harmonie 700ml'
+  const featuredDrinks = [
+    { name:'Château Margaux 2015', area:"Watson's Wine • Central", type:'Wine', price:'HK$7,980', image:'https://sspark.genspark.ai/cfimages?u1=HYxuWUXvNjTUE%2BBOamMTeKCBwd8J%2BjAwHV4s%2FCpJ%2BLNSoYykNK%2BiPnxLmM5iV2UPQS0lD7H%2F5nN1WNm3qrtwD7v6ER0KZqL%2FWdW%2FRk%2BaZNAo5ak2&u2=%2FcMqBkMC5B1mB%2Bxe&width=1024', buy:'https://www.watsonswine.com/' },
+    { name:'Yamazaki 12 Year Old', area:'Whisky & Words • Sheung Wan', type:'Whisky', price:'HK$1,880', image:'https://sspark.genspark.ai/cfimages?u1=WbIGltlVOd1X45AK9eKZBfejwnAXDcsGNmVNIOSxiu1j0K6%2FtC7MgBcqoQzcBDlagI%2B765Yi%2FG049O8eS%2Fea8emJW9qMQkjEkup4hEBScqC4i5A13PO8a%2Fva47O7xiOip%2F19Gnf6Fx5RrcFEWL0OM8wYpKp8azfTR7MJAlmhfGZW2g%3D%3D&u2=nvQ8W8yLHbrvJhe1&width=1024', buy:'drinks.html' },
+    { name:'Dassai 23 Junmai Daiginjo', area:'Sake Central • PMQ', type:'Sake', price:'HK$880', image:'https://sspark.genspark.ai/cfimages?u1=AE49xLLfrbNwJ2Hn99fzIsI2wpcYRrMO7Vh0EUINFqa5cAZHT7EHUwnDiW4YRnvbxJfcZMuyBruvXXDlYOaI0mnny4X8zax6SA%3D%3D&u2=ENcGQUtXVehEL91S&width=1024', buy:'https://www.sakecentral.com.hk/' },
+    { name:'Krug Grande Cuvée 170ème', area:'Ponti Wine Cellars • Causeway Bay', type:'Champagne', price:'HK$1,950', image:'https://sspark.genspark.ai/cfimages?u1=hiLjsS7vf1zio1tiogadllJHJZSp%2B5i11TTezkVAO6i15UxTnQSEmVJ9xdb3khHtvQGQwgy%2BXIiBkexIWpIK4BwLfP73i3iHPlSfDiPtoSHUhQ%3D%3D&u2=BMiemw7K6wPHZig5&width=1024', buy:'https://www.pontiwinecellars.com.hk/' },
+    { name:'Dom Pérignon Vintage 2013', area:'Berry Bros. & Rudd HK • Central', type:'Champagne', price:'HK$1,680', image:'https://sspark.genspark.ai/cfimages?u1=glilOzQhYhiLp5sLyes770i7e4DwLvbBeVsiLRMzjyfJO3ovkoNNSW6LrcYodXcOHMPZgBOXNxfrgygd2DdclrJyWrAtJDoTK2mHDHq8rTVgcIiM&u2=z2%2F7R4JbSxEZxb2q&width=1024', buy:'drinks.html' },
+    { name:'Opus One 2018', area:"Watson's Wine • Admiralty", type:'Wine', price:'HK$3,650', image:'https://sspark.genspark.ai/cfimages?u1=dw6iar7M%2F8kGHCzCgpyhoqT600wr0eJW%2BaNH5lHnOE9FlDlC3E2%2BrTVve8XGiyhDCIeglXCC31Ecnul3jStvyShHtHaWFmN%2BkEQjn9v7VgmiqtCUyJWvuCarZs3WYaq%2B&u2=prX1%2FMDbWvJ%2FCaou&width=1024', buy:'https://www.watsonswine.com/' }
   ];
-  const drinksList = await fetchDrinks();
-  const featuredDrinks = featuredSlugs.map(slug => drinksList.find(d => d.name === slug)).filter(Boolean).map(d => ({...d, area: d.supplier + ' · ' + d.area}));
   const featuredSuppliers = [
-    { slug:'watsons-wine', name:"Watson's Wine", area:'Central · 1,200+ listings', tierLabel:'Wine Merchant', specialty:'Global cellar', image:'assets/images/watsons-wine.jpg', description:'Established wine retailer with an extensive global portfolio and a strong footprint across Hong Kong.' },
-    { slug:'hkdrinks', name:'HK Drinks', area:'Central · Cincoro & Clase Azul', tierLabel:'Premium Spirits', specialty:'Tequila specialist', image:'assets/images/hongkong-view.jpg', description:"Hong Kong's premium tequila and spirits specialist. Stocking Cincoro, Clase Azul, and Alfred GIRAUD — direct from the world's finest distilleries." },
-    { slug:'hk-liquor-store', name:'HK Liquor Store', area:'4,000+ products · Island-wide', tierLabel:'Premium Liquor Retailer', specialty:'Whisky, wine & spirits', image:'assets/images/hk-liquor-store.webp', description:"Hong Kong's premier liquor outlet stocking over 4,000 products — from rare whiskies and fine wines to premium spirits, with delivery across the territory." },
-    { slug:'young-master', name:'Young Master Ales', area:'Wong Chuk Hang · 45+ listings', tierLabel:'Craft Brewery', specialty:'Fresh local releases', image:'assets/images/young-master.png', description:"Hong Kong's flagship independent brewery, bringing locally brewed beers and fresh small-batch releases to market." }
+    { slug:'watsons-wine', name:"Watson's Wine", area:'Central · 1,200+ listings', tierLabel:'Wine Merchant', specialty:'Global cellar', image:'https://sspark.genspark.ai/cfimages?u1=obtQEBU36wbc5mBK9Tg%2FiebVk%2FuomsNMUhyF5wkURaS0ho%2BE%2F0P5oY769NOM8j6X1spyrI6dQ6utzeG5SqOz4NKYjclj5KRZq1M%3D&u2=DrU%2FvhT8zLT%2BPjgV&width=1024', description:'Established wine retailer with an extensive global portfolio and a strong footprint across Hong Kong.' },
+    { slug:'ponti', name:'Ponti Wine Cellars', area:'Central · 850+ listings', tierLabel:'Fine Wine', specialty:'Collector bottles', image:'https://sspark.genspark.ai/cfimages?u1=Mp4E39nBBWl%2FPaRggT4NOGVFfNxCnxMHldnqLMmau%2FWE%2BueYmOXiap0ygoHRxEwQ3zMZq1gs0z%2FnWmkkh98VYeBXPXv8xWGJm9S0aAHm%2BFmSAeBtKD4S1IOr%2BFZMY0Bv17dHQ5WiiwDPk%2BFITek%3D&u2=ZWL5Hiy7kCpWQSSN&width=1024', description:'Central-based specialist known for rare vintages, collector bottles, and a tightly curated premium cellar.' },
+    { slug:'sake-central-supplier', name:'Sake Central', area:'PMQ, Central · 400+ listings', tierLabel:'Sake Specialist', specialty:'Tasting-led retail', image:'https://sspark.genspark.ai/cfimages?u1=p%2B45Qq2b%2B%2FiPBkEWTVQC1zrpz2OvcjqQg3IZGJVwV61HgHIXwrTKGbNJOvbR0Es8xLvd9DgfWKyhE1EHPSAGim2BgBFbv7hOETXGnuGeuOQdPp%2FQS%2BR5jMF%2BimA%2BhS30kP%2F%2BGvRbe5TemCqelWa4d5TEvAEd%2B5QU3Ii4AWdj%2Bx8%3D&u2=F4aQQy%2FRGA7gCNi7&width=1024', description:"A design-led sake retail and tasting destination with one of Hong Kong's broadest craft sake selections." },
+    { slug:'young-master', name:'Young Master Ales', area:'Wong Chuk Hang · 45+ listings', tierLabel:'Craft Brewery', specialty:'Fresh local releases', image:'https://sspark.genspark.ai/cfimages?u1=CR2Q3M%2Fkd%2FyEV1C%2BxGG9rF%2BH1B9QcAOHtFYCXLzLLzA4fY5JInm77euRtTjsZTqkYg3wMe8lrLIskF%2Fm3XSjs202NMQ2MU6E3Ue4NuF2qKTbv6e4IgnhgSqhcrV0lMQqJdgcBRb1J7Av3%2BItKBJsjgMXJ0FzZKXVWIpKHHqGJ%2BQ%3D&u2=z88egw86F9OPbT4S&width=1024', description:"Hong Kong's flagship independent brewery, bringing locally brewed beers and fresh small-batch releases to market." }
   ];
   const featuredVenues = [
-    { slug:'the-old-man', name:'The Old Man', area:'Central', tierLabel:'Central Cocktail Bar', rating:'4.9', specialty:'Late-night favourite', image:'assets/images/the-old-man.jpg', description:'A moody, Hemingway-inspired cocktail den with intimate lighting, serious drinks craft, and global best-bar credentials.', website:'https://www.theoldmanhk.com/' },
-    { slug:'penicillin', name:'Penicillin', area:'Sheung Wan', tierLabel:'Sustainable Cocktails', rating:'4.8', specialty:'Design-led', image:'assets/images/penicillin.jpg', description:"Hong Kong's acclaimed closed-loop cocktail bar, known for experimental serves, white-tile interiors, and local ingredient storytelling.", website:'http://www.penicillinbarhk.com/' },
-    { slug:'argo', name:'ARGO', area:'Central', tierLabel:'Four Seasons Hotel Bar', rating:'4.9', specialty:'Rare spirits', image:'assets/images/argo.jpg', description:"A lush, architectural luxury bar with a rare spirits library, dramatic interiors, and one of Central's most polished hotel drinking rooms.", website:'https://www.fourseasons.com/hongkong/dining/lounges/argo/' },
-    { slug:'quinary', name:'Quinary', area:'Central', tierLabel:'Iconic Cocktails', rating:'4.7', specialty:'Date night', image:'assets/images/quinary.jpg', description:"Antonio Lai's multisensory cocktail institution, blending theatrical presentation, texture, and precision in one of HK's most recognisable bars.", website:'https://www.quinary.hk/' }
+    { slug:'the-old-man', name:'The Old Man', area:'Central', tierLabel:'Central Cocktail Bar', rating:'4.9', specialty:'Late-night favourite', image:'https://sspark.genspark.ai/cfimages?u1=9mYF8%2FKfAvKZ1cGt69P7HxtKZIa3lcSco6YPQhtGNPgn6kIPwWBcpN5Q%2FLbwu0mTg5r3qvpMjmUvntVO%2FMO3JQTHFAE%3D&u2=dZhlVzV2gY1bFJeU&width=1024', description:'A moody, Hemingway-inspired cocktail den with intimate lighting, serious drinks craft, and global best-bar credentials.', website:'https://www.theoldmanhk.com/' },
+    { slug:'penicillin', name:'Penicillin', area:'Sheung Wan', tierLabel:'Sustainable Cocktails', rating:'4.8', specialty:'Design-led', image:'https://sspark.genspark.ai/cfimages?u1=%2BO6NL2dK8V8CaCFuMH7%2FmqJRPVNHbC%2FxU26yDOf7pEPBTOROrX1a0ArLlsxcyYgyzWRaNL%2BE%2BYVtqbvKB6XfK%2BGKC6gf7QnIqr0kNVt81YffgV1lbCNbfKmk8DUzjHhe%2Bpej96F%2FKs6OUzR6uzgD8RsGth61l486x31nCLhBeQxY%2Bqy1MmuWDH1yrmlGF8MvEoykzB%2FbEtQL5VZT9P6ALAXy2D%2BFK53zryXxs65VcdL03TM%3D&u2=%2BGhr3n8ZtSuvezup&width=1024', description:"Hong Kong's acclaimed closed-loop cocktail bar, known for experimental serves, white-tile interiors, and local ingredient storytelling.", website:'http://www.penicillinbarhk.com/' },
+    { slug:'argo', name:'ARGO', area:'Central', tierLabel:'Four Seasons Hotel Bar', rating:'4.9', specialty:'Rare spirits', image:'https://sspark.genspark.ai/cfimages?u1=iV%2BXFCgpRFo9iqWM%2B1T%2BXzXBBPKayWpH6L3Kq4goIcJkxuOt8%2FU9iS8ELfg8pGadfMatKB91ToNnAI%2Bf4QrqUgBaOhMz8CeY%2B9YiCTV9U7nRtLczSgG5Qq85fRuLBFgLtgYwPIj5lAZPVuw%3D%3D&u2=PeIMZsJyhiu0WHco&width=1024', description:"A lush, architectural luxury bar with a rare spirits library, dramatic interiors, and one of Central's most polished hotel drinking rooms.", website:'https://www.fourseasons.com/hongkong/dining/lounges/argo/' },
+    { slug:'quinary', name:'Quinary', area:'Central', tierLabel:'Iconic Cocktails', rating:'4.7', specialty:'Date night', image:'https://sspark.genspark.ai/cfimages?u1=lApsHk%2FhfJ7ym0CyS1YfXXb0Ulhd4MOpTqtgwdhicGk4irRqJgfZgYTTi3ZxaJo7qmrv9o%2Bpo%2B8%2BS0nK%2FvaFcWG1QGe9%2FI%2BIA2lXBg%3D%3D&u2=fIj5D6EdutCnyZ1%2B&width=1024', description:"Antonio Lai's multisensory cocktail institution, blending theatrical presentation, texture, and precision in one of HK's most recognisable bars.", website:'https://www.quinary.hk/' }
   ];
   const events = [
     { name:'Burgundy Grand Cru Masterclass', venue:'Mandarin Oriental, Central', date:'Nov 18', type:'Masterclass', image:siteImages.event },
@@ -799,15 +588,15 @@ async function renderHomepage() {
 
     <section class="section homepage-bottles-section">
       <div class="container">
-        <div class="section-head carousel-head"><div><span class="eyebrow">Popular in Hong Kong</span><h2>Featured bottles available now.</h2><p class="lead" style="margin-top:14px;">The bottles Hong Kong drinkers are searching for, available now from local suppliers.</p></div><div class="carousel-controls"><button class="carousel-arrow" type="button" data-carousel-target="featured-bottles" data-dir="-1" aria-label="Scroll bottles left">←</button><button class="carousel-arrow" type="button" data-carousel-target="featured-bottles" data-dir="1" aria-label="Scroll bottles right">→</button><a class="btn btn-ghost" href="drinks.html">See all drinks</a></div></div>
-        <div class="carousel-shell"><div class="carousel-track bottles-carousel" id="featured-bottles">${featuredDrinks.map(d => renderCard({...d, tierLabel:d.type}, {type:'drink', portrait:true, href:'product.html?slug=' + slugify(d.name), className:'homepage-bottle-card', cta:ctaLink('View', 'product.html?slug=' + slugify(d.name), 'btn btn-primary btn-small', 'View details')})).join('')}</div></div>
+        <div class="section-head carousel-head"><div><span class="eyebrow">Popular in Hong Kong</span><h2>Featured bottles available now.</h2><p class="lead" style="margin-top:14px;">A tighter edit of the labels people are actually hunting for right now — designed to feel more like a premium shortlist than a product wall.</p></div><div class="carousel-controls"><button class="carousel-arrow" type="button" data-carousel-target="featured-bottles" data-dir="-1" aria-label="Scroll bottles left">←</button><button class="carousel-arrow" type="button" data-carousel-target="featured-bottles" data-dir="1" aria-label="Scroll bottles right">→</button><a class="btn btn-ghost" href="drinks.html">See all drinks</a></div></div>
+        <div class="carousel-shell"><div class="carousel-track bottles-carousel" id="featured-bottles">${featuredDrinks.map(d => renderCard({...d, tierLabel:d.type}, {type:'drink', portrait:true, href:buildSearchHref('drinks.html', d.name), className:'homepage-bottle-card', cta:ctaLink('View bottle', d.buy || buildSearchHref('drinks.html', d.name), 'btn btn-primary btn-small', 'View details')})).join('')}</div></div>
       </div>
     </section>
 
     <section class="section homepage-suppliers-section">
       <div class="container">
-        <div class="section-head section-head-center"><div><span class="eyebrow">Directory</span><h2>Premium <span class="text-gold headline-script">suppliers</span></h2><p class="lead" style="margin-top:14px;">Trusted wine merchants, craft breweries, and spirits specialists serving Hong Kong.</p></div></div>
-        <div class="grid grid-4">${featuredSuppliers.map(s => renderCard(s, {type:'supplier', href:`supplier-template.html?slug=${s.slug}`, cta:`<a class="btn btn-primary btn-small" href="supplier-template.html?slug=${s.slug}">View</a>`})).join('')}</div>
+        <div class="section-head section-head-center"><div><span class="eyebrow">Directory</span><h2>Premium <span class="text-gold headline-script">suppliers</span></h2><p class="lead" style="margin-top:14px;">Merchants, specialists, and local producers presented more like an editorial shortlist than a generic directory grid.</p></div></div>
+        <div class="grid grid-4">${featuredSuppliers.map(s => renderCard(s, {type:'supplier', href:`supplier-template.html?slug=${s.slug}`, cta:`<a class="btn btn-primary btn-small" href="supplier-template.html?slug=${s.slug}">View supplier</a>`})).join('')}</div>
       </div>
     </section>
 
@@ -831,16 +620,16 @@ async function renderHomepage() {
 
     <section class="section homepage-venues-section">
       <div class="container">
-        <div class="section-head section-head-center"><div><span class="eyebrow">Venue discovery</span><h2>Where Hong Kong <span class="text-pink headline-script">drinks</span></h2><p class="lead" style="margin-top:14px;">Cocktail bars, rooftops, hotel lounges, and neighbourhood favourites across Hong Kong.</p></div></div>
+        <div class="section-head section-head-center"><div><span class="eyebrow">Venue discovery</span><h2>Where Hong Kong <span class="text-pink headline-script">drinks</span></h2><p class="lead" style="margin-top:14px;">Cocktail bars, rooftops, hotel lounges, and neighbourhood favourites arranged with more contrast, hierarchy, and breathing room.</p></div></div>
         <div class="chip-row section-filter-pills"><span class="chip chip-active">All Venues</span><span class="chip">Cocktail Bars</span><span class="chip">Wine Bars</span><span class="chip">Rooftop</span><span class="chip">Hidden Speakeasies</span></div>
-        <div class="grid grid-4">${featuredVenues.map(v => renderCard(v, {type:'venue', href:`venue-template.html?slug=${v.slug}`, cta:`${ctaLink('View', `venue-template.html?slug=${v.slug}`, 'btn btn-primary btn-small')}${ctaLink('Book', v.website, 'btn btn-ghost btn-small', 'View venue')}`})).join('')}</div>
+        <div class="grid grid-4">${featuredVenues.map(v => renderCard(v, {type:'venue', href:`venue-template.html?slug=${v.slug}`, cta:`${ctaLink('View venue', `venue-template.html?slug=${v.slug}`, 'btn btn-secondary btn-small')}${ctaLink('Book table', v.website, 'btn btn-ghost btn-small', 'View venue')}`})).join('')}</div>
       </div>
     </section>
 
     <section class="section">
       <div class="container">
         <div class="section-head"><div><span class="eyebrow">Calendar</span><h2>Upcoming <em>Events</em></h2></div><a class="btn btn-ghost" href="events.html">Open events page</a></div>
-        <div class="grid grid-4">${events.map(evt => renderCard({name:evt.name, area:'Hong Kong', venue:evt.venue, date:evt.date, image:evt.image, description:evt.venue, tierLabel:evt.type}, {type:'event', className:'event-card', href:buildSearchHref('events.html', evt.name), cta:ctaLink('View', buildSearchHref('events.html', evt.name), 'btn btn-primary btn-small')})).join('')}</div>
+        <div class="grid grid-4">${events.map(evt => renderCard({name:evt.name, area:'Hong Kong', venue:evt.venue, date:evt.date, image:evt.image, description:evt.venue, tierLabel:evt.type}, {type:'event', className:'event-card', href:buildSearchHref('events.html', evt.name), cta:ctaLink('See details', buildSearchHref('events.html', evt.name), 'btn btn-primary btn-small')})).join('')}</div>
       </div>
     </section>
 
@@ -858,7 +647,7 @@ async function renderHomepage() {
     <section class="section" id="join-trade">
       <div class="container grid grid-2">
         <div class="panel"><span class="eyebrow">For drinks suppliers</span><h3 style="margin:14px 0;">Reach buyers already searching for what you stock.</h3><p class="muted">Start with a free directory listing, list your first 10 products for free, and upgrade when you want stronger visibility.</p><div class="inline-actions" style="margin-top:18px;"><a class="btn btn-primary btn-small" href="pricing.html">View pricing</a><a class="btn btn-ghost btn-small" href="list-your-business.html?type=merchant">List as supplier</a></div></div>
-        <div class="panel"><span class="eyebrow">For bar owners</span><h3 style="margin:14px 0;">Get discovered by locals and visitors looking for their next favorite spot.</h3><p class="muted">Create a free venue profile, add booking links, promote events, and feature your bar on neighbourhood discovery lists.</p><div class="inline-actions" style="margin-top:18px;"><a class="btn btn-primary btn-small" href="pricing.html">Venue pricing</a><a class="btn btn-ghost btn-small" href="list-your-business.html?type=venue">Claim venue</a></div></div>
+        <div class="panel"><span class="eyebrow">For bar owners</span><h3 style="margin:14px 0;">Get discovered by locals and visitors looking for their next favorite spot.</h3><p class="muted">Create a free venue profile, add booking links, promote events, and feature your bar on neighbourhood discovery lists.</p><div class="inline-actions" style="margin-top:18px;"><a class="btn btn-secondary btn-small" href="pricing.html">Venue pricing</a><a class="btn btn-ghost btn-small" href="list-your-business.html?type=venue">Claim venue</a></div></div>
       </div>
     </section>
 
@@ -914,12 +703,10 @@ async function renderHomepage() {
 }
 
 async function renderVenueDirectory() {
-  const venueListings = await fetchVenues();
   const app = $('#app');
   app.innerHTML = `
-    <nav class="breadcrumb"><a href="index.html">Home</a><span class="sep">/</span><span>Bars & Restaurants</span></nav>
     <section class="hero" style="min-height:60vh;"><div class="hero-media" style="background-image:url('${siteImages.rooftop}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Bars & Restaurants</span><h1>Where Hong Kong <span class="text-pink headline-script">drinks</span>.</h1><p class="lead">Browse cocktail bars, rooftops, hotel lounges, wine-led restaurants, and tasting spots with useful detail before you book.</p></div><div class="search-shell"><div class="search-tabs"><span class="search-tab active">Filter venues</span></div><div class="filter-bar" style="margin-bottom:0;"><input id="venue-query" class="input" placeholder="Search venues, bars, rooftops..." /><select id="venue-area" class="select"><option value="all">All locations</option></select><select id="venue-type" class="select"><option value="all">All venue types</option></select><select id="venue-tier" class="select"><option value="all">All tiers</option><option value="enhanced">Enhanced</option><option value="featured">Featured</option><option value="standard">Standard</option></select><button id="venue-reset" class="btn btn-ghost">Reset</button></div><div id="venue-results-note"></div></div></div></section>
-    <section class="section"><div class="container"><div class="section-head"><div><span class="eyebrow">Featured venues</span><h2>Standout places for date nights, celebrations, and serious drinks.</h2><p class="lead" style="margin-top:14px;">Hand-picked bars and lounges with the atmosphere, drinks list, and service worth going out for.</p></div></div><div id="venue-enhanced" class="grid grid-4"></div></div></section>
+    <section class="section"><div class="container"><div class="section-head"><div><span class="eyebrow">Featured venues</span><h2>Standout places for date nights, celebrations, and serious drinks.</h2><p class="lead" style="margin-top:14px;">Start with the venues people most often search for when they want atmosphere, strong drinks, and an easy booking path.</p></div></div><div id="venue-enhanced" class="grid grid-4"></div></div></section>
     <section class="section-tight"><div class="container"><div class="section-head"><div><span class="eyebrow">More to explore</span><h2>More bars, dining rooms, and drinking spots across Hong Kong.</h2><p class="lead" style="margin-top:14px;">Use the directory to compare neighbourhoods, styles, and drinks focus before you decide where to go.</p></div></div><div id="venue-featured" class="grid grid-5"></div></div></section>
     <section class="section" id="join-venues"><div class="container"><div class="section-head"><div><span class="eyebrow">All venues</span><h2>Explore the wider Hong Kong venue directory.</h2><p class="lead" style="margin-top:14px;">Filter by neighbourhood, venue style, or drinks focus to plan the right evening faster.</p></div></div><div class="list-panel"><div class="table-head"><div>Venue</div><div>Location</div><div>Phone</div><div>Food type</div></div><div id="venue-standard"></div></div><div class="pagination"><button id="venue-prev" class="btn btn-ghost btn-small">Previous</button><span id="venue-page" class="muted"></span><button id="venue-next" class="btn btn-ghost btn-small">Next</button></div></div></section>`;
 
@@ -927,8 +714,9 @@ async function renderVenueDirectory() {
   const areaSelect = $('#venue-area');
   const typeSelect = $('#venue-type');
   const tierSelect = $('#venue-tier');
-  const areas = [...new Set([...venueListings.enhanced, ...venueListings.featured].map(v => v.area).concat(venueListings.standard.map(v => v[1])))];
-  const types = [...new Set([...venueListings.enhanced, ...venueListings.featured].map(v => v.cuisine).concat(venueListings.standard.map(v => v[3])))];
+  const vData = await fetchVenues();
+  const areas = [...new Set([...vData.enhanced, ...vData.featured].map(v => v.area).concat(vData.standard.map(v => v[1])))];
+  const types = [...new Set([...vData.enhanced, ...vData.featured].map(v => v.cuisine).concat(vData.standard.map(v => v[3])))];
   areas.sort().forEach(a => areaSelect.insertAdjacentHTML('beforeend', `<option value="${a}">${a}</option>`));
   types.sort().forEach(t => typeSelect.insertAdjacentHTML('beforeend', `<option value="${t}">${t}</option>`));
   const requestedArea = queryParam('area');
@@ -945,10 +733,10 @@ async function renderVenueDirectory() {
     return matchArea && matchType && matchTier && matchQuery;
   }
   function render() {
-    const enhanced = venueListings.enhanced.filter(v => filterMatch(v.area, v.cuisine, 'enhanced', [v.name, v.area, v.cuisine, v.specialty, v.booking])).slice(0, 12);
-    const featured = venueListings.featured.filter(v => filterMatch(v.area, v.cuisine, 'featured', [v.name, v.area, v.cuisine])).slice(0, 20);
-    const standard = venueListings.standard.filter(v => filterMatch(v[1], v[3], 'standard', [v[0], v[1], v[3]]));
-    $('#venue-enhanced').innerHTML = enhanced.length ? enhanced.map(v => renderCard({...v, tierLabel:'Enhanced'}, {type:'venue', href:`venue-template.html?slug=${v.slug}`, cta:`${ctaLink('View', `venue-template.html?slug=${v.slug}`, 'btn btn-primary btn-small')}${ctaLink('Book', v.website, 'btn btn-ghost btn-small', 'Details soon')}`})).join('') : '<div class="empty-state">No enhanced venues match these filters yet.</div>';
+    const enhanced = vData.enhanced.filter(v => filterMatch(v.area, v.cuisine, 'enhanced', [v.name, v.area, v.cuisine, v.specialty, v.booking])).slice(0, 12);
+    const featured = vData.featured.filter(v => filterMatch(v.area, v.cuisine, 'featured', [v.name, v.area, v.cuisine])).slice(0, 20);
+    const standard = vData.standard.filter(v => filterMatch(v[1], v[3], 'standard', [v[0], v[1], v[3]]));
+    $('#venue-enhanced').innerHTML = enhanced.length ? enhanced.map(v => renderCard({...v, tierLabel:'Enhanced'}, {type:'venue', href:`venue-template.html?slug=${v.slug}`, cta:`${ctaLink('View venue', `venue-template.html?slug=${v.slug}`, 'btn btn-secondary btn-small')}${ctaLink('Book table', v.website, 'btn btn-ghost btn-small', 'Details soon')}`})).join('') : '<div class="empty-state">No enhanced venues match these filters yet.</div>';
     $('#venue-featured').innerHTML = featured.length ? featured.map(v => renderCard({...v, tierLabel:'Featured'}, {type:'venue', small:true, href:buildSearchHref('bars-restaurants.html', v.name, v.area), cta:ctaLink('View listing', buildSearchHref('bars-restaurants.html', v.name, v.area), 'btn btn-ghost btn-small')})).join('') : '<div class="empty-state">No featured venues match these filters.</div>';
     const totalPages = Math.max(1, Math.ceil(standard.length / perPage));
     page = Math.min(page, totalPages);
@@ -969,17 +757,16 @@ async function renderVenueDirectory() {
 }
 
 async function renderSupplierDirectory() {
-  const supplierListings = await fetchSuppliers();
   const app = $('#app');
   app.innerHTML = `
-    <nav class="breadcrumb"><a href="index.html">Home</a><span class="sep">/</span><span>Suppliers</span></nav>
     <section class="hero" style="min-height:60vh;"><div class="hero-media" style="background-image:url('${siteImages.shop}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Supplier directory</span><h1>Where Hong Kong <span class="text-gold headline-script">buys</span>.</h1><p class="lead">Browse wine merchants, sake specialists, craft breweries, whisky retailers, and importers with direct store links and useful local context.</p></div><div class="search-shell"><div class="search-tabs"><span class="search-tab active">Filter suppliers</span></div><div class="filter-bar" style="margin-bottom:0;"><input id="supplier-query" class="input" placeholder="Search merchants, sake, whisky, wine..." /><select id="supplier-area" class="select"><option value="all">All locations</option></select><select id="supplier-type" class="select"><option value="all">All specialties</option></select><select id="supplier-tier" class="select"><option value="all">All tiers</option><option value="enhanced">Enhanced</option><option value="featured">Featured</option><option value="standard">Standard</option></select><button id="supplier-reset" class="btn btn-ghost">Reset</button></div><div id="supplier-results-note"></div></div></div></section>
     <section class="section"><div class="container"><div class="section-head"><div><span class="eyebrow">Featured suppliers</span><h2>Reliable merchants and specialists to check first.</h2><p class="lead" style="margin-top:14px;">Good for premium bottles, gift buys, cellar hunting, and everyday favourites from trusted Hong Kong sellers.</p></div></div><div id="supplier-enhanced" class="grid grid-4"></div></div></section>
     <section class="section-tight"><div class="container"><div class="section-head"><div><span class="eyebrow">More suppliers</span><h2>More wine shops, breweries, and spirits specialists across Hong Kong.</h2><p class="lead" style="margin-top:14px;">Compare by category and location, then head straight to the supplier site when something fits.</p></div></div><div id="supplier-featured" class="grid grid-5"></div></div></section>
     <section class="section" id="join-trade"><div class="container"><div class="section-head"><div><span class="eyebrow">Full directory</span><h2>Browse the wider Hong Kong supplier list.</h2><p class="lead" style="margin-top:14px;">Use the directory to compare merchants by area, specialty, and shopping route before you click through to buy.</p></div></div><div class="list-panel"><div class="table-head"><div>Supplier</div><div>Location</div><div>Phone</div><div>Specialty</div></div><div id="supplier-standard"></div></div></div></section>`;
   const queryInput = $('#supplier-query'); const area = $('#supplier-area'); const type = $('#supplier-type'); const tier = $('#supplier-tier');
-  const supplierAreas = [...new Set([...supplierListings.enhanced, ...supplierListings.featured].map(s => s.area).concat(supplierListings.standard.map(s => s[1])))].sort();
-  const supplierTypes = [...new Set([...supplierListings.enhanced, ...supplierListings.featured].map(s => s.specialty).concat(supplierListings.standard.map(s => s[3])))].sort();
+  const sData = await fetchSuppliers();
+  const supplierAreas = [...new Set([...sData.enhanced, ...sData.featured].map(s => s.area).concat(sData.standard.map(s => s[1])))].sort();
+  const supplierTypes = [...new Set([...sData.enhanced, ...sData.featured].map(s => s.specialty).concat(sData.standard.map(s => s[3])))].sort();
   supplierAreas.forEach(v => area.insertAdjacentHTML('beforeend', `<option value="${v}">${v}</option>`));
   supplierTypes.forEach(v => type.insertAdjacentHTML('beforeend', `<option value="${v}">${v}</option>`));
   const requestedArea = queryParam('area');
@@ -988,10 +775,10 @@ async function renderSupplierDirectory() {
   if (queryInput) queryInput.value = requestedQuery;
   function match(a, t, tierName, searchFields = []) { return (area.value === 'all' || a === area.value) && (type.value === 'all' || t === type.value) && (tier.value === 'all' || tier.value === tierName) && matchesSearch(searchFields, queryInput?.value || ''); }
   function render() {
-    const enhanced = supplierListings.enhanced.filter(s => match(s.area, s.specialty, 'enhanced', [s.name, s.area, s.specialty]));
-    const featured = supplierListings.featured.filter(s => match(s.area, s.specialty, 'featured', [s.name, s.area, s.specialty]));
-    const standard = supplierListings.standard.filter(s => match(s[1], s[3], 'standard', [s[0], s[1], s[3]]));
-    $('#supplier-enhanced').innerHTML = enhanced.length ? enhanced.map(s => renderCard({...s, tierLabel:'Enhanced'}, {type:'supplier', href:`supplier-template.html?slug=${s.slug}`, cta:`<a class="btn btn-primary btn-small" href="supplier-template.html?slug=${s.slug}">View</a>`})).join('') : '<div class="empty-state">No enhanced suppliers match these filters.</div>';
+    const enhanced = sData.enhanced.filter(s => match(s.area, s.specialty, 'enhanced', [s.name, s.area, s.specialty]));
+    const featured = sData.featured.filter(s => match(s.area, s.specialty, 'featured', [s.name, s.area, s.specialty]));
+    const standard = sData.standard.filter(s => match(s[1], s[3], 'standard', [s[0], s[1], s[3]]));
+    $('#supplier-enhanced').innerHTML = enhanced.length ? enhanced.map(s => renderCard({...s, tierLabel:'Enhanced'}, {type:'supplier', href:`supplier-template.html?slug=${s.slug}`, cta:`<a class="btn btn-primary btn-small" href="supplier-template.html?slug=${s.slug}">View supplier</a>`})).join('') : '<div class="empty-state">No enhanced suppliers match these filters.</div>';
     $('#supplier-featured').innerHTML = featured.length ? featured.map(s => renderCard({...s, tierLabel:'Featured'}, {type:'supplier', small:true, href:hasUsableHref(s.website) ? s.website : buildSearchHref('suppliers.html', s.name, s.area), cta:hasUsableHref(s.website) ? ctaLink('Visit website', s.website, 'btn btn-ghost btn-small') : ctaLink('View listing', buildSearchHref('suppliers.html', s.name, s.area), 'btn btn-ghost btn-small')})).join('') : '<div class="empty-state">No featured suppliers match these filters.</div>';
     $('#supplier-standard').innerHTML = standard.length ? standard.map(row => `<div class="list-row"><div><strong>${row[0]}</strong></div><div>${row[1]}</div><div>${row[2]}</div><div>${row[3]}</div></div>`).join('') : '<div class="empty-state">No standard suppliers match these filters.</div>';
     const totalMatches = enhanced.length + featured.length + standard.length;
@@ -1008,22 +795,24 @@ async function renderDrinksPage() {
   const app = $('#app');
   const query = queryParam('q') || '';
   const area = queryParam('area') || '';
-  const drinksInventory = await fetchDrinks({ search: query });
-  var pubItems = JSON.parse(localStorage.getItem('ds_published_items') || '[]'); var existingKeys = {}; drinksInventory.forEach(function(d) { if (d.name && d.supplier) existingKeys[d.name + '_' + d.supplier] = true; }); var dedupedPub = pubItems.filter(function(p) { return !existingKeys[p.name + '_' + p.supplier]; }); const filteredDrinks = drinksInventory.concat(dedupedPub).filter(d => matchesSearch([d.name, d.supplier, d.type, d.area], query) && (!area || d.area === area));
+  const allDrinks = await fetchDrinks();
+  const filteredDrinks = allDrinks.filter(d => matchesSearch([d.name, d.supplier, d.type, d.area], query) && (!area || d.area === area));
   app.innerHTML = `
-    <section class="hero" style="min-height:56vh;"><div class="hero-media" style="background-image:url('${siteImages.trio}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Drinks</span><h1>Bottles in Hong Kong.</h1><p class="lead">From cellar icons to sake, Champagne, beer, spirits, and no-alcohol discoveries — all routed to local suppliers.</p></div><div class="search-shell"><div class="search-tabs"><span class="search-tab active">Search results</span></div><div class="notice">Showing <strong>${filteredDrinks.length}</strong> drinks${query ? ` for “${query}”` : ''}${area ? ` in ${area}` : ''}.</div><div class="panel" style="padding:18px; background:transparent; border:none; box-shadow:none;"><div class="muted" style="display:grid; gap:10px;"><span>Direct links to local supplier stores</span><span>HK pricing and neighbourhood context</span><span>A mix of discovery bottles and everyday favourites</span></div></div></div></div></section>
-    <section class="section"><div class="container"><div class="section-head"><div><span class="eyebrow">Featured bottles</span><h2>Popular drinks from Hong Kong suppliers.</h2></div></div>${filteredDrinks.length ? `<div class="grid grid-4">${filteredDrinks.map(d => renderCard({...d, tierLabel:d.tier==='enhanced' ? 'Available now' : 'Featured'}, {type:'drink', portrait:true, href:'product.html?slug=' + slugify(d.name), cta:d.tier==='enhanced' ? (function(d){var u=d.buy||'';return u&&u!=='#'?'<a class="btn btn-primary btn-small" href="'+u+'" target="_blank" rel="noreferrer" data-track-drink="1" data-name="'+(d.name||'').replace(/"/g,'&quot;')+'" data-supplier="'+(d.supplier||'').replace(/"/g,'&quot;')+'">Buy online</a>':'<span class="btn btn-ghost btn-small is-disabled" aria-disabled="true">View details</span>'})(d) : ctaLink('View', 'product.html?slug=' + slugify(d.name), 'btn btn-ghost btn-small', 'View details')})).join('')}</div>` : '<div class="empty-state">No drinks match that search yet. Try a broader bottle name, category, or area.</div>'}</div></section>`;
-    bindSaveButtons(app);
-}function renderEventsPage() {
+    <section class="hero" style="min-height:56vh;"><div class="hero-media" style="background-image:url('${siteImages.trio}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Drinks</span><h1>Bottles actually available in Hong Kong.</h1><p class="lead">From cellar icons to sake, Champagne, beer, spirits, and no-alcohol discoveries — all routed to local suppliers.</p></div><div class="search-shell"><div class="search-tabs"><span class="search-tab active">Search results</span></div><div class="notice">Showing <strong>${filteredDrinks.length}</strong> drinks${query ? ` for “${query}”` : ''}${area ? ` in ${area}` : ''}.</div><div class="panel" style="padding:18px; background:transparent; border:none; box-shadow:none;"><div class="muted" style="display:grid; gap:10px;"><span>Direct links to local supplier stores</span><span>HK pricing and neighbourhood context</span><span>A mix of discovery bottles and everyday favourites</span></div></div></div></div></section>
+    <section class="section"><div class="container"><div class="section-head"><div><span class="eyebrow">Featured bottles</span><h2>Popular drinks from Hong Kong suppliers.</h2></div></div>${filteredDrinks.length ? `<div class="grid grid-4">${filteredDrinks.map(d => renderCard({...d, tierLabel:d.tier==='enhanced' ? 'Available now' : 'Featured'}, {type:'drink', portrait:true, href:buildSearchHref('drinks.html', d.name, d.area), cta:d.tier==='enhanced' ? ctaLink('Buy online', d.buy || (d.supplier ? buildSearchHref('suppliers.html', d.supplier, d.area) : buildSearchHref('drinks.html', d.name, d.area)), 'btn btn-primary btn-small', 'View supplier') : ctaLink('View supplier', d.supplier ? buildSearchHref('suppliers.html', d.supplier, d.area) : buildSearchHref('drinks.html', d.name, d.area), 'btn btn-ghost btn-small')})).join('')}</div>` : '<div class="empty-state">No drinks match that search yet. Try a broader bottle name, category, or area.</div>'}</div></section>`;
+  bindSaveButtons(app);
+}
+
+async function renderEventsPage() {
   const app = $('#app');
   const query = queryParam('q') || '';
   const area = queryParam('area') || '';
-  const filteredEvents = eventsData.filter(e => matchesSearch([e.name, e.venue, e.type, e.area], query) && (!area || e.area === area));
+  const allEvents = await fetchEvents();
+  const filteredEvents = allEvents.filter(e => matchesSearch([e.name, e.venue, e.type, e.area], query) && (!area || e.area === area));
   const cards = filteredEvents.length ? `<div class="grid grid-3">${filteredEvents.map(e => renderCard({...e, description:e.venue, tierLabel:e.type}, {type:'event', className:'event-card', href:buildSearchHref('events.html', e.name, e.area), cta:ctaLink('Event details', hasUsableHref(e.url) ? e.url : buildSearchHref('events.html', e.name, e.area), 'btn btn-primary btn-small', 'Details soon')})).join('')}</div>` : '<div class="empty-state">No current events match that search yet — try a venue, event type, or a broader area.</div>';
   app.innerHTML = `
-    <nav class="breadcrumb"><a href="index.html">Home</a><span class="sep">/</span><span>Events</span></nav>
-    <section class="hero" style="min-height:56vh;"><div class="hero-media" style="background-image:url('${siteImages.event}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Events</span><h1>Tastings & social nights.</h1><p class="lead">Masterclasses, pairings, cocktail takeovers, launch nights, and zero-proof happenings around Hong Kong.</p></div><div class="search-shell"><div class="search-tabs"><span class="search-tab active">Plan your next night out</span></div><div class="notice">Showing <strong>${filteredEvents.length}</strong> events${query ? ` for “${query}”` : ''}${area ? ` in ${area}` : ''}.</div><p class="muted">From hotel tastings to bar collabs and community-led pours.</p></div></div></section>
-    <section class="section"><div class="container"><div class="section-head"><div><span class="eyebrow">Upcoming events</span><h2>What's on around Hong Kong.</h2><p class="lead" style="margin-top:14px;">Discover tastings, launches, guest shifts, and social nights across the city.</p></div></div>${cards}</div></section>`;
+    <section class="hero" style="min-height:56vh;"><div class="hero-media" style="background-image:url('${siteImages.event}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Events</span><h1>Tastings, launches, guest shifts, and social nights.</h1><p class="lead">Masterclasses, pairings, cocktail takeovers, launch nights, and zero-proof happenings around Hong Kong.</p></div><div class="search-shell"><div class="search-tabs"><span class="search-tab active">Plan your next night out</span></div><div class="notice">Showing <strong>${filteredEvents.length}</strong> events${query ? ` for “${query}”` : ''}${area ? ` in ${area}` : ''}.</div><p class="muted">From hotel tastings to bar collabs and community-led pours.</p></div></div></section>
+    <section class="section"><div class="container"><div class="section-head"><div><span class="eyebrow">Upcoming events</span><h2>What's on around Hong Kong.</h2><p class="lead" style="margin-top:14px;">A more visual event board for tastings, launches, guest shifts, and social nights across the city.</p></div></div>${cards}</div></section>`;
   bindSaveButtons(app);
 }
 
@@ -1035,7 +824,7 @@ function renderPricingPage() {
       <div class="container hero-grid">
         <div class="hero-copy">
           <span class="kicker">Membership pricing</span>
-          <h1>Merchant &amp; bar pricing.</h1>
+          <h1>Clear pricing for <span class="text-jade">merchants</span> and <span class="text-pink">bars</span>.</h1>
           <p class="lead">Simple memberships for suppliers and venues that want better visibility, direct enquiries, and stronger placement on drinksearcher.hk.</p>
           <div class="hero-actions">
             <a class="btn btn-primary" href="suppliers.html">See supplier examples</a>
@@ -1198,136 +987,64 @@ function renderPricingPage() {
   setBilling('monthly');
 }
 
-async function renderLeadCapturePage() {
+function renderLeadCapturePage() {
   const app = $('#app');
-  const user = await dsAuth.getCurrentUser();
+  const user = storage.getCurrentUser();
   if (!user) storage.setPostAuthRedirect(currentPagePath());
   const requestedType = queryParam('type') || 'merchant';
+  const requestedPlan = queryParam('plan') || (requestedType === 'venue' ? 'venue-enhanced' : 'merchant-enhanced');
   const source = queryParam('source') || 'site';
+  const plans = {
+    merchant: [
+      ['merchant-starter', 'Merchant Starter'],
+      ['merchant-enhanced', 'Merchant Enhanced'],
+      ['merchant-premium', 'Merchant Premium']
+    ],
+    venue: [
+      ['venue-starter', 'Venue Starter'],
+      ['venue-enhanced', 'Venue Enhanced'],
+      ['venue-enhanced-events', 'Venue Enhanced + Events']
+    ]
+  };
+  const selectedPlans = plans[requestedType] || plans.merchant;
   const signedInNote = user
     ? `<div class="notice">Signed in as ${user.email}. Your details are prefilled and any submission will appear in your account dashboard.</div>`
-    : `<div class="notice">Have an account already? <a class="text-jade" href="searcher-account.html">Sign in</a>.</div>`;
+    : `<div class="notice">Have an account already? <a class="text-jade" href="signin.html">Sign in</a> to prefill your details and track submissions.</div>`;
   app.innerHTML = `
-    <section class="hero" style="min-height:62vh;"><div class="hero-media" style="background-image:url('${requestedType === 'venue' ? siteImages.rooftop : siteImages.shop}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">List your business / Claim your venue</span><h1>${requestedType === 'venue' ? 'Get your venue discovered.' : 'Turn discovery into sales.'}</h1><p class="lead">Tell us about your business and we'll help match you with the right listing, profile, and visibility options.</p><div class="hero-actions"><a class="btn btn-primary" href="pricing.html">Back to pricing</a><a class="btn btn-ghost" href="${user ? 'account.html' : 'searcher-account.html'}">${user ? 'My account' : 'Sign in'}</a></div></div><div class="search-shell"><span class="eyebrow">Application form</span>${signedInNote}<div class="notice">Start with the right listing and we’ll organise the details you need for profile, visibility, and next-step setup.</div><form id="lead-form" class="form-grid" style="margin-top:14px;"><select class="select full" name="listingType"><option value="merchant" ${requestedType === 'merchant' ? 'selected' : ''}>Supplier / Merchant</option><option value="venue" ${requestedType === 'venue' ? 'selected' : ''}>Bar / Restaurant / Venue</option></select><input class="input" name="businessName" placeholder="Business name" required /><input class="input" name="contactName" placeholder="Contact name" value="${user?.name || ''}" required /><input class="input" name="email" type="email" placeholder="Email" value="${user?.email || ''}" required />${!user ? '<input class="input" name="password" type="password" placeholder="Create password" required />' : ''}<input class="input" name="phone" placeholder="Phone number" required /><input class="input" name="district" placeholder="Primary district / location" value="${user?.city || ''}" required /><input class="input" name="website" placeholder="Website / booking URL" /><textarea class="input full" name="notes" rows="5" placeholder="Tell us what you want to list and what makes the business special."></textarea><button class="btn btn-primary full" type="submit">Create account</button></form><div id="lead-notice"></div></div></div></section>
+    <section class="hero" style="min-height:62vh;"><div class="hero-media" style="background-image:url('${requestedType === 'venue' ? siteImages.rooftop : siteImages.shop}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">List your business / Claim your venue</span><h1>${requestedType === 'venue' ? 'Claim your venue and start turning visibility into bookings.' : 'List your business and start turning discovery into sales.'}</h1><p class="lead">Tell us about your business and we'll help match you with the right listing, profile, and visibility options.</p><div class="hero-actions"><a class="btn btn-primary" href="pricing.html">Back to pricing</a><a class="btn btn-ghost" href="${user ? 'account.html' : 'signin.html'}">${user ? 'My account' : 'Sign in'}</a></div></div><div class="search-shell"><span class="eyebrow">Application form</span>${signedInNote}<div class="notice">Start with the right listing and we’ll organise the details you need for profile, visibility, and next-step setup.</div><form id="lead-form" class="form-grid" style="margin-top:14px;"><select class="select full" name="listingType"><option value="merchant" ${requestedType === 'merchant' ? 'selected' : ''}>Supplier / Merchant</option><option value="venue" ${requestedType === 'venue' ? 'selected' : ''}>Bar / Restaurant / Venue</option></select><select class="select full" id="plan-select" name="planInterest"></select><input class="input" name="businessName" placeholder="Business name" required /><input class="input" name="contactName" placeholder="Contact name" value="${user?.name || ''}" required /><input class="input" name="email" type="email" placeholder="Email" value="${user?.email || ''}" required /><input class="input" name="phone" placeholder="Phone number" required /><input class="input" name="district" placeholder="Primary district / location" value="${user?.city || ''}" required /><input class="input" name="website" placeholder="Website / booking URL" /><input class="input full" name="social" placeholder="Instagram / social URL" /><textarea class="input full" name="notes" rows="5" placeholder="Tell us what you want to list, what plan you are interested in, and what makes the business special."></textarea><button class="btn btn-primary full" type="submit">Send enquiry</button></form><div id="lead-notice"></div></div></div></section>
     <section class="section"><div class="container grid grid-2"><div class="panel"><span class="eyebrow">What happens next</span><h2 style="margin:14px 0;">What happens next.</h2><div class="muted" style="display:grid; gap:12px;"><span>• We review your application and listing details.</span><span>• If you're signed in, your account information pre-fills automatically.</span><span>• We confirm the right plan, profile type, and any featured add-ons.</span><span>• Once approved, your business can appear across the directory, profile pages, and relevant discovery sections.</span></div></div><div class="panel"><span class="eyebrow">Why this matters</span><h2 style="margin:14px 0;">Why list on drinksearcher.hk.</h2><p class="muted">This is where suppliers and venues move from browsing to joining — with a clear path into profiles, product visibility, featured placements, and direct customer discovery.</p><div class="inline-actions" style="margin-top:18px;"><a class="btn btn-ghost btn-small" href="suppliers.html">View supplier directory</a><a class="btn btn-ghost btn-small" href="bars-restaurants.html">View venue directory</a></div></div></div></section>`;
 
   const typeField = $('[name="listingType"]', app);
+  const planField = $('#plan-select', app);
   const leadNotice = $('#lead-notice', app);
+  const fillPlanOptions = (type, selected) => {
+    const options = plans[type] || plans.merchant;
+    planField.innerHTML = options.map(([value, label]) => `<option value="${value}" ${selected === value ? 'selected' : ''}>${label}</option>`).join('');
+  };
+  fillPlanOptions(requestedType, requestedPlan);
+  typeField.addEventListener('change', () => fillPlanOptions(typeField.value, typeField.value === 'venue' ? 'venue-enhanced' : 'merchant-enhanced'));
 
-  $('#lead-form').addEventListener('submit', async function(e) {
+  $('#lead-form').addEventListener('submit', e => {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
-    const formData = {
+    const lead = storage.addLead({
+      accountEmail: user?.email || '',
       listingType: form.get('listingType'),
+      planInterest: form.get('planInterest'),
       businessName: form.get('businessName'),
       contactName: form.get('contactName'),
       email: String(form.get('email') || '').trim().toLowerCase(),
       phone: form.get('phone'),
       district: form.get('district'),
       website: form.get('website'),
+      social: form.get('social'),
       notes: form.get('notes'),
-      source: source
-    };
-    if (user) {
-      storage.addUserListing(formData);
-      if (typeof storage.updateDashboardState === 'function') {
-        var side = formData.listingType === 'venue' ? 'venue' : 'merchant';
-        storage.updateDashboardState(user.email, {
-          activeRole: side,
-          [side]: {
-            listingName: formData.businessName,
-            contactEmail: formData.email,
-            phone: formData.phone,
-            district: formData.district
-          }
-        });
-      }
-      leadNotice.innerHTML = '<div class="notice">Your <strong>' + formData.businessName + '</strong> listing has been added to your account and is now visible in the directory.</div>';
-      setTimeout(function() { window.location.href = 'dashboard.html'; }, 2000);
-      return;
-    }
-    var password = String(form.get('password') || '');
-    var signUpResult = await dsAuth.signUp({
-      name: formData.contactName,
-      email: formData.email,
-      password: password,
-      role: formData.listingType === 'venue' ? 'venue' : 'merchant',
-      city: formData.district
+      source
     });
-    if (!signUpResult.ok) {
-      leadNotice.innerHTML = '<div class="notice">' + signUpResult.message + '</div>';
-      return;
-    }
-    storage.addUserListing(formData);
-    if (typeof storage.updateDashboardState === 'function') {
-      var side = formData.listingType === 'venue' ? 'venue' : 'merchant';
-      storage.updateDashboardState(formData.email, {
-        activeRole: side,
-        [side]: {
-          listingName: formData.businessName,
-          contactEmail: formData.email,
-          phone: formData.phone,
-          district: formData.district
-        }
-      });
-    }
-    leadNotice.innerHTML = '<div class="notice">Welcome to drinksearcher.hk!<br><br>' +
-      'Your <strong>' + formData.businessName + '</strong> listing has been created and is now visible in the directory.' +
-      '<br><br>Sign in with the password you chose to manage your account and dashboard.</div>';
-    setTimeout(function() { window.location.href = 'dashboard.html'; }, 2500);
-    storage.clearPostAuthRedirect();
+    leadNotice.innerHTML = `<div class="notice">Thanks — your enquiry for <strong>${lead.businessName}</strong> has been received. ${user ? 'You can review it in your account dashboard.' : 'Create or sign into an account later to connect submissions to a profile.'}</div>`;
+    if (user) setTimeout(() => { window.location.href = 'account.html'; }, 450);
+    else e.currentTarget.reset();
   });
-}
-
-async function renderProductPage() {
-  const slug = queryParam('slug');
-  if (!slug) { $('#app').innerHTML = '<section class=\"section\"><div class=\"container\"><h1>Product not found</h1><p class=\"lead\">No product specified. <a href=\"drinks.html\">Browse all drinks</a></p></div></section>'; return; }
-  const drinksList = await fetchDrinks();
-  const matching = drinksList.filter(d => slugify(d.name) === slug);
-  if (!matching.length) { $('#app').innerHTML = '<section class=\"section\"><div class=\"container\"><h1>Product not found</h1><p class=\"lead\">We can\'t find this product. <a href=\"drinks.html\">Browse all drinks</a></p></div></section>'; return; }
-  const product = matching[0];
-  const img = product.image || 'assets/images/placeholder-bottle.svg';
-  const rows = matching.map(d => `
-    <tr>
-      <td class="supplier-cell"><strong>${d.supplier}</strong><span class="muted">${d.area || ''}</span></td>
-      <td class="price-cell">${d.price}</td>
-      <td class="availability-cell"><span class="badge badge-${d.tier === 'enhanced' ? 'in-stock' : 'limited'}">${d.tier === 'enhanced' ? 'In stock' : 'Available'}</span></td>
-      <td class="action-cell">${d.buy ? `<a class="btn btn-primary btn-small" href="${d.buy}" target="_blank">Buy / Enquire</a>` : '<span class="muted">Contact supplier</span>'}</td>
-    </tr>
-  `).join('');
-  const uniqueSuppliers = new Set(matching.map(d => d.supplier)).size;
-  const app = $('#app');
-  app.innerHTML = `
-    <section class="product-page">
-      <div class="container">
-        <div class="product-hero">
-          <div class="product-hero-image"><img src="${img}" alt="${product.name}"></div>
-          <div class="product-hero-info">
-            <h1>${product.name}</h1>
-            <p class="muted">Available from <strong>${uniqueSuppliers}</strong> supplier${uniqueSuppliers > 1 ? 's' : ''}</p>
-            ${product.description ? `<p class="product-description">${product.description}</p>` : ''}
-            <div class="info-strip">
-              <div class="info-chip"><div class="muted">Origin</div><strong>${product.origin || '—'}</strong></div>
-              <div class="info-chip"><div class="muted">ABV</div><strong>${product.abv || '—'}</strong></div>
-              <div class="info-chip"><div class="muted">Type</div><strong>${product.type}</strong></div>
-            </div>
-          </div>
-        </div>
-        <section class="supplier-comparison">
-          <div class="section-head"><div><span class="eyebrow">Compare prices</span><h2>Where to buy</h2></div></div>
-          <div class="table-wrap">
-            <table class="comparison-table">
-              <thead><tr><th>Supplier</th><th>Price</th><th>Availability</th><th></th></tr></thead>
-              <tbody>${rows}</tbody>
-            </table>
-          </div>
-          <p class="muted" style="margin-top:14px;font-size:.9rem;">Prices and availability are provided by suppliers and may change. Contact the supplier to confirm.</p>
-        </section>
-      </div>
-    </section>
-  `;
-  document.title = `${product.name} — drinksearcher.hk`;
-  bindSaveButtons(app);
 }
 
 function queryParam(name) {
@@ -1343,7 +1060,7 @@ function renderVenueProfile() {
     <div class="anchor-nav"><div class="container"><a class="anchor-link active" href="#overview">Overview</a><a class="anchor-link" href="#drinks">Signature Drinks</a><a class="anchor-link" href="#gallery">Gallery</a><a class="anchor-link" href="#events">Events</a><a class="anchor-link" href="#reviews">Reviews</a><a class="anchor-link" href="#location">Location & Hours</a></div></div>
     <section id="overview" class="section"><div class="container split"><div><span class="eyebrow">Overview</span><h2>Everything you want to know before you go.</h2><p class="lead" style="margin-top:16px;">See the mood, signature serves, upcoming events, and the practical details that help you decide whether this venue fits the night you have in mind.</p><div class="inline-actions" style="margin-top:18px;">${profile.highlights.map(h => `<span class="chip">${h}</span>`).join('')}</div></div><div class="panel"><h3>Why people go</h3><p class="muted" style="margin-top:12px;">Use this page to judge atmosphere, drinks style, and booking fit quickly — without jumping between tabs.</p></div></div></section>
     <section id="drinks" class="section-tight"><div class="container"><div class="section-head"><div><span class="eyebrow">Signature drinks</span><h2>What to order first.</h2><p class="lead" style="margin-top:14px;">A quick look at the serves and menu highlights that help define the venue.</p></div></div><div class="grid grid-3">${profile.drinks.map(d => renderCard({name:d[0], area:profile.area, description:d[2], price:d[1], image:siteImages.trio, type:'Signature serve'}, {type:'drink', cta:'<span class="btn btn-ghost btn-small">Menu highlight</span>'})).join('')}</div></div></section>
-    <section id="gallery" class="section"><div class="container"><div class="section-head"><div><span class="eyebrow">Gallery</span><h2>Inside the venue.</h2><p class="lead" style="margin-top:14px;">See the room, the energy, and the style before you visit.</p></div></div><div class="gallery-grid"><img src="${siteImages.rooftop}" alt="Venue gallery"><img src="${siteImages.event}" alt="Venue gallery"><img src="${siteImages.hero}" alt="Venue gallery"></div></div></section>
+    <section id="gallery" class="section"><div class="container"><div class="section-head"><div><span class="eyebrow">Gallery</span><h2>Inside the venue.</h2><p class="lead" style="margin-top:14px;">A visual feel for the room, energy, and style before you decide to book.</p></div></div><div class="gallery-grid"><img src="${siteImages.rooftop}" alt="Venue gallery"><img src="${siteImages.event}" alt="Venue gallery"><img src="${siteImages.hero}" alt="Venue gallery"></div></div></section>
     <section id="events" class="section-tight"><div class="container"><div class="section-head"><div><span class="eyebrow">Upcoming events</span><h2>What's happening soon.</h2><p class="lead" style="margin-top:14px;">Guest shifts, special menus, and tasting nights that give you another reason to visit.</p></div></div><div class="grid grid-3">${profile.events.map((evt, index) => renderCard({name:evt[0], area:profile.area, venue:profile.name, date:evt[1], image:[siteImages.event, siteImages.rooftop, siteImages.hero][index % 3], tierLabel:'Event'}, {type:'event', className:'event-card', cta:'<span class="btn btn-ghost btn-small">Event highlight</span>'})).join('')}</div></div></section>
     <section id="reviews" class="section"><div class="container grid grid-3">${profile.reviews.map(r => `<div class="panel"><span class="eyebrow">Guest review</span><p style="margin-top:14px; font-size:1.05rem;">${r[0]}</p><p class="muted" style="margin-top:14px;">— ${r[1]}</p></div>`).join('')}</div></section>
     <section id="location" class="section"><div class="container grid grid-2"><div class="panel"><span class="eyebrow">Location & Hours</span><h3 style="margin:14px 0;">Plan your visit.</h3><div class="muted" style="display:grid; gap:10px;"><span>${profile.address}</span><span>${profile.phone}</span>${profile.hours.map(h => `<span>${h}</span>`).join('')}</div></div><div class="panel"><span class="eyebrow">Claim your venue</span><h3 style="margin:14px 0;">Want this page for your own bar or restaurant?</h3><p class="muted">Add direct booking links, better imagery, and promoted event placement so guests have a clearer reason to choose you.</p><div class="inline-actions" style="margin-top:18px;"><a class="btn btn-primary" href="pricing.html">View venue pricing</a><a class="btn btn-ghost" href="list-your-business.html?type=venue&plan=venue-enhanced">Claim your venue</a></div></div></div></section>`;
@@ -1354,142 +1071,71 @@ function renderSupplierProfile() {
   const slug = queryParam('slug') || 'watsons-wine';
   const profile = supplierProfiles[slug] || supplierProfiles['watsons-wine'];
   const app = $('#app');
-  const hasSheet = typeof supplierSheetSources !== 'undefined' && supplierSheetSources[slug];
   app.innerHTML = `
     <section class="profile-hero"><div class="hero-media" style="background-image:url('${profile.hero}')"></div><div class="container profile-content"><div><span class="kicker">Featured supplier</span><h1>${profile.name}</h1><p class="lead" style="margin-top:16px;">${profile.summary}</p><div class="info-strip"><div class="info-chip"><div class="muted">Area</div><strong>${profile.area}</strong></div><div class="info-chip"><div class="muted">Specialty</div><strong>${profile.specialty}</strong></div><div class="info-chip"><div class="muted">Website</div><strong>Online store</strong></div><div class="info-chip"><div class="muted">Listing</div><strong>Verified profile</strong></div></div></div><div class="panel"><span class="eyebrow">Quick actions</span><div class="inline-actions" style="margin-top:16px;"><a class="btn btn-primary" href="${profile.website}">Visit supplier website</a>${saveButton({id:`supplier:${slug}`, name:profile.name, kind:'supplier', href:`supplier-template.html?slug=${slug}`, meta:profile.area})}</div><hr class="sep"><div class="muted" style="display:grid; gap:8px;"><span>${profile.address}</span><span>${profile.phone}</span><span>${profile.specialty}</span></div></div></div></section>
-    <div class="anchor-nav"><div class="container"><a class="anchor-link active" href="#inventory">Inventory</a><a class="anchor-link" href="#contact">Contact</a></div></div>
-    <section id="inventory" class="section-tight"><div class="container"><div class="section-head"><div><span class="eyebrow">Live Inventory</span><h2>What's ready to order right now.</h2><p class="lead" style="margin-top:14px;">Verified stock from ${profile.name}'s current catalogue — prices and availability updated directly by the supplier.</p></div></div><div id="sheet-inventory-${slug}"><p class="muted">Loading inventory...</p></div></div></section>
-    <section id="contact" class="section"><div class="container grid grid-2"><div class="panel"><span class="eyebrow">Contact</span><h3 style="margin:14px 0;">Ready to place an order?</h3><p class="muted">Browse the selection above, then reach out directly to ${profile.name} to confirm availability and arrange delivery.</p><div class="muted" style="display:grid; gap:10px; margin-top:16px;"><span>${profile.address}</span><span>${profile.phone}</span><span><a href="${profile.website}">${profile.website}</a></span></div></div><div class="panel"><span class="eyebrow">Own this listing?</span><h3 style="margin:14px 0;">Update your profile anytime</h3><p class="muted">Connect your Google Sheet to stream live inventory, update pricing, and keep your catalogue fresh. No coding required.</p><div class="inline-actions" style="margin-top:18px;"><a class="btn btn-primary btn-small" href="list-your-business.html?type=merchant&plan=merchant-enhanced">List your business</a></div></div></div></section>`;
+    <div class="anchor-nav"><div class="container"><a class="anchor-link active" href="#overview">Overview</a><a class="anchor-link" href="#catalogue">Catalogue</a><a class="anchor-link" href="#events">Events</a><a class="anchor-link" href="#reviews">Reviews</a><a class="anchor-link" href="#contact">Contact</a></div></div>
+    <section id="overview" class="section"><div class="container split"><div><span class="eyebrow">Overview</span><h2>Why shoppers use this supplier.</h2><p class="lead" style="margin-top:16px;">Get a quick sense of what this merchant does best, the bottle categories they are known for, and the easiest route to browse or buy locally.</p></div><div class="panel"><div class="muted" style="display:grid; gap:12px;">${profile.sellingPoints.map(i => `<span>• ${i}</span>`).join('')}</div></div></div></section>
+    <section id="catalogue" class="section-tight"><div class="container"><div class="section-head"><div><span class="eyebrow">Catalogue</span><h2>Bottles and categories to start with.</h2><p class="lead" style="margin-top:14px;">A quick sample of what this supplier is known for before you click through to the full shop.</p></div></div><div class="grid grid-3">${profile.catalogue.map(item => renderCard({name:item[0], area:profile.area, price:item[1], image:siteImages.shop, type:profile.specialty, description:'Sample bottle from this supplier'}, {type:'drink', cta:`<a class="btn btn-primary btn-small" href="${profile.website}">Buy from supplier</a>`})).join('')}</div></div></section>
+    <section id="events" class="section"><div class="container"><div class="section-head"><div><span class="eyebrow">Supplier events</span><h2>Tastings and activations worth watching.</h2><p class="lead" style="margin-top:14px;">A more visual event section so supplier tastings and launches feel like premium programming, not plain text.</p></div></div><div class="grid grid-2">${profile.events.map((evt, index) => renderCard({name:evt[0], area:profile.area, venue:profile.name, date:evt[1], image:[siteImages.event, siteImages.shop, siteImages.rooftop][index % 3], tierLabel:'Supplier event'}, {type:'event', className:'event-card', cta:`<a class="btn btn-primary btn-small" href="${profile.website}">Visit supplier</a>`})).join('')}</div></div></section>
+    <section id="reviews" class="section-tight"><div class="container grid grid-2">${profile.reviews.map(r => `<div class="panel"><span class="eyebrow">Customer feedback</span><p style="margin-top:14px; font-size:1.05rem;">${r[0]}</p><p class="muted" style="margin-top:14px;">— ${r[1]}</p></div>`).join('')}</div></section>
+    <section id="contact" class="section"><div class="container grid grid-2"><div class="panel"><span class="eyebrow">Contact</span><h3 style="margin:14px 0;">Ready to browse or buy?</h3><div class="muted" style="display:grid; gap:10px;"><span>${profile.address}</span><span>${profile.phone}</span><span><a href="${profile.website}">${profile.website}</a></span></div></div><div class="panel"><span class="eyebrow">Own this supplier listing?</span><h3 style="margin:14px 0;">Get your profile live</h3><p class="muted">Add your story, catalogue, and store links so shoppers can move from discovery to purchase more easily.</p><div class="inline-actions" style="margin-top:18px;"><a class="btn btn-primary btn-small" href="list-your-business.html?type=merchant&plan=merchant-enhanced">List your business</a></div></div></div></section>`;
   bindSaveButtons(app);
-  if (hasSheet) {
-    var el = document.getElementById('sheet-inventory-' + slug);
-    if (el) fetchAndRenderSheetInventory(slug, el);
-  }
 }
 
-async function renderSearcherAccountPage() {
+function renderSignInPage() {
   const app = $('#app');
-  const user = await dsAuth.getCurrentUser();
-  const hasPending = !!storage.getPendingSave() || new URLSearchParams(window.location.search).get('intent') === 'save';
-  if (user) {
-    app.innerHTML = `
-      <section class="hero" style="min-height:50vh;"><div class="hero-media" style="background-image:url('${siteImages.hero}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Searcher Account</span><h1>Welcome back, ${user.name || 'friend'}.</h1><p class="lead">Your account is already active. Head to your account to manage saved drinks, events, and venues.</p></div><div class="search-shell"><div class="inline-actions"><a class="btn btn-primary btn-block" href="${user.role === 'merchant' || user.role === 'venue' ? 'dashboard.html' : 'account.html'}">${user.role === 'merchant' || user.role === 'venue' ? 'Go to dashboard' : 'Go to account'}</a><button id="inline-signout" class="btn btn-ghost btn-block" type="button">Sign out</button></div></div></div></section>`;
-    var so = document.getElementById('inline-signout');
-    if (so) so.addEventListener('click', async function() { await dsAuth.signOut(); window.location.reload(); });
-    return;
-  }
-  app.innerHTML = `
-    <section class="hero" style="min-height:62vh;"><div class="hero-media" style="background-image:url('${siteImages.hero}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Searcher Account</span><h1>Your shortlist, anywhere.</h1><p class="lead">Save bottles, venues, and events. Track your finds. One account for everything.</p></div></div></section>
-    <section class="section"><div class="container grid grid-2"><div class="search-shell"><span class="eyebrow">Welcome back</span><h3 style="margin:10px 0 4px;">Sign in</h3>${hasPending ? '<div class="notice">Sign in to finish saving the item you just selected.</div>' : ''}<form id="sa-signin-form" class="form-grid" style="margin-top:14px;"><input class="input full" name="email" type="email" placeholder="Email" required /><input class="input full" name="password" type="password" placeholder="Password" required /><button class="btn btn-primary full" type="submit">Sign In</button></form><div id="sa-signin-notice"></div></div><div class="search-shell"><span class="eyebrow">New here</span><h3 style="margin:10px 0 4px;">Create account</h3><form id="sa-signup-form" class="form-grid" style="margin-top:14px;"><input class="input" name="name" placeholder="Full name" required /><input class="input full" name="email" type="email" placeholder="Email" required /><input class="input full" name="password" type="password" placeholder="Create password" required /><button class="btn btn-primary full" type="submit">Create Account</button></form><div id="sa-signup-notice"></div></div></div></section>
-    <section class="section-tight"><div class="container"><div class="panel" style="max-width:600px; margin:0 auto; text-align:center;"><span class="kicker">For businesses</span><h3 style="margin:10px 0 4px;">Supplier / Venue account</h3><p class="muted\">List your products or claim your venue. Manage inventory, pricing, and visibility from your business dashboard.</p><div class="search-shell" style="margin-top:20px;"><form id="sa-biz-form" class="form-grid"><input class="input" name="bizname" placeholder="Business name" required /><div class="grid grid-2" style="gap:12px;"><input class="input" name="email" type="email" placeholder="Email" required /><input class="input" name="password" type="password" placeholder="Create password" required /><input class="input" name="phone" type="tel" placeholder="Phone (e.g. +852...)" /><select class="input" name="district"><option value="">Select district</option><option>Central</option><option>Sheung Wan</option><option>Wan Chai</option><option>Causeway Bay</option><option>Tsim Sha Tsui</option><option>Mong Kok</option><option>Kowloon City</option><option>Sai Kung</option><option>Discovery Bay</option><option>Hong Kong-wide</option></select></div><div class="inline-actions" style="margin-top:10px;"><button class="btn btn-primary" type="submit">Create Business Account</button></div></form><div id="sa-biz-notice"></div></div></div></div></section>`;
-  var signinForm = document.getElementById('sa-signin-form');
-  if (signinForm) signinForm.addEventListener('submit', async function(e) {
-    e.preventDefault();
-    var form = new FormData(e.currentTarget);
-    var email = form.get('email');
-    var password = form.get('password');
-    var result = await dsAuth.signIn(email, password);
-    document.getElementById('sa-signin-notice').innerHTML = result.ok ? '<div class="notice">Signed in successfully. Taking you to your account…</div>' : '<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">' + result.message + '</div>';
-    if (result.ok) {
-      storage.clearPostAuthRedirect();
-      var role = result.user.role;
-      setTimeout(function() { finishAuthFlow(role === 'merchant' || role === 'venue' ? 'dashboard.html' : 'account.html'); }, 300);
-    }
-  });
-  var signupForm = document.getElementById('sa-signup-form');
-  if (signupForm) signupForm.addEventListener('submit', async function(e) {
-    e.preventDefault();
-    var form = new FormData(e.currentTarget);
-    var result = await dsAuth.signUp({ name: form.get('name'), email: form.get('email'), password: form.get('password') });
-    document.getElementById('sa-signup-notice').innerHTML = result.ok ? '<div class="notice">Account created successfully. Taking you to your profile…</div>' : '<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">' + result.message + '</div>';
-    if (result.ok) { storage.clearPostAuthRedirect(); setTimeout(function() { finishAuthFlow('account.html'); }, 300); }
-  });
-  var bizForm = document.getElementById('sa-biz-form');
-  if (bizForm) bizForm.addEventListener('submit', async function(e) {
-    e.preventDefault();
-    var form = new FormData(e.currentTarget);
-    var bizname = form.get('bizname');
-    var email = form.get('email');
-    var password = form.get('password');
-    var phone = form.get('phone');
-    var district = form.get('district') || 'Central';
-    var result = await dsAuth.signUp({ name: bizname, email: email, password: password, role: 'merchant' });
-    if (result.ok) {
-      storage.updateDashboardState(email, {
-        activeRole: 'merchant',
-        merchant: {
-          listingName: bizname + ' Listing',
-          website: 'https://',
-          contactEmail: email,
-          phone: phone || '',
-          district: district,
-          notes: bizname + ' — premium spirits and beverages supplier in Hong Kong.'
-        }
-      });
-    }
-    document.getElementById('sa-biz-notice').innerHTML = result.ok ? '<div class="notice">Business account created successfully. Taking you to your dashboard…</div>' : '<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">' + result.message + '</div>';
-    if (result.ok) setTimeout(function() { window.location.href = 'dashboard.html'; }, 300);
-  });
-}
-
-async function renderSignInPage() {
-  const app = $('#app');
-  const currentUser = await dsAuth.getCurrentUser();
+  const currentUser = storage.getCurrentUser();
   const hasPending = !!storage.getPendingSave() || new URLSearchParams(window.location.search).get('intent') === 'save';
   if (currentUser) {
     app.innerHTML = `
-      <section class="hero" style="min-height:50vh;"><div class="hero-media" style="background-image:url('${siteImages.hero}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Already signed in</span><h1>Welcome back, ${currentUser.name || 'friend'}.</h1><p class="lead">Your account is already active in this browser. Head to your dashboard to manage saved drinks, events, and venues.</p></div><div class="search-shell"><div class="inline-actions"><a class="btn btn-primary btn-block" href="${currentUser.role === 'merchant' || currentUser.role === 'venue' ? 'dashboard.html' : 'account.html'}">${currentUser.role === 'merchant' || currentUser.role === 'venue' ? 'Go to dashboard' : 'Go to account'}</a><button id="inline-signout" class="btn btn-ghost btn-block" type="button">Sign out first</button></div></div></div></section>`;
-    $('#inline-signout').addEventListener('click', async () => { await dsAuth.signOut(); window.location.reload(); });
+      <section class="hero" style="min-height:50vh;"><div class="hero-media" style="background-image:url('${siteImages.hero}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Already signed in</span><h1>Welcome back, ${currentUser.name || 'friend'}.</h1><p class="lead">Your account is already active in this browser. Head to your dashboard to manage saved drinks, events, and venues.</p></div><div class="search-shell"><div class="inline-actions"><a class="btn btn-primary btn-block" href="account.html">Go to account</a><button id="inline-signout" class="btn btn-ghost btn-block" type="button">Sign out first</button></div></div></div></section>`;
+    $('#inline-signout').addEventListener('click', () => { storage.signOut(); window.location.reload(); });
     return;
   }
   app.innerHTML = `
-    <section class="hero" style="min-height:56vh;"><div class="hero-media" style="background-image:url('${siteImages.hero}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Sign in</span><h1>Your saved shortlist.</h1><p class="lead">Sign in to save drinks, events, and bars to your account, manage enquiries, and access your business dashboard.</p></div><div class="search-shell"><span class="eyebrow">Account sign in</span>${hasPending ? '<div class="notice">Sign in to finish saving the item you just selected.</div>' : ''}<form id="signin-form" class="form-grid" style="margin-top:14px;"><input class="input full" name="email" type="email" placeholder="Email" required /><input class="input full" name="password" type="password" placeholder="Password" required /><button class="btn btn-primary full" type="submit">Sign In</button></form><div id="signin-notice"></div><p class="muted" style="margin-top:16px;">New here? <a class="text-jade" href="signup.html">Create an account</a></p></div></div></section>`;
-  $('#signin-form').addEventListener('submit', async e => {
+    <section class="hero" style="min-height:56vh;"><div class="hero-media" style="background-image:url('${siteImages.hero}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Sign in</span><h1>Access your profile and saved nightlife shortlist.</h1><p class="lead">Sign in to save drinks, events, and bars to your account, manage enquiries, and access your business dashboard.</p></div><div class="search-shell"><span class="eyebrow">Account sign in</span>${hasPending ? '<div class="notice">Sign in to finish saving the item you just selected.</div>' : ''}<form id="signin-form" class="form-grid" style="margin-top:14px;"><input class="input full" name="email" type="email" placeholder="Email" required /><input class="input full" name="password" type="password" placeholder="Password" required /><button class="btn btn-primary full" type="submit">Sign In</button></form><div id="signin-notice"></div><p class="muted" style="margin-top:16px;">New here? <a class="text-jade" href="signup.html">Create an account</a></p></div></div></section>`;
+  $('#signin-form').addEventListener('submit', e => {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
-    const result = await dsAuth.signIn(form.get('email'), form.get('password'));
+    const result = storage.signIn(form.get('email'), form.get('password'));
     $('#signin-notice').innerHTML = result.ok ? '<div class="notice">Signed in successfully. Taking you to your account…</div>' : `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">${result.message}</div>`;
-    if (result.ok) { storage.clearPostAuthRedirect(); var _rt = (result.user.role === 'merchant' || result.user.role === 'venue') ? 'dashboard.html' : 'account.html'; setTimeout(() => finishAuthFlow(_rt), 300); }
+    if (result.ok) setTimeout(() => finishAuthFlow('account.html'), 300);
   });
 }
 
-async function renderSignUpPage() {
+function renderSignUpPage() {
   const app = $('#app');
-  if (await dsAuth.getCurrentUser()) {
+  if (storage.getCurrentUser()) {
     window.location.href = 'account.html';
     return;
   }
   app.innerHTML = `
-    <section class="hero" style="min-height:58vh;"><div class="hero-media" style="background-image:url('${siteImages.event}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Create account</span><h1>Create your account.</h1><p class="lead">Create an account to save bottles, venues, and events, track enquiries, and manage your business profile in one place.</p></div><div class="search-shell"><span class="eyebrow">Sign up</span><form id="signup-form" class="form-grid" style="margin-top:14px;"><input class="input" name="name" placeholder="Full name" required /><input class="input" name="city" placeholder="Preferred district" required /><input class="input full" name="email" type="email" placeholder="Email" required /><input class="input full" name="password" type="password" placeholder="Create password" required /><button class="btn btn-primary full" type="submit">Create account</button></form><div id="signup-notice"></div><p class="muted" style="margin-top:16px;">Already have an account? <a class="text-jade" href="searcher-account.html">Sign in</a></p></div></div></section>`;
-  $('#signup-form').addEventListener('submit', async e => {
+    <section class="hero" style="min-height:58vh;"><div class="hero-media" style="background-image:url('${siteImages.event}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Create account</span><h1>Create your account.</h1><p class="lead">Create an account to save bottles, venues, and events, track enquiries, and manage your business profile in one place.</p></div><div class="search-shell"><span class="eyebrow">Sign up</span><form id="signup-form" class="form-grid" style="margin-top:14px;"><input class="input" name="name" placeholder="Full name" required /><input class="input" name="city" placeholder="Preferred district" required /><input class="input full" name="email" type="email" placeholder="Email" required /><input class="input full" name="password" type="password" placeholder="Create password" required /><button class="btn btn-primary full" type="submit">Create account</button></form><div id="signup-notice"></div><p class="muted" style="margin-top:16px;">Already have an account? <a class="text-jade" href="signin.html">Sign in</a></p></div></div></section>`;
+  $('#signup-form').addEventListener('submit', e => {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
-    const result = await dsAuth.signUp({ name: form.get('name'), city: form.get('city'), email: form.get('email'), password: form.get('password') });
+    const result = storage.signUp({ name: form.get('name'), city: form.get('city'), email: form.get('email'), password: form.get('password') });
     $('#signup-notice').innerHTML = result.ok ? '<div class="notice">Account created successfully. Taking you to your profile…</div>' : `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">${result.message}</div>`;
-    if (result.ok) { storage.clearPostAuthRedirect(); var _ut = (result.user.role === 'merchant' || result.user.role === 'venue') ? 'dashboard.html' : 'account.html'; setTimeout(() => finishAuthFlow(_ut), 300); }
-});
+    if (result.ok) setTimeout(() => finishAuthFlow('account.html'), 300);
+  });
 }
 
-async function renderAccountPage() {
+function renderAccountPage() {
   const app = $('#app');
-  const user = await dsAuth.getCurrentUser();
+  const user = storage.getCurrentUser();
   if (!user) {
     storage.setPostAuthRedirect('account.html');
-    window.location.href = 'searcher-account.html';
-    return;
-  }
-  if (user.role === 'merchant' || user.role === 'venue') {
-    window.location.href = 'dashboard.html';
+    window.location.href = 'signin.html';
     return;
   }
   app.innerHTML = `
     <section class="hero" style="min-height:48vh;"><div class="hero-media" style="background-image:url('${siteImages.rooftop}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">My account</span><h1>${user.name || 'Your account'} <span class="text-jade">dashboard</span>.</h1><p class="lead">Manage your profile, keep a shortlist of drinks and venues, and stay on top of your enquiries and saved discoveries.</p></div><div class="search-shell"><span class="eyebrow">Profile details</span><form id="account-form" class="form-grid" style="margin-top:14px;"><input class="input" name="name" value="${user.name || ''}" placeholder="Full name" required /><input class="input" name="city" value="${user.city || ''}" placeholder="Preferred district" required /><input class="input full" value="${user.email}" disabled /><button class="btn btn-primary full" type="submit">Update profile</button></form><div id="account-notice"></div></div></div></section>
     <section class="section"><div class="container grid grid-2"><div class="panel"><span class="eyebrow">Saved items</span><h2 style="margin:14px 0;">Your shortlist</h2><div id="saved-items"></div></div><div class="panel"><span class="eyebrow">Account actions</span><h2 style="margin:14px 0;">Keep track of what matters.</h2><div class="muted" style="display:grid; gap:12px;"><span>• Save bottles, bars, and events for later.</span><span>• Review your enquiries and listing requests.</span><span>• Access your business dashboard if you manage a supplier or venue profile.</span></div><div class="inline-actions" style="margin-top:18px;"><a class="btn btn-ghost" href="drinks.html">Save more drinks</a><a class="btn btn-secondary" href="list-your-business.html">List your business</a><a class="btn btn-primary" href="dashboard.html">Open business dashboard</a></div></div></div></section>
     <section class="section-tight"><div class="container"><div class="panel"><span class="eyebrow">My business enquiries</span><h2 style="margin:14px 0;">Submitted lead capture forms</h2><div id="account-leads"></div></div></div></section>`;
-  $('#account-form').addEventListener('submit', async e => {
+  $('#account-form').addEventListener('submit', e => {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
-    await dsAuth.updateProfile({ name: form.get('name'), area: form.get('city') });
+    storage.updateCurrentUserProfile({ name: form.get('name'), city: form.get('city') });
     $('#account-notice').innerHTML = '<div class="notice">Profile updated successfully.</div>';
   });
   renderAccountSaved();
@@ -1500,7 +1146,7 @@ function renderAccountSaved() {
   const holder = $('#saved-items');
   if (!holder) return;
   const saved = storage.getSaved();
-  holder.innerHTML = saved.length ? `<div class="saved-grid">${saved.map(item => `<div class="panel"><div class="eyebrow">${item.kind}</div><h3 style="margin:12px 0;">${item.name}</h3><p class="muted">${item.meta || ''}</p><div class="inline-actions" style="margin-top:16px;">${ctaLink('Open', item.href, 'btn btn-ghost btn-small', 'Saved item')}<button class="btn btn-primary btn-small" data-remove="${item.id}">Remove</button></div></div>`).join('')}</div>` : '<div class="empty-state">You have not saved any drinks, events, suppliers, or venues yet.</div>';
+  holder.innerHTML = saved.length ? `<div class="saved-grid">${saved.map(item => `<div class="panel"><div class="eyebrow">${item.kind}</div><h3 style="margin:12px 0;">${item.name}</h3><p class="muted">${item.meta || ''}</p><div class="inline-actions" style="margin-top:16px;">${ctaLink('Open', item.href, 'btn btn-ghost btn-small', 'Saved item')}<button class="btn btn-secondary btn-small" data-remove="${item.id}">Remove</button></div></div>`).join('')}</div>` : '<div class="empty-state">You have not saved any drinks, events, suppliers, or venues yet.</div>';
   $$('[data-remove]', holder).forEach(btn => btn.addEventListener('click', () => {
     storage.setSaved(storage.getSaved().filter(item => item.id !== btn.dataset.remove));
     renderAccountSaved();
@@ -1512,15 +1158,15 @@ function renderAccountLeads() {
   const holder = $('#account-leads');
   if (!holder) return;
   const leads = storage.getCurrentUserLeads();
-  holder.innerHTML = leads.length ? `<div class="grid grid-2">${leads.map(lead => `<div class="panel"><div class="eyebrow">${lead.listingType === 'venue' ? 'Venue enquiry' : 'Merchant enquiry'}</div><h3 style="margin:12px 0;">${lead.businessName}</h3><p class="muted">${(lead.planInterest || 'Standard').replace(/-/g, ' ')} · ${lead.district}</p><div class="muted" style="display:grid; gap:8px; margin-top:14px;"><span>${lead.contactName}</span><span>${lead.email}</span><span>${lead.phone}</span></div><div class="inline-actions" style="margin-top:16px;"><a class="btn btn-ghost btn-small" href="list-your-business.html?type=${lead.listingType}&plan=${lead.planInterest || 'standard'}">Edit / submit another</a><a class="btn btn-primary btn-small" href="dashboard.html?role=${lead.listingType}">Open dashboard</a></div></div>`).join('')}</div>` : '<div class="empty-state">No business enquiries yet. Use the lead capture page to submit your first supplier or venue application.</div>';
+  holder.innerHTML = leads.length ? `<div class="grid grid-2">${leads.map(lead => `<div class="panel"><div class="eyebrow">${lead.listingType === 'venue' ? 'Venue enquiry' : 'Merchant enquiry'}</div><h3 style="margin:12px 0;">${lead.businessName}</h3><p class="muted">${lead.planInterest.replace(/-/g, ' ')} · ${lead.district}</p><div class="muted" style="display:grid; gap:8px; margin-top:14px;"><span>${lead.contactName}</span><span>${lead.email}</span><span>${lead.phone}</span></div><div class="inline-actions" style="margin-top:16px;"><a class="btn btn-ghost btn-small" href="list-your-business.html?type=${lead.listingType}&plan=${lead.planInterest}">Edit / submit another</a><a class="btn btn-primary btn-small" href="dashboard.html?role=${lead.listingType}">Open dashboard</a></div></div>`).join('')}</div>` : '<div class="empty-state">No business enquiries yet. Use the lead capture page to submit your first supplier or venue application.</div>';
 }
 
-async function renderBusinessDashboardPage() {
+function renderBusinessDashboardPage() {
   const app = $('#app');
-  const user = await dsAuth.getCurrentUser();
+  const user = storage.getCurrentUser();
   if (!user) {
     storage.setPostAuthRedirect(currentPagePath());
-    window.location.href = 'searcher-account.html';
+    window.location.href = 'signin.html';
     return;
   }
   const state = storage.getDashboardState();
@@ -1543,135 +1189,141 @@ async function renderBusinessDashboardPage() {
           ['bookingBoost', 'Booking link boost']
         ];
     const listingLabels = role === 'merchant'
-      ? ['Product / listing', 'Price', 'Availability']
-      : ['Offer / event / table inventory', 'Price', 'Availability'];
-    app.innerHTML = `
+      ? ['Product / listing', 'Price', 'Availability', 'Visibility']
+      : ['Offer / event / table inventory', 'Price', 'Availability', 'Visibility'];
+    return `
       <div class="dashboard-shell">
-        <div class="admin-top">
-          <h1>${roleTitle}</h1>
-          <div class="admin-top-stats">
-            <span>${config.items.length} entries</span>
-            <span>${config.membership}</span>
-            <span>${config.billing}</span>
-            <div class="role-switch" style="display:inline-flex;">
-              <button class="toggle-pill ${role === 'merchant' ? 'active' : ''}" data-role-switch="merchant" style="font-size:.8rem;padding:4px 10px;">Merchant</button>
-              <button class="toggle-pill ${role === 'venue' ? 'active' : ''}" data-role-switch="venue" style="font-size:.8rem;padding:4px 10px;">Venue</button>
+        <section class="hero" style="min-height:52vh;">
+          <div class="hero-media" style="background-image:url('${role === 'merchant' ? siteImages.shop : siteImages.rooftop}')"></div>
+          <div class="container hero-grid">
+            <div class="hero-copy">
+              <span class="kicker">Business dashboard</span>
+              <h1>${roleTitle} for <span class="text-jade">${user.name || 'your account'}</span>.</h1>
+              <p class="lead">Manage listings, pricing, availability, featured add-ons, membership position, and account-facing business details from one place.</p>
+              <div class="stats-row">
+                <div class="stat"><strong>${config.items.length}</strong><span class="muted">active entries</span></div>
+                <div class="stat"><strong>${config.membership}</strong><span class="muted">current plan</span></div>
+                <div class="stat"><strong>${config.billing}</strong><span class="muted">billing cycle</span></div>
+              </div>
+            </div>
+            <div class="search-shell">
+              <span class="eyebrow">Workspace mode</span>
+              <div class="role-switch" style="margin-top:16px;">
+                <button class="toggle-pill ${role === 'merchant' ? 'active' : ''}" data-role-switch="merchant">Merchant view</button>
+                <button class="toggle-pill ${role === 'venue' ? 'active' : ''}" data-role-switch="venue">Venue view</button>
+              </div>
+              <div class="notice">Changes made here stay tied to your signed-in account, so you can manage supplier and venue workflows from one place.</div>
             </div>
           </div>
-        </div>
+        </section>
 
-        <div class="dashboard-panels-grid">
-        <div class="admin-section">
-          <div class="admin-section-head"><span>Details</span></div>
-          <div class="panel">
-          <form id="dashboard-profile-form" class="dashboard-form">
+        <section class="section-tight">
+          <div class="container grid grid-2">
+            <div class="panel">
+              <span class="eyebrow">Listing controls</span>
+              <h2 style="margin:14px 0;">${roleLabel} setup</h2>
+              <form id="dashboard-profile-form" class="form-grid">
                 <input class="input full" name="listingName" value="${config.listingName}" placeholder="Listing name" />
                 <input class="input" name="website" value="${config.website}" placeholder="Website or booking URL" />
                 <input class="input" name="contactEmail" value="${config.contactEmail}" placeholder="Contact email" />
                 <input class="input" name="phone" value="${config.phone}" placeholder="Phone" />
                 <input class="input" name="district" value="${config.district}" placeholder="District" />
                 <textarea class="input full" name="notes" rows="4" placeholder="Business notes">${config.notes}</textarea>
-                <input class="input" name="sheetUrl" value="${config.sheetUrl || ''}" placeholder="Google Sheet CSV URL (published to web)" />
-                <div class="small-note">Publish your Google Sheet: File → Share → Publish to web → CSV → copy URL. Products appear on your supplier listing page.</div>
-                <button class="admin-btn" type="submit">Save</button>
+                <button class="btn btn-primary full" type="submit">Save listing settings</button>
               </form>
               <div id="dashboard-notice"></div>
             </div>
-        </div>
-        <div class="admin-section">
-          <div class="admin-section-head"><span>Plan & add-ons</span></div>
-          <div class="panel">
-          <form id="dashboard-plan-form" class="dashboard-form">
+            <div class="panel">
+              <span class="eyebrow">Membership & add-ons</span>
+              <h2 style="margin:14px 0;">Plan, billing, and visibility boosts</h2>
+              <form id="dashboard-plan-form" class="dashboard-stack">
                 <label class="dashboard-field"><span>Membership tier</span><select class="select" name="membership">${(role === 'merchant' ? ['Merchant Starter','Merchant Enhanced','Merchant Premium'] : ['Venue Starter','Venue Enhanced','Venue Enhanced + Events']).map(option => `<option value="${option}" ${config.membership === option ? 'selected' : ''}>${option}</option>`).join('')}</select></label>
                 <label class="dashboard-field"><span>Billing cycle</span><select class="select" name="billing"><option value="Monthly" ${config.billing === 'Monthly' ? 'selected' : ''}>Monthly</option><option value="Annual" ${config.billing === 'Annual' ? 'selected' : ''}>Annual</option></select></label>
                 <div class="dashboard-toggle-group">
                   ${addOnRows.map(([key, label]) => `<label class="check-row"><input type="checkbox" name="${key}" ${config[key] ? 'checked' : ''} /><span>${label}</span></label>`).join('')}
                 </div>
-                <button class="admin-btn" type="submit">Save</button>
-                <a class="admin-btn" href="pricing.html">Pricing</a>
+                <button class="btn btn-secondary" type="submit">Save plan settings</button>
+                <a class="btn btn-ghost" href="pricing.html">Review pricing</a>
               </form>
             </div>
-        </div>
-        </div>
+          </div>
+        </section>
 
-        <div class="admin-section">
-          <div class="admin-section-head"><span>Inventory</span></div>
-          <div class="panel">
-            <div >
-              <div class="admin-table-head"><div>${listingLabels[0]}</div><div>${listingLabels[1]}</div><div>${listingLabels[2]}</div><div>Show in directory</div><div>Clicks</div><div></div></div>
+        <section class="section-tight">
+          <div class="container">
+            <div class="section-head"><div><span class="eyebrow">Pricing & availability</span><h2>${role === 'merchant' ? 'Manage stock visibility and current pricing.' : 'Manage offers, ticketing, tables, and availability.'}</h2></div></div>
+            <div class="dashboard-table-wrap">
+              <div class="dashboard-table-head"><div>${listingLabels[0]}</div><div>${listingLabels[1]}</div><div>${listingLabels[2]}</div><div>${listingLabels[3]}</div></div>
               <div id="dashboard-items">${config.items.map((item, index) => `
-                <div class="admin-table-row">
+                <div class="dashboard-row">
                   <input class="input" data-item-name="${index}" value="${item.name}" />
                   <input class="input" data-item-price="${index}" value="${item.price}" />
                   <select class="select" data-item-availability="${index}">
                     ${['In stock','Low stock','Pre-order','Live','Selling','Open tables','Sold out'].map(option => `<option value="${option}" ${item.availability === option ? 'selected' : ''}>${option}</option>`).join('')}
                   </select>
-
-                  <label class="check-row" style="justify-content:center;"><input type="checkbox" data-item-displayed="${index}" ${item.displayed !== false ? 'checked' : ''} /><span class="sr-only">Show in directory</span></label>
-                  <span class="muted" style="text-align:center;font-size:.82rem;">${(JSON.parse(localStorage.getItem('ds_click_counts') || '{}'))[(config.listingName || user.name || '') + ':' + (item.name || '')] || 0}</span>
-                  <button class="admin-btn admin-btn-sm" data-item-delete="${index}" type="button" title="Delete item">✕</button>
+                  <select class="select" data-item-visibility="${index}">
+                    ${['Standard','Enhanced','Featured','Homepage event','Venue page'].map(option => `<option value="${option}" ${item.visibility === option ? 'selected' : ''}>${option}</option>`).join('')}
+                  </select>
                 </div>`).join('')}</div>
-              <div class="inline-actions" style="padding:12px;gap:8px;">
-                <button class="admin-btn" id="save-items-btn" type="button">Save</button>
-                <button class="admin-btn admin-btn-sm" id="add-item-btn" type="button">Add row</button>
-                <button class="admin-btn admin-btn-sm" id="import-sheet-btn" type="button">Import sheet</button>
+              <div class="inline-actions" style="padding:20px; border-top:1px solid rgba(255,255,255,.06);">
+                <button class="btn btn-primary" id="save-items-btn" type="button">Save pricing & availability</button>
+                <button class="btn btn-ghost" id="add-item-btn" type="button">Add another row</button>
               </div>
             </div>
-        </div>
+          </div>
+        </section>
 
         ${role === 'merchant' ? `
-        <div class="admin-section">
-          <div class="admin-section-head"><span>Website scan</span></div>
-          <div class="panel">
+        <section class="section-tight">
+          <div class="container grid grid-2">
+            <div class="panel admin-stack">
+              <span class="eyebrow">Google Sheets import</span>
+              <h2 style="margin:14px 0;">Load inventory from a supplier sheet.</h2>
+              <p class="muted">Paste a published CSV URL from Google Sheets or paste CSV rows directly. This is the fastest path for suppliers who already manage stock in a spreadsheet.</p>
+              <label class="dashboard-field"><span>Google Sheet CSV URL or pasted CSV</span><textarea class="input" rows="6" id="sheet-import-source" placeholder="https://docs.google.com/.../export?format=csv or pasted CSV rows"></textarea></label>
+              <label class="dashboard-field"><span>Import mode</span><select class="select" id="sheet-import-mode"><option value="append">Append to current inventory</option><option value="replace">Replace current inventory</option></select></label>
+              <div class="admin-inline"><button class="btn btn-primary" id="sheet-import-btn" type="button">Import inventory</button><button class="btn btn-ghost" id="sheet-template-btn" type="button">Insert sample template</button></div>
+              <div class="small-note">Recommended columns: Name, Price, Availability, Visibility. You can extend the mapping later for SKU, size, pack, ABV, image, and product URL.</div>
+              <div id="sheet-import-notice"></div>
+            </div>
+            <div class="panel admin-stack">
+              <span class="eyebrow">Website scan</span>
+              <h2 style="margin:14px 0;">Queue an ecommerce scan for mixed platforms.</h2>
+              <p class="muted">For mixed supplier websites, the strongest production setup is connector-first and crawler-second: use platform APIs or feeds where available, then fall back to product structured data and page crawling.</p>
               <label class="dashboard-field"><span>Supplier ecommerce URL</span><input class="input" id="scan-site-url" placeholder="https://supplier-site.hk" /></label>
               <label class="dashboard-field"><span>Platform type</span><select class="select" id="scan-site-platform"><option value="Mixed">Mixed</option><option value="Shopify">Shopify</option><option value="WooCommerce">WooCommerce</option><option value="Custom">Custom</option></select></label>
               <label class="dashboard-field"><span>Founder note</span><textarea class="input" rows="4" id="scan-site-notes" placeholder="Optional notes about collections, categories, or important product pages"></textarea></label>
-              <div class="admin-inline"><button class="admin-btn" id="scan-site-btn" type="button">Queue scan request</button></div>
+              <div class="admin-inline"><button class="btn btn-secondary" id="scan-site-btn" type="button">Queue scan request</button></div>
               <div class="small-note">Website scan requests are queued into Founder Admin for review. Shopify, WooCommerce, sitemap, feed, and structured-data connectors can be added as the next production step.</div>
               <div id="scan-site-notice"></div>
+            </div>
           </div>
-        </div>` : ''}
+        </section>` : ''}
 
-        <div class="admin-section">
-          <div class="admin-section-head"><span>Add-ons</span></div>
-          <div class="panel">
-              <div class="addon-list" style="margin-top:10px;">
-                ${addOnRows.map(([key, label]) => `<div class="addon-card"><div><strong>${label}</strong><p class="muted">${config[key] ? 'Enabled' : 'Off'}</p></div></div>`).join('')}
-              </div>
-          </div>
-        </div>
-        <div class="admin-section">
-          <div class="admin-section-head"><span>Account</span></div>
-          <div class="panel">
-              <div class="muted" style="display:grid; gap:6px;margin-top:10px;">
-                <span>${user.name || 'Unnamed user'}</span>
-                <span>${user.email}</span>
-              </div>
-              <div class="inline-actions" style="margin-top:12px;">
-                <a class="admin-btn admin-btn-sm" href="suppliers.html">Directory</a>
-                <a class="admin-btn" href="list-your-business.html?type=${role === 'merchant' ? 'merchant' : 'venue'}">Edit details</a>
+        <section class="section">
+          <div class="container grid grid-2">
+            <div class="panel">
+              <span class="eyebrow">Featured placement</span>
+              <h2 style="margin:14px 0;">Commercial upgrades in one glance.</h2>
+              <div class="addon-list">
+                ${addOnRows.map(([key, label]) => `<div class="addon-card"><div><strong>${label}</strong><p class="muted">${config[key] ? 'Enabled on this account.' : 'Currently off. Enable it above to add this placement.'}</p></div><div class="addon-price">${config[key] ? 'On' : 'Off'}</div></div>`).join('')}
               </div>
             </div>
-        </div>
-
-        <div class="admin-section">
-          <div class="admin-section-head"><span>Submission status</span></div>
-          <div class="panel">
-          <div id="dashboard-submissions-status">${(function() {
-              var as = JSON.parse(localStorage.getItem('ds_admin_state') || 'null');
-              if (!as || !as.inventorySubmissions || !as.inventorySubmissions.length) return '<div class="muted">No inventory submissions yet.</div>';
-              var mine = as.inventorySubmissions.filter(function(s) { return s.email === user.email; });
-              if (!mine.length && user.name) mine = as.inventorySubmissions.filter(function(s) { return s.businessName === user.name; });
-              if (!mine.length) mine = as.inventorySubmissions.slice(0, 3);
-              if (!mine.length) return '<div class="muted">No submissions found for this account.</div>';
-              return mine.map(function(sub) {
-                var p = (sub.items||[]).filter(function(i){return i._status === 'Pending';}).length;
-                var a = (sub.items||[]).filter(function(i){return i._status === 'Approved';}).length;
-                var r = (sub.items||[]).filter(function(i){return i._status === 'Rejected';}).length;
-                return '<div class="admin-card" style="margin-bottom:12px;"><div class="admin-card-head"><strong>' + sub.businessName + '</strong> <span class="muted"> · ' + sub.itemCount + ' items</span></div><div class="admin-card-body"><div class="inv-stats"><span class="inv-stat-pending">' + p + ' pending</span><span class="inv-stat-approved">' + a + ' approved</span>' + (r ? '<span class="inv-stat-rejected">' + r + ' rejected</span>' : '') + '</div></div></div>';
-              }).join('');
-            })()}</div>
-        </div>
+            <div class="panel">
+              <span class="eyebrow">Account details</span>
+              <h2 style="margin:14px 0;">User account + business workspace</h2>
+              <div class="muted" style="display:grid; gap:10px;">
+                <span>${user.name || 'Unnamed user'}</span>
+                <span>${user.email}</span>
+                <span>${user.city || 'Hong Kong'}</span>
+              </div>
+              <div class="inline-actions" style="margin-top:18px;">
+                <a class="btn btn-ghost" href="account.html">Back to account</a>
+                <a class="btn btn-secondary" href="list-your-business.html?type=${role === 'merchant' ? 'merchant' : 'venue'}">Edit enquiry</a>
+              </div>
+            </div>
+          </div>
+        </section>
       </div>`;
 
     const profileForm = $('#dashboard-profile-form', app);
@@ -1687,7 +1339,6 @@ async function renderBusinessDashboardPage() {
       config.phone = form.get('phone');
       config.district = form.get('district');
       config.notes = form.get('notes');
-      config.sheetUrl = form.get('sheetUrl');
       persist();
       notice.innerHTML = '<div class="notice">Listing settings saved.</div>';
     });
@@ -1702,55 +1353,56 @@ async function renderBusinessDashboardPage() {
       renderBusinessDashboardPage();
     });
     const saveItems = () => {
-      config.items = $$('.admin-table-row', app).map((row, index) => ({
+      config.items = $$('.dashboard-row', app).map((row, index) => ({
         id: config.items[index]?.id || `${role}_${Date.now()}_${index}`,
         name: $('[data-item-name]', row).value,
         price: $('[data-item-price]', row).value,
         availability: $('[data-item-availability]', row).value,
-        displayed: $('[data-item-displayed]', row)?.checked !== false
+        visibility: $('[data-item-visibility]', row).value
       }));
-      var displayedCount = config.items.filter(function(it) { return it.displayed !== false; }).length;
-      if (config.membership === 'Merchant Starter' && displayedCount > 10) {
-        notice.innerHTML = '<div class="notice" style="background:rgba(255,180,50,.08);border-color:rgba(255,180,50,.18);color:#ffecb3;">Your <strong>Merchant Starter</strong> plan allows up to <strong>10 items</strong> visible in the directory. Uncheck some items or upgrade your plan to show more.</div>';
-      } else {
-        notice.innerHTML = '<div class="notice" style="animation:flashNotice .3s ease;">Items saved successfully — pricing and availability updated.</div>';
-      }
       persist();
+      notice.innerHTML = '<div class="notice">Pricing and availability updated for this dashboard view.</div>';
     };
     $('#save-items-btn', app).addEventListener('click', saveItems);
     $('#add-item-btn', app).addEventListener('click', () => {
-      config.items.push({ id: `${role}_${Date.now()}`, name: role === 'merchant' ? 'New product' : 'New venue offer', price: 'HK$0', availability: 'In stock', visibility: 'Standard', displayed: true });
+      config.items.push({ id: `${role}_${Date.now()}`, name: role === 'merchant' ? 'New product' : 'New venue offer', price: 'HK$0', availability: 'In stock', visibility: 'Standard' });
       persist();
       renderBusinessDashboardPage();
     });
-    $('#import-sheet-btn', app).addEventListener('click', async () => {
-      const url = config.sheetUrl;
-      if (!url) {
-        notice.innerHTML = '<div class="notice" style="background:rgba(255,180,50,.08);border-color:rgba(255,180,50,.18);color:#ffecb3;">Save a Google Sheet CSV URL in the Details section first.</div>';
-        return;
-      }
-      try {
-        const text = await loadImportSourceText(url);
-        const imported = importItemsFromCSV(text);
-        if (!imported.length) throw new Error('No inventory rows found in the sheet.');
-        config.items = [...config.items, ...imported];
-        persist();
-        notice.innerHTML = `<div class="notice">Imported <strong>${imported.length}</strong> items from your sheet.</div>`;
-        renderBusinessDashboardPage();
-      } catch (error) {
-        notice.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;white-space:pre-wrap;">${error.message || 'Import failed.'}</div>`;
-      }
-    });
-    $$('[data-item-delete]', app).forEach(function(btn) {
-      btn.addEventListener('click', function() {
-        var idx = parseInt(btn.dataset.itemDelete, 10);
-        if (isNaN(idx)) return;
-        config.items.splice(idx, 1);
-        persist();
-        renderBusinessDashboardPage();
+    if (role === 'merchant' && $('#sheet-template-btn', app)) {
+      $('#sheet-template-btn', app).addEventListener('click', () => {
+        $('#sheet-import-source', app).value = 'Name,Price,Availability,Visibility\nChardonnay Reserve,188,In stock,Enhanced\nSmall Batch Gin,420,Low stock,Featured\nZero-Proof Spritz,98,Pre-order,Enhanced';
       });
-    });
-    if (role === 'merchant') {
+      $('#sheet-import-btn', app).addEventListener('click', async () => {
+        const source = $('#sheet-import-source', app).value.trim();
+        const mode = $('#sheet-import-mode', app).value;
+        const holder = $('#sheet-import-notice', app);
+        if (!source) {
+          holder.innerHTML = '<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Add a Google Sheet CSV URL or paste CSV rows first.</div>';
+          return;
+        }
+        try {
+          const text = await loadImportSourceText(source);
+          const imported = importItemsFromCSV(text);
+          if (!imported.length) throw new Error('No inventory rows were detected.');
+          config.items = mode === 'replace' ? imported : [...config.items, ...imported];
+          persist();
+          storage.addImportJob({
+            businessName: config.listingName,
+            email: config.contactEmail || user.email,
+            method: 'Google Sheets',
+            platform: 'Mixed',
+            source: source.slice(0, 180),
+            status: 'Imported',
+            itemCount: imported.length,
+            notes: `${mode === 'replace' ? 'Replaced' : 'Appended'} inventory from supplier sheet.`
+          });
+          holder.innerHTML = `<div class="notice">Imported <strong>${imported.length}</strong> inventory rows into the merchant dashboard.</div>`;
+          setTimeout(() => renderBusinessDashboardPage(), 300);
+        } catch (error) {
+          holder.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">${error.message || 'Import failed. Try using pasted CSV rows or a public CSV URL.'}</div>`;
+        }
+      });
       $('#scan-site-btn', app).addEventListener('click', () => {
         const source = $('#scan-site-url', app).value.trim();
         const platform = $('#scan-site-platform', app).value;
@@ -1819,29 +1471,6 @@ function adminStatusChip(status) {
   return `<span class="status-chip ${tone}">${status}</span>`;
 }
 
-async function fetchAndRenderSheetInventory(slug, container) {
-  const sheetUrl = (typeof supplierSheetSources !== 'undefined' && supplierSheetSources[slug]) ? supplierSheetSources[slug] : null;
-  if (!sheetUrl) { container.innerHTML = ''; return; }
-  try {
-    const text = await loadImportSourceText(sheetUrl);
-    const items = importItemsFromCSV(text);
-    if (!items.length) {
-      container.innerHTML = '<p class="muted" style="padding:20px 0;">No inventory items found in the connected sheet.</p>';
-      return;
-    }
-    const displayItems = items.slice(0, 10);
-    container.innerHTML = '<div class="grid grid-5">' + displayItems.map(function(item) {
-      var sclass = String(item.availability || '').toLowerCase().replace(/[^a-z]+/g, '-');
-      var imgHtml = item.image
-        ? '<div class="card-media portrait-bottle"><img src="' + item.image + '" alt="' + item.name + '" loading="lazy" onerror="this.parentElement.style.display=\'none\'" /></div>'
-        : '';
-      return '<div class="card inventory-card">' + imgHtml + '<div class="card-body"><h4 style="margin:0 0 4px;">' + item.name + '</h4><p class="lead" style="margin:0 0 4px;">' + item.price + '</p><span class="status-chip ' + sclass + '">' + item.availability + '</span></div></div>';
-    }).join('') + '</div>';
-  } catch (e) {
-    container.innerHTML = '<p class="muted" style="padding:20px 0;">Could not load live inventory. Check that the sheet URL is valid and published publicly.</p>';
-  }
-}
-
 function parseCSVRows(text) {
   const rows = [];
   let row = [];
@@ -1879,11 +1508,7 @@ function parseCSVRows(text) {
 }
 
 function inventoryColumnIndex(headers, aliases) {
-  return headers.findIndex(header => aliases.some(a => {
-    var h = String(header || '').trim().toLowerCase().replace(/[^a-z0-9 ]/g, '');
-    var al = String(a || '').trim().toLowerCase();
-    return h.includes(al) || al.includes(h);
-  }));
+  return headers.findIndex(header => aliases.includes(header));
 }
 
 function normalizeImportPrice(value) {
@@ -1905,12 +1530,10 @@ function importItemsFromCSV(text) {
   const rows = parseCSVRows(text);
   if (rows.length < 2) return [];
   const headers = rows[0].map(cell => String(cell || '').trim().toLowerCase());
-  const nameIndex = inventoryColumnIndex(headers, ['name', 'title', 'product', 'product name', 'item', 'product name', 'item description', 'description', 'bottle', 'wine', 'spirits']);
-  const priceIndex = inventoryColumnIndex(headers, ['price', 'unit price', 'sale price', 'cost', 'rate', 'hkd', 'hk$', 'selling price', 'retail price']);
-  const availabilityIndex = inventoryColumnIndex(headers, ['availability', 'stock status', 'stock', 'inventory', 'status', 'qty', 'quantity', 'count']);
-  const visibilityIndex = inventoryColumnIndex(headers, ['visibility', 'tier', 'listing tier', 'listing', 'type', 'category']);
-  const imageIndex = inventoryColumnIndex(headers, ['image url', 'image', 'photo', 'img', 'picture', 'media', 'thumbnail', 'product image']);
-  const urlIndex = inventoryColumnIndex(headers, ['url', 'buy', 'buy url', 'product url', 'link', 'website', 'order link', 'purchase url']);
+  const nameIndex = inventoryColumnIndex(headers, ['name', 'title', 'product', 'product name', 'item']);
+  const priceIndex = inventoryColumnIndex(headers, ['price', 'unit price', 'sale price']);
+  const availabilityIndex = inventoryColumnIndex(headers, ['availability', 'stock status', 'stock', 'inventory', 'status']);
+  const visibilityIndex = inventoryColumnIndex(headers, ['visibility', 'tier', 'listing tier']);
   const items = rows.slice(1).map((row, index) => {
     const name = row[nameIndex] || row[0];
     if (!name) return null;
@@ -1919,9 +1542,7 @@ function importItemsFromCSV(text) {
       name: name.trim(),
       price: normalizeImportPrice(row[priceIndex]),
       availability: normalizeImportAvailability(row[availabilityIndex]),
-      visibility: row[visibilityIndex] || 'Enhanced',
-      image: row[imageIndex] || '',
-      buy: row[urlIndex] || ''
+      visibility: row[visibilityIndex] || 'Enhanced'
     };
   }).filter(Boolean);
   return items;
@@ -1931,37 +1552,20 @@ async function loadImportSourceText(source) {
   const text = String(source || '').trim();
   if (!text) return '';
   if (!/^https?:\/\//i.test(text)) return text;
-  
-  // Auto-convert Google Sheet edit URLs to published CSV URLs
-  var sheetMatch = text.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
-  if (sheetMatch && !text.includes('pub?') && !text.includes('export?')) {
-    throw new Error('This looks like a Google Sheet editor URL. To import inventory:\n\n1. Open your sheet and go to File → Share → Publish to web\n2. Choose "Entire document" as CSV\n3. Copy the published URL (starts with https://docs.google.com/spreadsheets/d/e/...)\n4. Paste that URL here');
-  }
-  
   const response = await fetch(text);
-  if (!response.ok) throw new Error('Could not fetch the source URL. Check that the sheet is published to the web.');
-  
-  const bodyText = await response.text();
-  
-  // Detect if response is HTML instead of CSV
-  var trimmed = bodyText.trim();
-  if (trimmed.length > 0 && trimmed[0] === '<' || /<\!DOCTYPE|\.grid-container|#sheets-viewport/.test(trimmed.slice(0, 500))) {
-    throw new Error('The URL returned an HTML page instead of CSV data. Make sure the sheet is published to the web as CSV:\n\nFile → Share → Publish to web → Select "Comma-separated values (.csv)" → Publish');
-  }
-  
-  return bodyText;
+  if (!response.ok) throw new Error('Could not fetch the source URL.');
+  return response.text();
 }
 
-async function renderAdminDashboardPage() {
+function renderAdminDashboardPage() {
   const app = $('#app');
-  const user = await dsAuth.getCurrentUser();
+  const user = storage.getCurrentUser();
   if (!user) {
     storage.setPostAuthRedirect('admin.html');
-    window.location.href = 'searcher-account.html';
+    window.location.href = 'signin.html';
     return;
   }
   const state = storage.getAdminState();
-  publishApprovedItems();
   const appFilter = queryParam('filter') || 'all';
   const filteredApplications = state.applications.filter(entry => appFilter === 'all' || entry.listingType === appFilter);
   const counts = {
@@ -1971,107 +1575,131 @@ async function renderAdminDashboardPage() {
     moderation: state.moderation.filter(entry => ['Queued', 'Reviewing', 'Needs Edit'].includes(entry.status)).length,
     imports: state.importJobs.filter(entry => ['Queued', 'Scanning', 'Needs Review'].includes(entry.status)).length
   };
-  app.innerHTML = `    <div class="admin-page">
-      <div class="admin-top">
-        <h1>Admin</h1>
-        <div class="admin-top-stats">
-          <span>${counts.suppliers + counts.venues} applications</span>
-          <span>${counts.activeSubs} subscriptions</span>
-          <span>${counts.moderation} moderation</span>
-          <span>${counts.imports} imports</span>
-          <span>${(state.inventorySubmissions||[]).filter(function(s){return s.status==='Pending';}).length} submissions</span>
-        </div>
-      </div>
-
-      <div class="admin-section">
-        <div class="admin-section-head">
-          <span>Applications</span>
-          <div class="admin-filters">
-            <a class="${appFilter === 'all' ? 'admin-filter-active' : ''}" href="admin.html?filter=all">All</a>
-            <a class="${appFilter === 'merchant' ? 'admin-filter-active' : ''}" href="admin.html?filter=merchant">Suppliers</a>
-            <a class="${appFilter === 'venue' ? 'admin-filter-active' : ''}" href="admin.html?filter=venue">Venues</a>
+  app.innerHTML = `
+    <section class="hero" style="min-height:54vh;">
+      <div class="hero-media" style="background-image:url('${siteImages.hero}')"></div>
+      <div class="container hero-grid">
+        <div class="hero-copy">
+          <span class="kicker">Founder admin dashboard</span>
+          <h1>Run <span class="text-jade">suppliers</span>, <span class="text-pink">venue claims</span>, subscriptions, and moderation from one place.</h1>
+          <p class="lead">Manage listings, subscriptions, featured placements, and moderation from one founder workspace.</p>
+          <div class="hero-actions">
+            <a class="btn btn-primary" href="dashboard.html">Business dashboard</a>
+            <a class="btn btn-ghost" href="pricing.html">Pricing reference</a>
+            <a class="btn btn-secondary" href="list-your-business.html">New application flow</a>
           </div>
         </div>
-        <table class="admin-table">
-          <thead><tr><th>Business</th><th>Plan</th><th>Contact</th><th>Status</th><th></th></tr></thead>
-          <tbody>${filteredApplications.map(function(entry, index) {
-            return '<tr><td><strong>' + entry.businessName + '</strong><div class="admin-meta">' + (entry.listingType === 'venue' ? 'Venue' : 'Supplier') + ' · ' + (entry.district || 'HK') + ' · ' + entry.priority + ' priority' + '</div></td><td>' + adminPlanMeta(entry.planInterest, entry.listingType).name + '<div class="admin-meta">' + (entry.source || 'site') + '</div></td><td>' + (entry.contactName || '') + '<div class="admin-meta">' + (entry.email || '') + '</div></td><td>' + adminStatusChip(entry.status) + '<select class="admin-select" data-application-status="' + index + '" style="margin-top:6px;"><option value="New" ' + (entry.status === 'New' ? 'selected' : '') + '>New</option><option value="Reviewing" ' + (entry.status === 'Reviewing' ? 'selected' : '') + '>Reviewing</option><option value="Needs Info" ' + (entry.status === 'Needs Info' ? 'selected' : '') + '>Needs Info</option><option value="Approved" ' + (entry.status === 'Approved' ? 'selected' : '') + '>Approved</option><option value="Rejected" ' + (entry.status === 'Rejected' ? 'selected' : '') + '>Rejected</option></select></td><td><button class="admin-btn" type="button" data-application-save="' + index + '">Save</button> <button class="admin-btn" type="button" data-create-subscription="' + index + '">Sub</button> <button class="admin-btn admin-btn-sm" style="color:#ff5252;" type="button" data-admin-delete="applications" data-admin-id="' + entry.id + '">Delete</button></td></tr>';
-          }).join('')}</tbody>
-        </table>
-        <div id="admin-applications-notice" class="admin-notice"></div>
+        <div class="search-shell">
+          <span class="eyebrow">Founder snapshot</span>
+          <div class="metric-grid" style="margin-top:16px;">
+            <div class="metric-card"><strong>${counts.suppliers}</strong><span class="muted">supplier applications to review</span></div>
+            <div class="metric-card"><strong>${counts.venues}</strong><span class="muted">venue claims in pipeline</span></div>
+            <div class="metric-card"><strong>${counts.activeSubs}</strong><span class="muted">active or trial subscriptions</span></div>
+            <div class="metric-card"><strong>${counts.moderation}</strong><span class="muted">moderation items needing action</span></div>
+            <div class="metric-card"><strong>${counts.imports}</strong><span class="muted">inventory imports awaiting review</span></div>
+          </div>
+          <div class="notice">Use this workspace to review submissions, update statuses, and manage placements across the site.</div>
+        </div>
       </div>
+    </section>
 
-      <div class="admin-section">
-        <div class="admin-section-head"><span>Subscriptions</span></div>
-        <div class="admin-cards" id="admin-subscriptions">${state.subscriptions.map(function(sub, index) {
-          var planOptions = Object.values(adminPlanCatalog()[sub.listingType === 'venue' ? 'venue' : 'merchant']).map(function(m) { return m.name; });
-          var addOnRows = sub.listingType === 'venue' ? [['featuredVenue','Venue feature'],['featuredEvent','Event promo'],['bookingBoost','Booking boost']] : [['featuredSupplier','Supplier feature'],['featuredEvent','Event promo'],['extraProducts','Extra products']];
-          return '<div class="admin-card"><div class="admin-card-head"><strong>' + sub.businessName + '</strong> ' + adminStatusChip(sub.status) + '</div><div class="admin-card-body"><label>Plan <select class="admin-select" data-sub-plan="' + index + '">' + planOptions.map(function(o) { return '<option value="' + o + '" ' + (sub.plan === o ? 'selected' : '') + '>' + o + '</option>'; }).join('') + '</select></label><label>Billing <select class="admin-select" data-sub-billing="' + index + '"><option value="Monthly" ' + (sub.billing === 'Monthly' ? 'selected' : '') + '>Monthly</option><option value="Annual" ' + (sub.billing === 'Annual' ? 'selected' : '') + '>Annual</option></select></label><div>' + addOnRows.map(function(a) { return '<label><input type="checkbox" data-sub-addon="' + index + '_' + a[0] + '" ' + (sub.addOns && sub.addOns[a[0]] ? 'checked' : '') + ' /> ' + a[1] + '</label>'; }).join('') + '</div><button class="admin-btn" type="button" data-sub-save="' + index + '">Save</button> <button class="admin-btn admin-btn-sm" style="color:#ff5252;" type="button" data-admin-delete="subscriptions" data-admin-id="' + sub.id + '">Delete</button></div></div>';
-        }).join('')}</div>
-        <div id="admin-subscriptions-notice" class="admin-notice"></div>
+    <section class="section-tight">
+      <div class="container">
+        <div class="section-head"><div><span class="eyebrow">Applications pipeline</span><h2>Suppliers and venue claims, prioritised.</h2></div></div>
+        <div class="admin-toolbar">
+          <a class="toggle-pill ${appFilter === 'all' ? 'active' : ''}" href="admin.html?filter=all">All</a>
+          <a class="toggle-pill ${appFilter === 'merchant' ? 'active' : ''}" href="admin.html?filter=merchant">Suppliers</a>
+          <a class="toggle-pill ${appFilter === 'venue' ? 'active' : ''}" href="admin.html?filter=venue">Venues</a>
+        </div>
+        <div class="admin-table">
+          <div class="admin-table-head"><div>Business</div><div>Plan intent</div><div>Contact</div><div>Status</div><div>Actions</div></div>
+          <div id="admin-applications">${filteredApplications.map((entry, index) => `
+            <div class="admin-table-row">
+              <div><strong>${entry.businessName}</strong><div class="small-note">${entry.listingType === 'venue' ? 'Venue claim' : 'Supplier application'} · ${entry.district || 'Hong Kong'} · ${entry.priority} priority</div></div>
+              <div><div>${adminPlanMeta(entry.planInterest, entry.listingType).name}</div><div class="small-note">Source: ${entry.source || 'site'}</div></div>
+              <div><div>${entry.contactName || 'Unknown contact'}</div><div class="small-note">${entry.email || 'No email supplied'}</div></div>
+              <div>${adminStatusChip(entry.status)}<select class="select admin-select" data-application-status="${index}" style="margin-top:10px;"><option value="New" ${entry.status === 'New' ? 'selected' : ''}>New</option><option value="Reviewing" ${entry.status === 'Reviewing' ? 'selected' : ''}>Reviewing</option><option value="Needs Info" ${entry.status === 'Needs Info' ? 'selected' : ''}>Needs Info</option><option value="Approved" ${entry.status === 'Approved' ? 'selected' : ''}>Approved</option><option value="Rejected" ${entry.status === 'Rejected' ? 'selected' : ''}>Rejected</option></select></div>
+              <div class="admin-inline"><button class="btn btn-primary btn-small" type="button" data-application-save="${index}">Save</button><button class="btn btn-ghost btn-small" type="button" data-create-subscription="${index}">Create subscription</button></div>
+            </div>`).join('')}</div>
+        </div>
+        <div id="admin-applications-notice"></div>
       </div>
+    </section>
 
-      <div class="admin-section">
-        <div class="admin-section-head"><span>Placements</span></div>
-        <table class="admin-table">
-          <thead><tr><th>Slot</th><th>Occupant</th><th>Status</th><th>Notes</th><th></th></tr></thead>
-          <tbody>${state.placements.map(function(pl, index) {
-            return '<tr><td>' + pl.slot + '</td><td>' + (pl.occupant || '—') + '</td><td>' + adminStatusChip(pl.status) + '<select class="admin-select" data-placement-status="' + index + '" style="margin-top:6px;"><option value="Open" ' + (pl.status === 'Open' ? 'selected' : '') + '>Open</option><option value="Scheduled" ' + (pl.status === 'Scheduled' ? 'selected' : '') + '>Scheduled</option><option value="Live" ' + (pl.status === 'Live' ? 'selected' : '') + '>Live</option><option value="Review" ' + (pl.status === 'Review' ? 'selected' : '') + '>Review</option></select></td><td class="admin-meta">' + (pl.notes || '') + '</td><td><button class="admin-btn" type="button" data-placement-save="' + index + '">Save</button> <button class="admin-btn admin-btn-sm" style="color:#ff5252;" type="button" data-admin-delete="placements" data-admin-id="' + pl.id + '">Delete</button></td></tr>';
-          }).join('')}</tbody>
-        </table>
-        <div id="admin-placements-notice" class="admin-notice"></div>
-      </div>
-
-      <div class="admin-section">
-        <div class="admin-section-head"><span>Moderation</span></div>
-        <div class="admin-cards" id="admin-moderation">${state.moderation.map(function(item, index) {
-          return '<div class="admin-card"><div class="admin-card-head"><strong>' + (item.title || 'Untitled') + '</strong> ' + adminStatusChip(item.status) + '</div><div class="admin-card-body"><div class="admin-meta">' + (item.kind || '') + ' · ' + (item.owner || '') + '</div><label>Status <select class="admin-select" data-moderation-status="' + index + '"><option value="Queued" ' + (item.status === 'Queued' ? 'selected' : '') + '>Queued</option><option value="Reviewing" ' + (item.status === 'Reviewing' ? 'selected' : '') + '>Reviewing</option><option value="Approved" ' + (item.status === 'Approved' ? 'selected' : '') + '>Approved</option><option value="Needs Edit" ' + (item.status === 'Needs Edit' ? 'selected' : '') + '>Needs Edit</option><option value="Rejected" ' + (item.status === 'Rejected' ? 'selected' : '') + '>Rejected</option></select></label><label>Notes <textarea rows="2" class="admin-input" data-moderation-notes="' + index + '">' + (item.notes || '') + '</textarea></label><button class="admin-btn" type="button" data-moderation-save="' + index + '">Save</button> <button class="admin-btn admin-btn-sm" style="color:#ff5252;" type="button" data-admin-delete="moderation" data-admin-id="' + item.id + '">Delete</button></div></div>';
-        }).join('')}</div>
-        <div id="admin-moderation-notice" class="admin-notice"></div>
-      </div>
-
-      <div class="admin-section">
-        <div class="admin-section-head"><span>Inventory imports</span></div>
-        <table class="admin-table">
-          <thead><tr><th>Business</th><th>Method</th><th>Source</th><th>Status</th><th></th></tr></thead>
-          <tbody>${state.importJobs.map(function(job, index) {
-            return '<tr><td><strong>' + job.businessName + '</strong><div class="admin-meta">' + (job.email || '') + '</div></td><td>' + job.method + '<div class="admin-meta">' + (job.itemCount || 0) + ' items</div></td><td class="admin-meta">' + (job.source ? job.source.slice(0, 60) : '') + '</td><td>' + adminStatusChip(job.status) + '<select class="admin-select" data-import-status="' + index + '" style="margin-top:6px;"><option value="Queued" ' + (job.status === 'Queued' ? 'selected' : '') + '>Queued</option><option value="Scanning" ' + (job.status === 'Scanning' ? 'selected' : '') + '>Scanning</option><option value="Needs Review" ' + (job.status === 'Needs Review' ? 'selected' : '') + '>Needs Review</option><option value="Imported" ' + (job.status === 'Imported' ? 'selected' : '') + '>Imported</option><option value="Failed" ' + (job.status === 'Failed' ? 'selected' : '') + '>Failed</option></select></td><td><button class="admin-btn" type="button" data-import-save="' + index + '">Save</button> <button class="admin-btn admin-btn-sm" style="color:#ff5252;" type="button" data-admin-delete="importJobs" data-admin-id="' + job.id + '">Delete</button></td></tr>';
-          }).join('')}</tbody>
-        </table>
-        <div id="admin-imports-notice" class="admin-notice"></div>
-      </div>
-
-
-      <div class="admin-section">
-        <div class="admin-section-head"><span>Inventory submissions</span></div>
-        <div id="admin-inventory-subs">${state.inventorySubmissions && state.inventorySubmissions.length ? state.inventorySubmissions.map(function(sub, index) {
-          var approvedCount = (sub.items||[]).filter(function(it) { return it._status === 'Approved'; }).length;
-          var pendingCount = (sub.items||[]).filter(function(it) { return it._status === 'Pending'; }).length;
-          var rejectedCount = (sub.items||[]).filter(function(it) { return it._status === 'Rejected'; }).length;
+    <section class="section-tight">
+      <div class="container">
+        <div class="section-head"><div><span class="eyebrow">Subscriptions</span><h2>Manage plans, billing health, and featured add-ons.</h2></div></div>
+        <div class="admin-card-grid" id="admin-subscriptions">${state.subscriptions.map((sub, index) => {
+          const planOptions = Object.values(adminPlanCatalog()[sub.listingType === 'venue' ? 'venue' : 'merchant']).map(meta => meta.name);
+          const addOnRows = sub.listingType === 'venue'
+            ? [['featuredVenue','Homepage featured venue'], ['featuredEvent','Featured event promotion'], ['bookingBoost','Booking boost']]
+            : [['featuredSupplier','Homepage featured supplier'], ['featuredEvent','Featured event promotion'], ['extraProducts','Extra product allocation']];
           return `
-          <div class="inv-card">
-            <div class="inv-card-head">
-              <div><strong>${sub.businessName}</strong> <span class="muted">· ${sub.email || 'No email'}</span></div>
-              <div class="inv-stats"><span>${sub.itemCount || 0} items</span><span class="inv-stat-pending">${pendingCount} pending</span><span class="inv-stat-approved">${approvedCount} approved</span>${rejectedCount ? '<span class="inv-stat-rejected">' + rejectedCount + ' rejected</span>' : ''}</div>
-              <div class="muted" style="font-size:.82rem;">Submitted ${new Date(sub.submittedAt).toLocaleDateString() || 'Unknown'} · <button class="admin-btn admin-btn-sm" type="button" data-sub-delete="${sub.id}" style="color:#ff5252;margin-left:8px;">Delete all</button></div>
-            </div>
-            <div class="inv-item-table">
-              <div class="inv-item-head"><div class="inv-col-name">Product</div><div class="inv-col-price">Price</div><div class="inv-col-avail">Stock</div><div class="inv-col-status">Status</div><div class="inv-col-actions">Actions</div></div>
-              ${(sub.items || []).filter(function(i) { return i._status === 'Pending'; }).map(function(i, idx) {
-                var isApproved = i._status === 'Approved';
-                var isRejected = i._status === 'Rejected';
-                var statusClass = isApproved ? 'inv-status-approved' : (isRejected ? 'inv-status-rejected' : 'inv-status-pending');
-                var statusLabel = isApproved ? 'Approved' : (isRejected ? 'Rejected' : 'Pending');
-                var approveBtn = !isApproved ? '<button class="admin-btn admin-btn-sm" type="button" data-item-approve="' + sub.id + '_item_' + i._id + '">Approve</button>' : '';
-                var rejectBtn = !isRejected ? '<button class="admin-btn admin-btn-sm" type="button" data-item-reject="' + sub.id + '_item_' + i._id + '">Reject</button>' : '';
-                return '<div class="inv-item-row ' + (isApproved ? 'inv-row-approved' : (isRejected ? 'inv-row-rejected' : '')) + '"><div class="inv-col-name"><span class="inv-idx">' + (idx+1) + '.</span> ' + (i.name || 'Unnamed') + '</div><div class="inv-col-price">' + (i.price || 'HK$0') + '</div><div class="inv-col-avail">' + (i.availability || '—') + '</div><div class="inv-col-status"><span class="' + statusClass + '">' + statusLabel + '</span></div><div class="inv-col-actions">' + approveBtn + rejectBtn + ' <button class="admin-btn admin-btn-sm" style="color:#ff5252;" type="button" data-item-delete="' + sub.id + '_item_' + i._id + '">Delete</button></div></div>';
-              }).join('')}
-            </div>
-          </div>`;
-        }).join('') : '<div class="empty-state">No inventory submissions yet. Suppliers submit items from their dashboard after importing a Google Sheet.</div>'}</div>
-        <div id="admin-inventory-subs-notice"></div>
+            <article class="panel admin-stack">
+              <div class="admin-inline" style="justify-content:space-between;"><div><span class="eyebrow">${sub.listingType === 'venue' ? 'Venue subscription' : 'Merchant subscription'}</span><h3 style="margin-top:12px;">${sub.businessName}</h3></div>${adminStatusChip(sub.status)}</div>
+              <label class="dashboard-field"><span>Plan</span><select class="select" data-subscription-plan="${index}">${planOptions.map(option => `<option value="${option}" ${sub.plan === option ? 'selected' : ''}>${option}</option>`).join('')}</select></label>
+              <div class="grid grid-2">
+                <label class="dashboard-field"><span>Billing</span><select class="select" data-subscription-billing="${index}"><option value="Monthly" ${sub.billing === 'Monthly' ? 'selected' : ''}>Monthly</option><option value="Annual" ${sub.billing === 'Annual' ? 'selected' : ''}>Annual</option></select></label>
+                <label class="dashboard-field"><span>Status</span><select class="select" data-subscription-status="${index}"><option value="Trial" ${sub.status === 'Trial' ? 'selected' : ''}>Trial</option><option value="Active" ${sub.status === 'Active' ? 'selected' : ''}>Active</option><option value="Past Due" ${sub.status === 'Past Due' ? 'selected' : ''}>Past Due</option><option value="Paused" ${sub.status === 'Paused' ? 'selected' : ''}>Paused</option><option value="Cancelled" ${sub.status === 'Cancelled' ? 'selected' : ''}>Cancelled</option></select></label>
+              </div>
+              <label class="dashboard-field"><span>Renewal date</span><input class="input" type="date" data-subscription-renewal="${index}" value="${sub.renewal}" /></label>
+              <div class="small-note">Current charge: <strong data-subscription-amount-label="${index}">${sub.amount}</strong> · Invoice status: ${sub.invoiceStatus}</div>
+              <div class="dashboard-toggle-group">
+                ${addOnRows.map(([key, label]) => `<label class="check-row"><input type="checkbox" data-subscription-addon="${index}" data-addon-key="${key}" ${sub.addOns?.[key] ? 'checked' : ''} /><span>${label}</span></label>`).join('')}
+              </div>
+              <div class="admin-inline"><button class="btn btn-primary btn-small" type="button" data-subscription-save="${index}">Save subscription</button><a class="btn btn-ghost btn-small" href="dashboard.html?role=${sub.listingType}">Open business view</a></div>
+            </article>`;
+        }).join('')}</div>
+        <div id="admin-subscriptions-notice"></div>
       </div>
-    </div>`;
+    </section>
+
+    <section class="section-tight">
+      <div class="container grid grid-2">
+        <div>
+          <div class="section-head"><div><span class="eyebrow">Featured placements</span><h2>Control paid visibility inventory.</h2></div></div>
+          <div class="admin-card-grid" style="grid-template-columns:1fr;" id="admin-placements">${state.placements.map((slot, index) => `
+            <article class="panel admin-stack">
+              <div class="admin-inline" style="justify-content:space-between;"><div><strong>${slot.slot}</strong><div class="small-note">${slot.listingType === 'venue' ? 'Venue inventory' : 'Supplier inventory'}</div></div>${adminStatusChip(slot.status)}</div>
+              <label class="dashboard-field"><span>Current occupant</span><input class="input" data-placement-occupant="${index}" value="${slot.occupant}" /></label>
+              <label class="dashboard-field"><span>Status</span><select class="select" data-placement-status="${index}"><option value="Live" ${slot.status === 'Live' ? 'selected' : ''}>Live</option><option value="Scheduled" ${slot.status === 'Scheduled' ? 'selected' : ''}>Scheduled</option><option value="Review" ${slot.status === 'Review' ? 'selected' : ''}>Review</option><option value="Open" ${slot.status === 'Open' ? 'selected' : ''}>Open</option></select></label>
+              <label class="dashboard-field"><span>Founder note</span><textarea class="input" rows="3" data-placement-notes="${index}">${slot.notes || ''}</textarea></label>
+              <button class="btn btn-primary btn-small" type="button" data-placement-save="${index}">Save placement</button>
+            </article>`).join('')}</div>
+          <div id="admin-placements-notice"></div>
+        </div>
+        <div>
+          <div class="section-head"><div><span class="eyebrow">Moderation queue</span><h2>Keep listings, events, and stock clean.</h2></div></div>
+          <div class="admin-card-grid" style="grid-template-columns:1fr;" id="admin-moderation">${state.moderation.map((item, index) => `
+            <article class="panel admin-stack">
+              <div class="admin-inline" style="justify-content:space-between;"><div><span class="eyebrow">${item.kind}</span><h3 style="margin-top:12px;">${item.title}</h3></div>${adminStatusChip(item.status)}</div>
+              <div class="small-note">Owner: ${item.owner} · Flag: ${item.flag}</div>
+              <label class="dashboard-field"><span>Status</span><select class="select" data-moderation-status="${index}"><option value="Queued" ${item.status === 'Queued' ? 'selected' : ''}>Queued</option><option value="Reviewing" ${item.status === 'Reviewing' ? 'selected' : ''}>Reviewing</option><option value="Approved" ${item.status === 'Approved' ? 'selected' : ''}>Approved</option><option value="Needs Edit" ${item.status === 'Needs Edit' ? 'selected' : ''}>Needs Edit</option><option value="Rejected" ${item.status === 'Rejected' ? 'selected' : ''}>Rejected</option></select></label>
+              <label class="dashboard-field"><span>Moderator note</span><textarea class="input" rows="3" data-moderation-notes="${index}">${item.notes || ''}</textarea></label>
+              <button class="btn btn-primary btn-small" type="button" data-moderation-save="${index}">Save moderation decision</button>
+            </article>`).join('')}</div>
+          <div id="admin-moderation-notice"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section-tight">
+      <div class="container">
+        <div class="section-head"><div><span class="eyebrow">Inventory imports</span><h2>Google Sheets and website scans in one queue.</h2></div></div>
+        <div class="admin-table">
+          <div class="admin-table-head"><div>Business</div><div>Method</div><div>Source</div><div>Status</div><div>Actions</div></div>
+          <div id="admin-import-jobs">${state.importJobs.map((job, index) => `
+            <div class="admin-table-row">
+              <div><strong>${job.businessName}</strong><div class="small-note">${job.email || 'No email'} · ${job.platform || 'Mixed'} platform</div></div>
+              <div><div>${job.method}</div><div class="small-note">${job.itemCount || 0} items</div></div>
+              <div><div class="small-note">${job.source || 'No source provided'}</div><div class="small-note">${job.notes || ''}</div></div>
+              <div>${adminStatusChip(job.status)}<select class="select admin-select" data-import-status="${index}" style="margin-top:10px;"><option value="Queued" ${job.status === 'Queued' ? 'selected' : ''}>Queued</option><option value="Scanning" ${job.status === 'Scanning' ? 'selected' : ''}>Scanning</option><option value="Needs Review" ${job.status === 'Needs Review' ? 'selected' : ''}>Needs Review</option><option value="Imported" ${job.status === 'Imported' ? 'selected' : ''}>Imported</option><option value="Failed" ${job.status === 'Failed' ? 'selected' : ''}>Failed</option></select></div>
+              <div class="admin-inline"><button class="btn btn-primary btn-small" type="button" data-import-save="${index}">Save</button><button class="btn btn-ghost btn-small" type="button" data-import-promote="${index}">Create listing task</button></div>
+            </div>`).join('')}</div>
+        </div>
+        <div id="admin-imports-notice"></div>
+      </div>
+    </section>`;
 
   const saveState = (message, selector) => {
     storage.setAdminState(state);
@@ -2166,9 +1794,7 @@ async function renderAdminDashboardPage() {
     renderAdminDashboardPage();
   }));
 
-  
-  // Handled by delegated __adminClick on document.body (below)
-$$('[data-import-promote]', app).forEach(btn => btn.addEventListener('click', () => {
+  $$('[data-import-promote]', app).forEach(btn => btn.addEventListener('click', () => {
     const index = Number(btn.dataset.importPromote);
     const job = state.importJobs[index];
     if (!job) return;
@@ -2221,61 +1847,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     lead: '',
     dashboard: '',
     admin: '',
-    'searcher-account': '',
+    signin: '',
     signup: '',
     account: '',
     'venue-profile': 'Bars & Restaurants',
-    'supplier-profile': 'Suppliers',
-    product: ''
+    'supplier-profile': 'Suppliers'
   };
   setupChrome(activeMap[page] || '');
   if (page === 'home') renderHomepage();
-  if (page === 'product') renderProductPage();
-  if (page === 'venues') renderVenueDirectory();
-  if (page === 'suppliers') renderSupplierDirectory();
-  if (page === 'drinks') renderDrinksPage();
-  if (page === 'events') renderEventsPage();
+  if (page === 'venues') await renderVenueDirectory();
+  if (page === 'suppliers') await renderSupplierDirectory();
+  if (page === 'drinks') await renderDrinksPage();
+  if (page === 'events') await renderEventsPage();
   if (page === 'pricing') renderPricingPage();
   if (page === 'lead') renderLeadCapturePage();
   if (page === 'dashboard') renderBusinessDashboardPage();
   if (page === 'admin') renderAdminDashboardPage();
   if (page === 'venue-profile') renderVenueProfile();
   if (page === 'supplier-profile') renderSupplierProfile();
-  if (page === 'searcher-account') renderSearcherAccountPage();
   if (page === 'signin') renderSignInPage();
   if (page === 'signup') renderSignUpPage();
   if (page === 'account') renderAccountPage();
   setupAnchorSpy();
   syncSaveButtons();
-});
-
-// Track clicks on Buy Online / View buttons in drinks directory
-document.body.addEventListener('click', function(e) {
-  var btn = e.target.closest('a.btn-primary, a[href*="buy"]');
-  if (!btn) return;
-  var card = btn.closest('[data-save-id]');
-  if (!card) return;
-  var saveData = JSON.parse(card.dataset.saveId || 'null');
-  if (!saveData || !saveData.name || !saveData.kind) return;
-  var key = (saveData.kind === 'supplier' ? (saveData.meta || '') : saveData.name) + ':' + saveData.name;
-  var counts = JSON.parse(localStorage.getItem('ds_click_counts') || '{}');
-  counts[key] = (counts[key] || 0) + 1;
-  localStorage.setItem('ds_click_counts', JSON.stringify(counts));
-});
-
-// Admin delegated click handler — registered immediately (not inside DOMContentLoaded)
-// to ensure it always catches clicks even if DOMContentLoaded already fired
-var flashNotice = function(msg) { var el = document.getElementById('admin-inventory-subs-notice'); if (el) el.innerHTML = '<div class="notice" style="padding:8px 12px;margin:8px 0;background:#1a3a1a;color:#8fdf8f;border-radius:4px;">' + msg + '</div>'; setTimeout(function(){ if (el) el.innerHTML = ''; }, 2500); };
-document.body.addEventListener('click', function __adminClick(e) {
-  if (document.body.dataset.page !== 'admin') return;
-  var b = e.target.closest('[data-item-approve]'); var s, x;
-  if (b) { s = b.dataset.itemApprove; x = s.indexOf('_item_'); if (x > 0) { adminApproveItem(s.slice(0, x), s.slice(x+6)); renderAdminDashboardPage(); flashNotice('Item approved.'); } return; }
-  b = e.target.closest('[data-item-reject]');
-  if (b) { s = b.dataset.itemReject; x = s.indexOf('_item_'); if (x > 0) { adminRejectItem(s.slice(0, x), s.slice(x+6)); renderAdminDashboardPage(); flashNotice('Item rejected.'); } return; }
-  b = e.target.closest('[data-item-delete]');
-  if (b) { s = b.dataset.itemDelete; x = s.indexOf('_item_'); if (x > 0) { adminDeleteInventoryItem(s.slice(0, x), s.slice(x+6)); renderAdminDashboardPage(); flashNotice('Item deleted.'); } return; }
-  b = e.target.closest('[data-admin-delete]');
-  if (b) { adminDeleteItem(b.dataset.adminDelete, b.dataset.adminId); renderAdminDashboardPage(); flashNotice('Deleted.'); return; }
-  b = e.target.closest('[data-sub-delete]');
-  if (b) { adminDeleteSubmission(b.dataset.subDelete); renderAdminDashboardPage(); flashNotice('Submission deleted.'); return; }
 });

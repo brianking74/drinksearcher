@@ -31,6 +31,11 @@ function onAuthChange(callback) {
   });
 }
 
+// --- Utility ---
+function slugify(text) {
+  return String(text || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+}
+
 // ============================================================
 // DATA HELPERS
 // ============================================================
@@ -84,7 +89,10 @@ async function fetchVenues() {
 // --- Events ---
 async function fetchEvents() {
   const { data } = await sb.from('events').select('*').order('created_at', { ascending: false });
-  return data || [];
+  return (data || []).map(e => ({
+    ...e,
+    date: e.event_date || '' // map event_date → date for backward compat
+  }));
 }
 
 // --- Supplier Dashboard ---
