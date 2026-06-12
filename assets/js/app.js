@@ -391,16 +391,6 @@ function footerHTML() {
 }
 
 function setupChrome(activeLabel) {
-  // Auto-assign merchant role to known supplier accounts
-  const currentUser = storage.getCurrentUser();
-  if (currentUser && !currentUser.role && currentUser.email === 'brian@metabev.com') {
-    storage.setUserRole(currentUser.email, 'merchant');
-  }
-  // Route merchant/venue users away from searcher pages
-  const page = document.body.dataset.page;
-  if (currentUser && (currentUser.role === 'merchant' || currentUser.role === 'venue')) {
-    if (page === 'account') { window.location.href = 'dashboard.html?role=' + currentUser.role; return; }
-  }
   const nav = document.createElement('header');
   nav.className = 'nav';
   nav.innerHTML = navHTML(activeLabel);
