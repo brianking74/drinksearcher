@@ -118,9 +118,9 @@ const storage = {
         district: user?.city || 'Central',
         notes: 'Importer / retailer / drinks merchant profile with listing controls.',
         items: [
-          { id: 'm1', name: 'Château Margaux 2015', price: 'HK$7,980', availability: 'In stock', visibility: 'Featured' },
-          { id: 'm2', name: 'Yamazaki 12 Year Old', price: 'HK$1,880', availability: 'Low stock', visibility: 'Enhanced' },
-          { id: 'm3', name: 'Dassai 23 Junmai Daiginjo', price: 'HK$880', availability: 'Pre-order', visibility: 'Enhanced' }
+          { id: 'm1', name: 'Château Margaux 2015', price: 'HK$7,980', availability: 'In stock', status: 'Pending' },
+          { id: 'm2', name: 'Yamazaki 12 Year Old', price: 'HK$1,880', availability: 'Low stock', status: 'Pending' },
+          { id: 'm3', name: 'Dassai 23 Junmai Daiginjo', price: 'HK$880', availability: 'Pre-order', status: 'Pending' }
         ]
       },
       venue: {
@@ -136,9 +136,9 @@ const storage = {
         district: user?.city || 'Soho',
         notes: 'Bar / restaurant profile with booking and event promotion controls.',
         items: [
-          { id: 'v1', name: 'Thursday DJ & Cocktail Set', price: 'HK$220 min spend', availability: 'Live', visibility: 'Homepage event' },
-          { id: 'v2', name: 'Guest Shift: Tokyo Collective', price: 'HK$150 per ticket', availability: 'Selling', visibility: 'Enhanced event' },
-          { id: 'v3', name: 'Weekend Table Inventory', price: 'From HK$500', availability: 'Open tables', visibility: 'Venue page' }
+          { id: 'v1', name: 'Thursday DJ & Cocktail Set', price: 'HK$220 min spend', availability: 'Live', status: 'Pending' },
+          { id: 'v2', name: 'Guest Shift: Tokyo Collective', price: 'HK$150 per ticket', availability: 'Selling', status: 'Pending' },
+          { id: 'v3', name: 'Weekend Table Inventory', price: 'From HK$500', availability: 'Open tables', status: 'Pending' }
         ]
       }
     };
@@ -1227,8 +1227,8 @@ function renderBusinessDashboardPage() {
           ['bookingBoost', 'Booking link boost']
         ];
     const listingLabels = role === 'merchant'
-      ? ['Product / listing', 'Price', 'Availability', 'Visibility']
-      : ['Offer / event / table inventory', 'Price', 'Availability', 'Visibility'];
+      ? ['Product / listing', 'Price', 'Availability', 'Status']
+      : ['Offer / event / table inventory', 'Price', 'Availability', 'Status'];
     return `
       <div class="dashboard-shell">
         <section class="hero" style="min-height:52vh;">
@@ -1299,9 +1299,7 @@ function renderBusinessDashboardPage() {
                   <select class="select" data-item-availability="${index}">
                     ${['In stock','Low stock','Pre-order','Live','Selling','Open tables','Sold out'].map(option => `<option value="${option}" ${item.availability === option ? 'selected' : ''}>${option}</option>`).join('')}
                   </select>
-                  <select class="select" data-item-visibility="${index}">
-                    ${['Standard','Enhanced','Featured','Homepage event','Venue page'].map(option => `<option value="${option}" ${item.visibility === option ? 'selected' : ''}>${option}</option>`).join('')}
-                  </select>
+                  <span class="status-badge status-${(item.status || 'pending').toLowerCase()}">${item.status || 'Pending'}</span>
                 </div>`).join('')}</div>
               <div class="inline-actions" style="padding:20px; border-top:1px solid rgba(255,255,255,.06);">
                 <button class="btn btn-primary" id="save-items-btn" type="button">Save pricing & availability</button>
@@ -1321,7 +1319,7 @@ function renderBusinessDashboardPage() {
               <label class="dashboard-field"><span>Google Sheet CSV URL or pasted CSV</span><textarea class="input" rows="6" id="sheet-import-source" placeholder="https://docs.google.com/.../export?format=csv or pasted CSV rows"></textarea></label>
               <label class="dashboard-field"><span>Import mode</span><select class="select" id="sheet-import-mode"><option value="append">Append to current inventory</option><option value="replace">Replace current inventory</option></select></label>
               <div class="admin-inline"><button class="btn btn-primary" id="sheet-import-btn" type="button">Import inventory</button><button class="btn btn-ghost" id="sheet-template-btn" type="button">Insert sample template</button></div>
-              <div class="small-note">Recommended columns: Name, Price, Availability, Visibility. You can extend the mapping later for SKU, size, pack, ABV, image, and product URL.</div>
+              <div class="small-note">Recommended columns: Name, Price, Availability. You can extend the mapping later for SKU, size, pack, ABV, image, and product URL.</div>
               <div id="sheet-import-notice"></div>
             </div>
             <div class="panel admin-stack">
@@ -1403,7 +1401,7 @@ function renderBusinessDashboardPage() {
     };
     $('#save-items-btn', app).addEventListener('click', saveItems);
     $('#add-item-btn', app).addEventListener('click', () => {
-      config.items.push({ id: `${role}_${Date.now()}`, name: role === 'merchant' ? 'New product' : 'New venue offer', price: 'HK$0', availability: 'In stock', visibility: 'Standard' });
+      config.items.push({ id: `${role}_${Date.now()}`, name: role === 'merchant' ? 'New product' : 'New venue offer', price: 'HK$0', availability: 'In stock', status: 'Pending' });
       persist();
       renderBusinessDashboardPage();
     });
