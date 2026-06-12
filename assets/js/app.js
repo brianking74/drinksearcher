@@ -1293,7 +1293,7 @@ function renderBusinessDashboardPage() {
               <h2 style="margin:14px 0;">Plan, billing, and visibility boosts</h2>
               <form id="dashboard-plan-form" class="dashboard-stack">
                 <label class="dashboard-field"><span>Membership tier</span><select class="select" name="membership">${(role === 'merchant' ? ['Merchant Starter','Merchant Enhanced','Merchant Premium'] : ['Venue Starter','Venue Enhanced','Venue Enhanced + Events']).map(option => `<option value="${option}" ${config.membership === option ? 'selected' : ''}>${option}</option>`).join('')}</select></label>
-                <label class="dashboard-field"><span>Billing cycle</span><select class="select" name="billing"><option value="Monthly" ${config.billing === 'Monthly' ? 'selected' : ''}>Monthly</option><option value="Annual" ${config.billing === 'Annual' ? 'selected' : ''}>Annual</option></select></label>
+                <label class="dashboard-field"><span>Billing cycle</span><select class="select" name="billing"><option value="Free Entry" ${config.billing === 'Free Entry' ? 'selected' : ''}>Free Entry</option><option value="Monthly" ${config.billing === 'Monthly' ? 'selected' : ''}>Monthly</option><option value="Annual" ${config.billing === 'Annual' ? 'selected' : ''}>Annual</option></select></label>
                 <div class="dashboard-toggle-group">
                   ${addOnRows.map(([key, label]) => `<label class="check-row"><input type="checkbox" name="${key}" ${config[key] ? 'checked' : ''} /><span>${label}</span></label>`).join('')}
                 </div>
@@ -1304,26 +1304,6 @@ function renderBusinessDashboardPage() {
           </div>
         </section>
 
-        <section class="section-tight">
-          <div class="container">
-            <div class="section-head"><div><span class="eyebrow">Pricing & availability</span><h2>${role === 'merchant' ? 'Manage stock visibility and current pricing.' : 'Manage offers, ticketing, tables, and availability.'}</h2></div></div>
-            <div class="dashboard-table-wrap">
-              <div class="dashboard-table-head"><div>${listingLabels[0]}</div><div>${listingLabels[1]}</div><div>${listingLabels[2]}</div><div>${listingLabels[3]}</div></div>
-              <div id="dashboard-items">${config.items.map((item, index) => `
-                <div class="dashboard-row">
-                  <input class="input" data-item-name="${index}" value="${item.name}" />
-                  <input class="input" data-item-price="${index}" value="${item.price}" />
-                  <select class="select" data-item-availability="${index}">
-                    ${['In stock','Low stock','Pre-order','Live','Selling','Open tables','Sold out'].map(option => `<option value="${option}" ${item.availability === option ? 'selected' : ''}>${option}</option>`).join('')}
-                  </select>
-                  <span class="status-badge status-${(item.status || 'pending').toLowerCase()}">${item.status || 'Pending'}</span>
-                </div>`).join('')}</div>
-              <div class="inline-actions" style="padding:20px; border-top:1px solid rgba(255,255,255,.06);">
-                <button class="btn btn-primary" id="save-items-btn" type="button">Save pricing & availability</button>
-                <button class="btn btn-ghost" id="add-item-btn" type="button">Add another row</button>
-              </div>
-            </div>
-          </div>
         </section>
 
         ${role === 'merchant' ? `
@@ -1349,6 +1329,26 @@ function renderBusinessDashboardPage() {
               <div class="admin-inline"><button class="btn btn-secondary" id="scan-site-btn" type="button">Queue scan request</button></div>
               <div class="small-note">Website scan requests are queued into Founder Admin for review. Shopify, WooCommerce, sitemap, feed, and structured-data connectors can be added as the next production step.</div>
               <div id="scan-site-notice"></div>
+            </div>
+          </div>
+        <section class="section-tight">
+          <div class="container">
+            <div class="section-head"><div><span class="eyebrow">Pricing & availability</span><h2>${role === 'merchant' ? 'Manage stock visibility and current pricing.' : 'Manage offers, ticketing, tables, and availability.'}</h2></div></div>
+            <div class="dashboard-table-wrap">
+              <div class="dashboard-table-head"><div>${listingLabels[0]}</div><div>${listingLabels[1]}</div><div>${listingLabels[2]}</div><div>${listingLabels[3]}</div></div>
+              <div id="dashboard-items">${config.items.map((item, index) => `
+                <div class="dashboard-row">
+                  <input class="input" data-item-name="${index}" value="${item.name}" />
+                  <input class="input" data-item-price="${index}" value="${item.price}" />
+                  <select class="select" data-item-availability="${index}">
+                    ${['In stock','Low stock','Pre-order','Live','Selling','Open tables','Sold out'].map(option => `<option value="${option}" ${item.availability === option ? 'selected' : ''}>${option}</option>`).join('')}
+                  </select>
+                  <span class="status-badge status-${(item.status || 'pending').toLowerCase()}">${item.status || 'Pending'}</span>
+                </div>`).join('')}</div>
+              <div class="inline-actions" style="padding:20px; border-top:1px solid rgba(255,255,255,.06);">
+                <button class="btn btn-primary" id="save-items-btn" type="button">Save pricing & availability</button>
+                <button class="btn btn-ghost" id="add-item-btn" type="button">Add another row</button>
+              </div>
             </div>
           </div>
         </section>` : ''}
