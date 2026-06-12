@@ -1434,7 +1434,7 @@ function renderBusinessDashboardPage() {
       persist();
       renderBusinessDashboardPage();
     });
-    if (role === 'merchant' && $('#sheet-template-btn', app)) {
+    if (state.activeRole === 'merchant' && $('#sheet-template-btn', app)) {
       $('#sheet-template-btn', app).addEventListener('click', () => {
         $('#sheet-import-source', app).value = 'Name,Price,Availability\nChardonnay Reserve,188,In stock\nSmall Batch Gin,420,Low stock\nZero-Proof Spritz,98,Pre-order';
       });
