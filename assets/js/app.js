@@ -1382,7 +1382,7 @@ function renderBusinessDashboardPage() {
               <div class="dashboard-table-head"><div>${listingLabels[0]}</div><div>${listingLabels[1]}</div><div>${listingLabels[2]}</div><div>${listingLabels[3]}</div></div>
               <div id="dashboard-items">${config.items.map((item, index) => `
                 <div class="dashboard-row">
-                  <input class="input" data-item-name="${index}" value="${item.name}" />
+                  <input class="input" data-item-name="${index}" value="${item.name}" /><button class="btn btn-ghost btn-small delete-item-btn" type="button" data-delete-index="${index}" title="Remove item" style="color:#ff6b9d;position:absolute;right:0;top:50%;transform:translateY(-50%);">✕</button>
                   <input class="input" data-item-price="${index}" value="${item.price}" />
                   <select class="select" data-item-availability="${index}">
                     ${['In stock','Low stock','Pre-order','Live','Selling','Open tables','Sold out'].map(option => `<option value="${option}" ${item.availability === option ? 'selected' : ''}>${option}</option>`).join('')}
@@ -1466,6 +1466,12 @@ function renderBusinessDashboardPage() {
       notice.innerHTML = '<div class="notice">Pricing and availability updated for this dashboard view.</div>';
     };
     $('#save-items-btn', app).addEventListener('click', saveItems);
+    $$('.delete-item-btn', app).forEach(btn => btn.addEventListener('click', () => {
+      const idx = parseInt(btn.dataset.deleteIndex);
+      config.items.splice(idx, 1);
+      persist();
+      renderBusinessDashboardPage();
+    }));
     $('#add-item-btn', app).addEventListener('click', () => {
       config.items.push({ id: `${role}_${Date.now()}`, name: role === 'merchant' ? 'New product' : 'New venue offer', price: 'HK$0', availability: 'In stock', status: 'Approved' });
       persist();
