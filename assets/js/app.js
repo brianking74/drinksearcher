@@ -116,7 +116,7 @@ const storage = {
         contactEmail: user?.email || '',
         phone: '+852 1234 5678',
         district: user?.city || 'Central',
-        notes: 'Importer / retailer / drinks merchant profile with listing controls.',
+        notes: 'Tell us about your business (max 50 words)',
         items: [
           { id: 'm1', name: 'Château Margaux 2015', price: 'HK$7,980', availability: 'In stock', status: 'Approved' },
           { id: 'm2', name: 'Yamazaki 12 Year Old', price: 'HK$1,880', availability: 'Low stock', status: 'Approved' },
@@ -134,7 +134,7 @@ const storage = {
         contactEmail: user?.email || '',
         phone: '+852 9876 5432',
         district: user?.city || 'Soho',
-        notes: 'Bar / restaurant profile with booking and event promotion controls.',
+        notes: 'Tell us about your business (max 50 words)',
         items: [
           { id: 'v1', name: 'Thursday DJ & Cocktail Set', price: 'HK$220 min spend', availability: 'Live', status: 'Approved' },
           { id: 'v2', name: 'Guest Shift: Tokyo Collective', price: 'HK$150 per ticket', availability: 'Selling', status: 'Approved' },
@@ -1266,7 +1266,7 @@ function renderBusinessDashboardPage() {
                 <input class="input" name="contactEmail" value="${config.contactEmail}" placeholder="Contact email" />
                 <input class="input" name="phone" value="${config.phone}" placeholder="Phone" />
                 <input class="input" name="district" value="${config.district}" placeholder="District" />
-                <textarea class="input full" name="notes" rows="4" placeholder="Business notes">${config.notes}</textarea>
+                <textarea class="input full" name="notes" rows="4" placeholder="Tell us about your business (max 50 words)">${config.notes}</textarea>
                 <button class="btn btn-primary full" type="submit">Save listing settings</button>
               </form>
               <div id="dashboard-notice"></div>
