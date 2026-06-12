@@ -12,12 +12,6 @@ const storage = {
     if (!email) return null;
     return this.getUsers().find(user => user.email === email) || null;
   },
-  setUserRole(email, role) {
-    const users = this.getUsers();
-    const idx = users.findIndex(u => u.email === email);
-    if (idx >= 0) { users[idx].role = role; this.setUsers(users); return true; }
-    return false;
-  },
   setCurrentUser(email) {
     if (!email) localStorage.removeItem('ds_current_user');
     else localStorage.setItem('ds_current_user', email);
@@ -31,7 +25,6 @@ const storage = {
       email,
       password: String(data.password || ''),
       city: String(data.city || '').trim(),
-      role: String(data.role || 'searcher').trim(),
       createdAt: new Date().toISOString()
     };
     users.push(user);
@@ -1148,19 +1141,9 @@ function renderSignUpPage() {
 function renderAccountPage() {
   const app = $('#app');
   const user = storage.getCurrentUser();
-  // Auto-assign merchant role to known supplier accounts
-  if (user && !user.role && user.email === 'brian@metabev.com') {
-    storage.setUserRole(user.email, 'merchant');
-    user.role = 'merchant';
-  }
   if (!user) {
     storage.setPostAuthRedirect('account.html');
     window.location.href = 'signin.html';
-    return;
-  }
-  // Route supplier/venue users to dashboard
-  if (user.role === 'merchant' || user.role === 'venue') {
-    window.location.href = 'dashboard.html?role=' + user.role;
     return;
   }
   app.innerHTML = `
@@ -1200,11 +1183,6 @@ function renderAccountLeads() {
 function renderBusinessDashboardPage() {
   const app = $('#app');
   const user = storage.getCurrentUser();
-  // Auto-assign merchant role to known supplier accounts
-  if (user && !user.role && user.email === 'brian@metabev.com') {
-    storage.setUserRole(user.email, 'merchant');
-    user.role = 'merchant';
-  }
   if (!user) {
     storage.setPostAuthRedirect(currentPagePath());
     window.location.href = 'signin.html';
@@ -1601,11 +1579,6 @@ async function loadImportSourceText(source) {
 function renderAdminDashboardPage() {
   const app = $('#app');
   const user = storage.getCurrentUser();
-  // Auto-assign merchant role to known supplier accounts
-  if (user && !user.role && user.email === 'brian@metabev.com') {
-    storage.setUserRole(user.email, 'merchant');
-    user.role = 'merchant';
-  }
   if (!user) {
     storage.setPostAuthRedirect('admin.html');
     window.location.href = 'signin.html';
