@@ -1124,9 +1124,23 @@ async function renderSignInPage() {
   });
 }
 
-function renderSignUpPage() {
+async function renderSignUpPage() {
   const app = $('#app');
-  if (storage.getCurrentUser()) {
+  // Bridge Supabase session to localStorage
+  let localUser = storage.getCurrentUser();
+  if (!localUser) {
+    const dsUser = await dsAuth.getCurrentUser();
+    if (dsUser) {
+      const users = storage.getUsers();
+      if (!users.find(u => u.email === dsUser.email)) {
+        users.push({ name: dsUser.name || '', email: dsUser.email, password: '', city: '', role: dsUser.role || 'searcher', createdAt: new Date().toISOString() });
+        storage.setUsers(users);
+      }
+      storage.setCurrentUser(dsUser.email);
+      localUser = dsUser;
+    }
+  }
+  if (localUser) {
     window.location.href = 'account.html';
     return;
   }
@@ -1141,9 +1155,22 @@ function renderSignUpPage() {
   });
 }
 
-function renderAccountPage() {
+async function renderAccountPage() {
   const app = $('#app');
   const user = storage.getCurrentUser();
+  // Bridge if Supabase session exists
+  if (!user) {
+    const dsUser = await dsAuth.getCurrentUser();
+    if (dsUser) {
+      const users = storage.getUsers();
+      if (!users.find(u => u.email === dsUser.email)) {
+        users.push({ name: dsUser.name || '', email: dsUser.email, password: '', city: '', role: dsUser.role || 'searcher', createdAt: new Date().toISOString() });
+        storage.setUsers(users);
+      }
+      storage.setCurrentUser(dsUser.email);
+      user = dsUser;
+    }
+  }
   if (!user) {
     storage.setPostAuthRedirect('account.html');
     window.location.href = 'signin.html';
@@ -1876,8 +1903,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (page === 'venue-profile') renderVenueProfile();
   if (page === 'supplier-profile') renderSupplierProfile();
   if (page === 'signin') await renderSignInPage();
-  if (page === 'signup') renderSignUpPage();
-  if (page === 'account') renderAccountPage();
+  if (page === 'signup') await renderSignUpPage();
+  if (page === 'account') await renderAccountPage();
   setupAnchorSpy();
   syncSaveButtons();
 });
