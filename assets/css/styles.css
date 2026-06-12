@@ -911,8 +911,8 @@ hr.sep { border: 0; height: 1px; background: rgba(255,255,255,.06); margin: 18px
 .toggle-pill.active { background: rgba(255,255,255,.08); color: var(--text); }
 
 /* Dashboard tables */
-.dashboard-table-wrap { border: 1px solid rgba(255,255,255,.03); border-radius: 10px; overflow: hidden; background: rgba(14,14,18,.9); }
-.dashboard-table-head, .dashboard-row { display: grid; grid-template-columns: 1.5fr 120px 140px 80px 50px; gap: 10px; align-items: center; padding: 12px 16px;}
+.dashboard-table-wrap { border: 1px solid rgba(255,255,255,.03); border-radius: 10px; overflow-x: auto; background: rgba(14,14,18,.9); }
+.dashboard-table-head, .dashboard-row { display: grid; grid-template-columns: 1.5fr 100px 130px 100px 32px; gap: 10px; align-items: center; padding: 12px 16px;}
 /* Status badges */
 .status-badge {
   display: inline-flex; align-items: center;
