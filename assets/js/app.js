@@ -1372,7 +1372,7 @@ function renderBusinessDashboardPage() {
 
     // Sync item statuses from Supabase
     if (user.email) {
-      sb.from('drinks').select('name,status').eq('submitted_by', user.email).then(({ data: remoteItems }) => {
+      sb.from('drinks').select('name,status').eq('supplier_name', config.listingName).then(({ data: remoteItems }) => {
         if (remoteItems && remoteItems.length) {
           remoteItems.forEach(ri => {
             const match = config.items.find(i => i.name === ri.name);
@@ -1462,7 +1462,7 @@ function renderBusinessDashboardPage() {
               price: item.price,
               availability: item.availability || 'In stock',
               status: 'pending',
-              submitted_by: user.email,
+              submitted_by: sb.auth.user()?.id || null,
               supplier_name: config.listingName || user.name || '',
               type: role === 'venue' ? 'Venue offer' : 'Spirit',
               origin: 'Hong Kong'
