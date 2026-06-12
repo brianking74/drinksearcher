@@ -9,16 +9,16 @@
 @import url('https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&display=swap');
 
 :root {
-  --bg: #131318;
-  --bg-soft: #18181e;
+  --bg: #f5f0e8;
+  --bg-soft: #ede6d9;
   --surface: #1c1c24;
   --surface-2: #202028;
   --surface-3: #282830;
   --card: rgba(28, 28, 36, 0.9);
   --border: rgba(255, 255, 255, 0.07);
   --border-strong: rgba(255, 255, 255, 0.14);
-  --text: #f1eee6;
-  --muted: #a7a093;
+  --text: #1a1a1a;
+  --muted: #6b6560;
   --gold: #bda16f;
   --gold-soft: rgba(189, 161, 111, 0.14);
   --jade: #8e9d93;
@@ -41,10 +41,7 @@ body {
   margin: 0;
   font-family: var(--sans);
   color: var(--text);
-  background:
-    radial-gradient(circle at top left, rgba(189,161,111,.09), transparent 32%),
-    radial-gradient(circle at top right, rgba(123,61,73,.08), transparent 28%),
-    linear-gradient(180deg, #202026 0%, #1a1a20 38%, #15151a 100%);
+  background: #f5f0e8;
   overflow-x: hidden;
 }
 
@@ -143,13 +140,13 @@ h1 em, h2 em, h3 em { font-style: normal; font-weight: 500; letter-spacing: .04e
 .nav {
   position: fixed; inset: 0 0 auto 0; z-index: 1000;
   backdrop-filter: blur(20px);
-  background: rgba(10,10,12,.74);
+  background: rgba(245,240,232,.92);
   border-bottom: 1px solid rgba(255,255,255,.05);
   transition: .25s ease;
 }
 .nav.scrolled {
   border-bottom-color: rgba(255,255,255,.08);
-  background: rgba(10,10,12,.92);
+  background: rgba(245,240,232,.95);
 }
 .nav-inner { min-height: 76px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
 
@@ -192,7 +189,7 @@ h1 em, h2 em, h3 em { font-style: normal; font-weight: 500; letter-spacing: .04e
   text-decoration: none; transition: background .15s;
 }
 .account-menu a:hover, .account-menu button:hover { background: rgba(189,161,111,.10); }
-.mobile-toggle { display: none; background: transparent; border: 1px solid var(--border); color: var(--text); border-radius: 12px; width: 44px; height: 44px; align-items: center; justify-content: center; }
+.mobile-toggle { display: none; background: transparent; border: 1px solid var(--border); color: #2a2a2a; border-radius: 12px; width: 44px; height: 44px; align-items: center; justify-content: center; }
 
 /* ── Buttons ── */
 
@@ -259,7 +256,7 @@ h1 em, h2 em, h3 em { font-style: normal; font-weight: 500; letter-spacing: .04e
 }
 .hero::before {
   content: ""; position: absolute; inset: 0;
-  background: linear-gradient(180deg, rgba(10,10,12,.18) 0%, rgba(10,10,12,.42) 42%, rgba(10,10,12,.94) 100%);
+  background: linear-gradient(180deg, rgba(245,240,232,0) 0%, rgba(245,240,232,.4) 42%, rgba(245,240,232,.85) 100%);
   z-index: 1;
 }
 .hero-media { position: absolute; inset: 0; background-size: cover; background-position: center; transform: scale(1.04); filter: saturate(1.06); }
@@ -271,7 +268,7 @@ h1 em, h2 em, h3 em { font-style: normal; font-weight: 500; letter-spacing: .04e
   padding-inline-start: var(--inner-page-title-indent);
   max-width: min(840px, 100%);
 }
-.hero-copy .lead { margin-top: 18px; font-size: 1.08rem; color: rgba(245,242,234,.82); }
+.hero-copy .lead { margin-top: 18px; font-size: 1.08rem; color: rgba(30,30,30,.75); }
 .hero-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 28px; }
 
 /* Homepage hero */
@@ -305,7 +302,7 @@ h1 em, h2 em, h3 em { font-style: normal; font-weight: 500; letter-spacing: .04e
   width: min(1020px, 100%);
   margin: 4px auto 0;
   padding: 20px;
-  background: rgba(18,20,30,.72);
+  background: rgba(245,240,232,.95);
   backdrop-filter: blur(18px);
   border-radius: 30px;
 }
@@ -321,7 +318,7 @@ h1 em, h2 em, h3 em { font-style: normal; font-weight: 500; letter-spacing: .04e
   text-align: center;
   padding: 22px 18px;
   border-radius: 24px;
-  background: rgba(12,16,24,.82);
+  background: rgba(245,240,232,.95);
 }
 
 .homepage-bottles-section { padding-top: 94px; }
@@ -339,7 +336,7 @@ h1 em, h2 em, h3 em { font-style: normal; font-weight: 500; letter-spacing: .04e
 }
 .profile-hero::before {
   content: ""; position: absolute; inset: 0;
-  background: linear-gradient(180deg, rgba(10,10,12,.18) 0%, rgba(10,10,12,.42) 42%, rgba(10,10,12,.94) 100%);
+  background: linear-gradient(180deg, rgba(245,240,232,0) 0%, rgba(245,240,232,.4) 42%, rgba(245,240,232,.85) 100%);
   z-index: 1;
 }
 .profile-content { position: relative; z-index: 2; display: grid; grid-template-columns: 1.15fr .85fr; gap: 32px; align-items: end; padding-inline: clamp(18px, 2vw, 30px); }
