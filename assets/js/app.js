@@ -1469,7 +1469,7 @@ function renderBusinessDashboardPage() {
       renderBusinessDashboardPage();
     }));
   };
-  renderRole(state.activeRole || 'merchant');
+  app.innerHTML = renderRole(state.activeRole || 'merchant');
 }
 
 function adminPlanCatalog() {
