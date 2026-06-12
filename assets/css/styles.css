@@ -9,12 +9,12 @@
 @import url('https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&display=swap');
 
 :root {
-  --bg: #09090b;
-  --bg-soft: #101014;
-  --surface: #141419;
-  --surface-2: #18181d;
-  --surface-3: #1f1f25;
-  --card: rgba(20, 20, 24, 0.9);
+  --bg: #131318;
+  --bg-soft: #18181e;
+  --surface: #1c1c24;
+  --surface-2: #202028;
+  --surface-3: #282830;
+  --card: rgba(28, 28, 36, 0.9);
   --border: rgba(255, 255, 255, 0.07);
   --border-strong: rgba(255, 255, 255, 0.14);
   --text: #f1eee6;
