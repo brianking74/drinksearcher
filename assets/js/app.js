@@ -1326,27 +1326,11 @@ function renderBusinessDashboardPage() {
           </div>
         </section>` : ''}
 
-        <section class="section">
-          <div class="container grid grid-2">
-            <div class="panel">
-              <span class="eyebrow">Featured placement</span>
-              <h2 style="margin:14px 0;">Commercial upgrades in one glance.</h2>
-              <div class="addon-list">
-                ${addOnRows.map(([key, label]) => `<div class="addon-card"><div><strong>${label}</strong><p class="muted">${config[key] ? 'Enabled on this account.' : 'Currently off. Enable it above to add this placement.'}</p></div><div class="addon-price">${config[key] ? 'On' : 'Off'}</div></div>`).join('')}
-              </div>
-            </div>
-            <div class="panel">
-              <span class="eyebrow">Account details</span>
-              <h2 style="margin:14px 0;">User account + business workspace</h2>
-              <div class="muted" style="display:grid; gap:10px;">
-                <span>${user.name || 'Unnamed user'}</span>
-                <span>${user.email}</span>
-                <span>${user.city || 'Hong Kong'}</span>
-              </div>
-              <div class="inline-actions" style="margin-top:18px;">
-                <a class="btn btn-ghost" href="account.html">Back to account</a>
-                <a class="btn btn-secondary" href="list-your-business.html?type=${role === 'merchant' ? 'merchant' : 'venue'}">Edit enquiry</a>
-              </div>
+        <section class="section-tight">
+          <div class="container">
+            <div class="inline-actions" style="justify-content:center; gap:16px;">
+              <a class="btn btn-ghost" href="account.html">Back to account</a>
+              <button class="btn btn-secondary" id="dashboard-signout-btn" type="button">Sign Out</button>
             </div>
           </div>
         </section>
@@ -1378,6 +1362,7 @@ function renderBusinessDashboardPage() {
       notice.innerHTML = '<div class="notice">Membership and add-on preferences saved.</div>';
       renderBusinessDashboardPage();
     });
+    $('#dashboard-signout-btn', app)?.addEventListener('click', () => { storage.signOut(); window.location.href = 'index.html'; });
     const saveItems = () => {
       config.items = $$('.dashboard-row', app).map((row, index) => ({
         id: config.items[index]?.id || `${role}_${Date.now()}_${index}`,
@@ -1395,6 +1380,7 @@ function renderBusinessDashboardPage() {
       persist();
       renderBusinessDashboardPage();
     });
+    $('#dashboard-signout-btn', app)?.addEventListener('click', () => { storage.signOut(); window.location.href = 'index.html'; });
     if (role === 'merchant' && $('#sheet-template-btn', app)) {
       $('#sheet-template-btn', app).addEventListener('click', () => {
         $('#sheet-import-source', app).value = 'Name,Price,Availability,Visibility\nChardonnay Reserve,188,In stock,Enhanced\nSmall Batch Gin,420,Low stock,Featured\nZero-Proof Spritz,98,Pre-order,Enhanced';
