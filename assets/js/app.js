@@ -1330,7 +1330,7 @@ function renderBusinessDashboardPage() {
           <div class="container">
             <div class="inline-actions" style="justify-content:center; gap:16px;">
               <a class="btn btn-ghost" href="account.html">Back to account</a>
-              <button class="btn btn-secondary" id="dashboard-signout-btn" type="button">Sign Out</button>
+              <button class="btn btn-secondary" id="dashboard-signout-btn" type="button" onclick="dsAuth.signOut();storage.signOut();location.href='index.html'">Sign Out</button>
             </div>
           </div>
         </section>
@@ -1362,7 +1362,6 @@ function renderBusinessDashboardPage() {
       notice.innerHTML = '<div class="notice">Membership and add-on preferences saved.</div>';
       renderBusinessDashboardPage();
     });
-    $('#dashboard-signout-btn', app)?.addEventListener('click', async () => { await dsAuth.signOut(); storage.signOut(); window.location.href = 'index.html'; });
     const saveItems = () => {
       config.items = $$('.dashboard-row', app).map((row, index) => ({
         id: config.items[index]?.id || `${role}_${Date.now()}_${index}`,
@@ -1380,7 +1379,6 @@ function renderBusinessDashboardPage() {
       persist();
       renderBusinessDashboardPage();
     });
-    $('#dashboard-signout-btn', app)?.addEventListener('click', async () => { await dsAuth.signOut(); storage.signOut(); window.location.href = 'index.html'; });
     if (role === 'merchant' && $('#sheet-template-btn', app)) {
       $('#sheet-template-btn', app).addEventListener('click', () => {
         $('#sheet-import-source', app).value = 'Name,Price,Availability,Visibility\nChardonnay Reserve,188,In stock,Enhanced\nSmall Batch Gin,420,Low stock,Featured\nZero-Proof Spritz,98,Pre-order,Enhanced';
