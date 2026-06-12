@@ -1370,6 +1370,27 @@ function renderBusinessDashboardPage() {
         </section>
       </div>`;
 
+    // Sync item statuses from Supabase
+    if (user.email) {
+      sb.from('drinks').select('name,status').eq('submitted_by', user.email).then(({ data: remoteItems }) => {
+        if (remoteItems && remoteItems.length) {
+          remoteItems.forEach(ri => {
+            const match = config.items.find(i => i.name === ri.name);
+            if (match) match.status = ri.status;
+          });
+          persist();
+          // Update badges in DOM
+          $$('.status-badge', app).forEach((badge, i) => {
+            const item = config.items[i];
+            if (item) {
+              badge.textContent = item.status || 'Pending';
+              badge.className = 'status-badge status-' + (item.status || 'pending').toLowerCase();
+            }
+          });
+        }
+      });
+    }
+
     const profileForm = $('#dashboard-profile-form', app);
     const planForm = $('#dashboard-plan-form', app);
     const notice = $('#dashboard-notice', app);
@@ -1431,6 +1452,24 @@ function renderBusinessDashboardPage() {
           if (!imported.length) throw new Error('No inventory rows were detected.');
           config.items = mode === 'replace' ? imported : [...config.items, ...imported];
           persist();
+          
+          // Submit to Supabase for admin review
+          const supplierSlug = slugify(config.listingName || user.name || user.email);
+          let supabaseCount = 0;
+          for (const item of imported) {
+            const { error } = await sb.from('drinks').insert({
+              name: item.name,
+              price: item.price,
+              availability: item.availability || 'In stock',
+              status: 'pending',
+              submitted_by: user.email,
+              supplier_name: config.listingName || user.name || '',
+              type: role === 'venue' ? 'Venue offer' : 'Spirit',
+              origin: 'Hong Kong'
+            });
+            if (!error) supabaseCount++;
+          }
+          
           storage.addImportJob({
             businessName: config.listingName,
             email: config.contactEmail || user.email,
@@ -1439,9 +1478,9 @@ function renderBusinessDashboardPage() {
             source: source.slice(0, 180),
             status: 'Imported',
             itemCount: imported.length,
-            notes: `${mode === 'replace' ? 'Replaced' : 'Appended'} inventory from supplier sheet.`
+            notes: `${mode === 'replace' ? 'Replaced' : 'Appended'} inventory from supplier sheet. ${supabaseCount} submitted for admin review.`
           });
-          holder.innerHTML = `<div class="notice">Imported <strong>${imported.length}</strong> inventory rows into the merchant dashboard.</div>`;
+          holder.innerHTML = `<div class="notice">Imported <strong>${imported.length}</strong> rows. <strong>${supabaseCount}</strong> submitted to admin for review.</div>`;
           setTimeout(() => renderBusinessDashboardPage(), 300);
         } catch (error) {
           holder.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">${error.message || 'Import failed. Try using pasted CSV rows or a public CSV URL.'}</div>`;
@@ -1600,6 +1639,46 @@ async function loadImportSourceText(source) {
   return response.text();
 }
 
+async function loadPendingItems() {
+  const holder = $('#admin-pending-items');
+  if (!holder) return;
+  try {
+    const { data: items, error } = await sb.from('drinks').select('*').eq('status', 'pending').order('created_at', { ascending: false });
+    if (error) throw error;
+    if (!items || !items.length) {
+      holder.innerHTML = '<div class="notice">No pending items to review.</div>';
+      return;
+    }
+    holder.innerHTML = items.map((item, index) => `
+      <div class="admin-table-row" id="pending-row-${index}">
+        <div><strong>${item.name}</strong><div class="small-note">${item.type || 'Spirit'} · ${item.origin || 'HK'}</div></div>
+        <div>${item.supplier_name || item.submitted_by || 'Unknown'}</div>
+        <div>${item.price || 'N/A'}</div>
+        <div><span class="status-badge status-pending">${item.status}</span></div>
+        <div class="admin-inline">
+          <button class="btn btn-primary btn-small" type="button" onclick="moderateItem('${item.id}', 'approved', ${index})">Approve</button>
+          <button class="btn btn-ghost btn-small" type="button" onclick="moderateItem('${item.id}', 'rejected', ${index})">Reject</button>
+        </div>
+      </div>`).join('');
+  } catch (e) {
+    holder.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Could not load pending items: ${e.message}</div>`;
+  }
+}
+
+async function moderateItem(id, status, index) {
+  const notice = $('#admin-pending-notice');
+  try {
+    const { error } = await sb.from('drinks').update({ status }).eq('id', id);
+    if (error) throw error;
+    const row = $(`#pending-row-${index}`);
+    if (row) row.style.opacity = '0.3';
+    if (notice) notice.innerHTML = `<div class="notice">Item ${status}.</div>`;
+    setTimeout(() => loadPendingItems(), 500);
+  } catch (e) {
+    if (notice) notice.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Failed: ${e.message}</div>`;
+  }
+}
+
 function renderAdminDashboardPage() {
   const app = $('#app');
   const user = storage.getCurrentUser();
@@ -1742,7 +1821,21 @@ function renderAdminDashboardPage() {
         </div>
         <div id="admin-imports-notice"></div>
       </div>
+    </section>
+
+    <section class="section-tight">
+      <div class="container">
+        <div class="section-head"><div><span class="eyebrow">Pending inventory</span><h2>Items waiting for approval before going live.</h2></div></div>
+        <div class="admin-table">
+          <div class="admin-table-head"><div>Product</div><div>Supplier</div><div>Price</div><div>Status</div><div>Actions</div></div>
+          <div id="admin-pending-items"><div class="notice">Loading pending items…</div></div>
+        </div>
+        <div id="admin-pending-notice"></div>
+      </div>
     </section>`;
+
+  // Load pending inventory from Supabase
+  loadPendingItems();
 
   const saveState = (message, selector) => {
     storage.setAdminState(state);
