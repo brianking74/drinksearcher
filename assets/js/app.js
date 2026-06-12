@@ -271,7 +271,7 @@ function currentPagePath() {
 
 function consumePendingSave() {
   const pending = storage.getPendingSave();
-  if (!pending || !await dsAuth.getCurrentUser()) return;
+  if (!pending || !storage.getCurrentUser()) return;
   const saved = storage.getSaved();
   if (!saved.some(item => item.id === pending.id)) {
     storage.setSaved([pending, ...saved]);
@@ -402,8 +402,8 @@ async function setupChrome(activeLabel) {
   window.addEventListener('scroll', () => nav.classList.toggle('scrolled', window.scrollY > 8));
 }
 
-async function saveItem(item) {
-  if (!await dsAuth.getCurrentUser()) {
+function saveItem(item) {
+  if (!storage.getCurrentUser()) {
     storage.setPendingSave(item);
     storage.setPostAuthRedirect(currentPagePath());
     window.location.href = 'signin.html?intent=save';
@@ -416,7 +416,7 @@ async function saveItem(item) {
   } else {
     storage.setSaved([item, ...saved]);
   }
-  await syncSaveButtons();
+  syncSaveButtons();
   renderAccountSaved();
 }
 
@@ -438,7 +438,7 @@ function bindSaveButtons(root = document) {
   });
 }
 
-async function syncSaveButtons() {
+function syncSaveButtons() {
   $$('.save-btn').forEach(btn => {
     const data = JSON.parse(btn.dataset.save.replace(/&apos;/g, "'"));
     const saved = isSaved(data.id);
@@ -1005,9 +1005,9 @@ function renderPricingPage() {
   setBilling('monthly');
 }
 
-async function renderLeadCapturePage() {
+function renderLeadCapturePage() {
   const app = $('#app');
-  const user = await dsAuth.getCurrentUser();
+  const user = storage.getCurrentUser();
   if (!user) storage.setPostAuthRedirect(currentPagePath());
   const requestedType = queryParam('type') || 'merchant';
   const requestedPlan = queryParam('plan') || (requestedType === 'venue' ? 'venue-enhanced' : 'merchant-enhanced');
@@ -1138,9 +1138,9 @@ async function renderSignUpPage() {
   });
 }
 
-async function renderAccountPage() {
+function renderAccountPage() {
   const app = $('#app');
-  const user = await dsAuth.getCurrentUser();
+  const user = storage.getCurrentUser();
   if (!user) {
     storage.setPostAuthRedirect('account.html');
     window.location.href = 'signin.html';
@@ -1168,7 +1168,7 @@ function renderAccountSaved() {
   $$('[data-remove]', holder).forEach(btn => btn.addEventListener('click', () => {
     storage.setSaved(storage.getSaved().filter(item => item.id !== btn.dataset.remove));
     renderAccountSaved();
-    await syncSaveButtons();
+    syncSaveButtons();
   }));
 }
 
@@ -1179,9 +1179,9 @@ function renderAccountLeads() {
   holder.innerHTML = leads.length ? `<div class="grid grid-2">${leads.map(lead => `<div class="panel"><div class="eyebrow">${lead.listingType === 'venue' ? 'Venue enquiry' : 'Merchant enquiry'}</div><h3 style="margin:12px 0;">${lead.businessName}</h3><p class="muted">${lead.planInterest.replace(/-/g, ' ')} · ${lead.district}</p><div class="muted" style="display:grid; gap:8px; margin-top:14px;"><span>${lead.contactName}</span><span>${lead.email}</span><span>${lead.phone}</span></div><div class="inline-actions" style="margin-top:16px;"><a class="btn btn-ghost btn-small" href="list-your-business.html?type=${lead.listingType}&plan=${lead.planInterest}">Edit / submit another</a><a class="btn btn-primary btn-small" href="dashboard.html?role=${lead.listingType}">Open dashboard</a></div></div>`).join('')}</div>` : '<div class="empty-state">No business enquiries yet. Use the lead capture page to submit your first supplier or venue application.</div>';
 }
 
-async function renderBusinessDashboardPage() {
+function renderBusinessDashboardPage() {
   const app = $('#app');
-  const user = await dsAuth.getCurrentUser();
+  const user = storage.getCurrentUser();
   if (!user) {
     storage.setPostAuthRedirect(currentPagePath());
     window.location.href = 'signin.html';
@@ -1368,7 +1368,7 @@ async function renderBusinessDashboardPage() {
       addOnRows.forEach(([key]) => { config[key] = form.get(key) === 'on'; });
       persist();
       notice.innerHTML = '<div class="notice">Membership and add-on preferences saved.</div>';
-      await renderBusinessDashboardPage();
+      renderBusinessDashboardPage();
     });
     const saveItems = () => {
       config.items = $$('.dashboard-row', app).map((row, index) => ({
@@ -1385,7 +1385,7 @@ async function renderBusinessDashboardPage() {
     $('#add-item-btn', app).addEventListener('click', () => {
       config.items.push({ id: `${role}_${Date.now()}`, name: role === 'merchant' ? 'New product' : 'New venue offer', price: 'HK$0', availability: 'In stock', visibility: 'Standard' });
       persist();
-      await renderBusinessDashboardPage();
+      renderBusinessDashboardPage();
     });
     if (role === 'merchant' && $('#sheet-template-btn', app)) {
       $('#sheet-template-btn', app).addEventListener('click', () => {
@@ -1446,7 +1446,7 @@ async function renderBusinessDashboardPage() {
     $$('[data-role-switch]', app).forEach(btn => btn.addEventListener('click', () => {
       state.activeRole = btn.dataset.roleSwitch;
       persist();
-      await renderBusinessDashboardPage();
+      renderBusinessDashboardPage();
     }));
   };
   renderRole(state.activeRole || 'merchant');
@@ -1575,9 +1575,9 @@ async function loadImportSourceText(source) {
   return response.text();
 }
 
-async function renderAdminDashboardPage() {
+function renderAdminDashboardPage() {
   const app = $('#app');
-  const user = await dsAuth.getCurrentUser();
+  const user = storage.getCurrentUser();
   if (!user) {
     storage.setPostAuthRedirect('admin.html');
     window.location.href = 'signin.html';
@@ -1733,7 +1733,7 @@ async function renderAdminDashboardPage() {
     if (sourceIndex === -1) return;
     state.applications[sourceIndex].status = $(`[data-application-status="${index}"]`, app).value;
     saveState(`Application status updated for ${entry.businessName}.`, '#admin-applications-notice');
-    await renderAdminDashboardPage();
+    renderAdminDashboardPage();
   }));
 
   $$('[data-create-subscription]', app).forEach(btn => btn.addEventListener('click', () => {
@@ -1761,7 +1761,7 @@ async function renderAdminDashboardPage() {
     const sourceIndex = state.applications.findIndex(item => item.id === entry.id);
     if (sourceIndex > -1) state.applications[sourceIndex].status = 'Approved';
     saveState(`Subscription record created for ${entry.businessName}.`, '#admin-applications-notice');
-    await renderAdminDashboardPage();
+    renderAdminDashboardPage();
   }));
 
   $$('[data-subscription-save]', app).forEach(btn => btn.addEventListener('click', () => {
@@ -1779,7 +1779,7 @@ async function renderAdminDashboardPage() {
     });
     sub.invoiceStatus = sub.status === 'Past Due' ? 'Overdue' : sub.status === 'Cancelled' ? 'Closed' : 'Paid';
     saveState(`Subscription updated for ${sub.businessName}.`, '#admin-subscriptions-notice');
-    await renderAdminDashboardPage();
+    renderAdminDashboardPage();
   }));
 
   $$('[data-placement-save]', app).forEach(btn => btn.addEventListener('click', () => {
@@ -1790,7 +1790,7 @@ async function renderAdminDashboardPage() {
     slot.status = $(`[data-placement-status="${index}"]`, app).value;
     slot.notes = $(`[data-placement-notes="${index}"]`, app).value;
     saveState(`Featured placement updated: ${slot.slot}.`, '#admin-placements-notice');
-    await renderAdminDashboardPage();
+    renderAdminDashboardPage();
   }));
 
   $$('[data-moderation-save]', app).forEach(btn => btn.addEventListener('click', () => {
@@ -1800,7 +1800,7 @@ async function renderAdminDashboardPage() {
     item.status = $(`[data-moderation-status="${index}"]`, app).value;
     item.notes = $(`[data-moderation-notes="${index}"]`, app).value;
     saveState(`Moderation updated for ${item.title}.`, '#admin-moderation-notice');
-    await renderAdminDashboardPage();
+    renderAdminDashboardPage();
   }));
 
   $$('[data-import-save]', app).forEach(btn => btn.addEventListener('click', () => {
@@ -1809,7 +1809,7 @@ async function renderAdminDashboardPage() {
     if (!job) return;
     job.status = $(`[data-import-status="${index}"]`, app).value;
     saveState(`Import job updated for ${job.businessName}.`, '#admin-imports-notice');
-    await renderAdminDashboardPage();
+    renderAdminDashboardPage();
   }));
 
   $$('[data-import-promote]', app).forEach(btn => btn.addEventListener('click', () => {
@@ -1834,7 +1834,7 @@ async function renderAdminDashboardPage() {
     }
     job.status = 'Needs Review';
     saveState(`Listing task created from import queue for ${job.businessName}.`, '#admin-imports-notice');
-    await renderAdminDashboardPage();
+    renderAdminDashboardPage();
   }));
 }
 
@@ -1878,14 +1878,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (page === 'drinks') await renderDrinksPage();
   if (page === 'events') await renderEventsPage();
   if (page === 'pricing') renderPricingPage();
-  if (page === 'lead') await renderLeadCapturePage();
-  if (page === 'dashboard') await renderBusinessDashboardPage();
-  if (page === 'admin') await renderAdminDashboardPage();
+  if (page === 'lead') renderLeadCapturePage();
+  if (page === 'dashboard') renderBusinessDashboardPage();
+  if (page === 'admin') renderAdminDashboardPage();
   if (page === 'venue-profile') renderVenueProfile();
   if (page === 'supplier-profile') renderSupplierProfile();
   if (page === 'signin') await renderSignInPage();
   if (page === 'signup') await renderSignUpPage();
-  if (page === 'account') await renderAccountPage();
+  if (page === 'account') renderAccountPage();
   setupAnchorSpy();
-  await syncSaveButtons();
+  syncSaveButtons();
 });
