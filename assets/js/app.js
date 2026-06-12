@@ -1166,8 +1166,8 @@ function renderAccountPage() {
   });
   renderAccountSaved();
   renderAccountLeads();
-  $('#account-signout-btn').addEventListener('click', () => { storage.signOut(); window.location.href = 'index.html'; });
-  $('#account-signout-btn').addEventListener('click', () => { storage.signOut(); window.location.href = 'index.html'; });
+  $('#account-signout-btn').addEventListener('click', async () => { await dsAuth.signOut(); storage.signOut(); window.location.href = 'index.html'; });
+  $('#account-signout-btn').addEventListener('click', async () => { await dsAuth.signOut(); storage.signOut(); window.location.href = 'index.html'; });
 }
 
 function renderAccountSaved() {
@@ -1362,7 +1362,7 @@ function renderBusinessDashboardPage() {
       notice.innerHTML = '<div class="notice">Membership and add-on preferences saved.</div>';
       renderBusinessDashboardPage();
     });
-    $('#dashboard-signout-btn', app)?.addEventListener('click', () => { storage.signOut(); window.location.href = 'index.html'; });
+    $('#dashboard-signout-btn', app)?.addEventListener('click', async () => { await dsAuth.signOut(); storage.signOut(); window.location.href = 'index.html'; });
     const saveItems = () => {
       config.items = $$('.dashboard-row', app).map((row, index) => ({
         id: config.items[index]?.id || `${role}_${Date.now()}_${index}`,
@@ -1380,7 +1380,7 @@ function renderBusinessDashboardPage() {
       persist();
       renderBusinessDashboardPage();
     });
-    $('#dashboard-signout-btn', app)?.addEventListener('click', () => { storage.signOut(); window.location.href = 'index.html'; });
+    $('#dashboard-signout-btn', app)?.addEventListener('click', async () => { await dsAuth.signOut(); storage.signOut(); window.location.href = 'index.html'; });
     if (role === 'merchant' && $('#sheet-template-btn', app)) {
       $('#sheet-template-btn', app).addEventListener('click', () => {
         $('#sheet-import-source', app).value = 'Name,Price,Availability,Visibility\nChardonnay Reserve,188,In stock,Enhanced\nSmall Batch Gin,420,Low stock,Featured\nZero-Proof Spritz,98,Pre-order,Enhanced';
