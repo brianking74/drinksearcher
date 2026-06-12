@@ -1115,9 +1115,13 @@ async function renderSignInPage() {
   $('#signin-form').addEventListener('submit', async e => {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
-    const result = await dsAuth.signIn(form.get('email'), form.get('password'));
-    if (result.ok) {
-      // Bridge: save to localStorage so existing pages work
+    // Try Supabase first, fall back to localStorage
+    let result = await dsAuth.signIn(form.get('email'), form.get('password'));
+    if (!result.ok) {
+      // Fall back to localStorage for legacy accounts
+      result = storage.signIn(form.get('email'), form.get('password'));
+    } else {
+      // Bridge: save Supabase user to localStorage
       const users = storage.getUsers();
       if (!users.find(u => u.email === result.user.email)) {
         users.push({ name: result.user.name || '', email: result.user.email, password: '', city: '', role: result.user.role || 'searcher', createdAt: new Date().toISOString() });
