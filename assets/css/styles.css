@@ -9,8 +9,8 @@
 @import url('https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&display=swap');
 
 :root {
-  --bg: #e8e5df;
-  --bg-soft: #ddd9d2;
+  --bg: #d5d3ce;
+  --bg-soft: #cbc9c4;
   --surface: #0c0c12;
   --surface-2: #121218;
   --surface-3: #18181e;
@@ -44,7 +44,7 @@ body {
   background:
     radial-gradient(circle at top left, rgba(189,161,111,.09), transparent 32%),
     radial-gradient(circle at top right, rgba(123,61,73,.08), transparent 28%),
-    linear-gradient(180deg, #ece9e3 0%, #e5e2db 38%, #dedbd4 100%);
+    linear-gradient(180deg, #d8d6d1 0%, #d0cec9 38%, #c8c6c1 100%);
   overflow-x: hidden;
 }
 
@@ -143,13 +143,13 @@ h1 em, h2 em, h3 em { font-style: normal; font-weight: 500; letter-spacing: .04e
 .nav {
   position: fixed; inset: 0 0 auto 0; z-index: 1000;
   backdrop-filter: blur(20px);
-  background: rgba(232,229,223,.92);
+  background: rgba(213,211,206,.94);
   border-bottom: 1px solid rgba(255,255,255,.05);
   transition: .25s ease;
 }
 .nav.scrolled {
   border-bottom-color: rgba(255,255,255,.08);
-  background: rgba(232,229,223,.95);
+  background: rgba(213,211,206,.96);
 }
 .nav-inner { min-height: 76px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
 
@@ -305,7 +305,7 @@ h1 em, h2 em, h3 em { font-style: normal; font-weight: 500; letter-spacing: .04e
   width: min(1020px, 100%);
   margin: 4px auto 0;
   padding: 20px;
-  background: rgba(232,229,223,.94);
+  background: rgba(213,211,206,.94);
   backdrop-filter: blur(18px);
   border-radius: 30px;
 }
@@ -321,7 +321,7 @@ h1 em, h2 em, h3 em { font-style: normal; font-weight: 500; letter-spacing: .04e
   text-align: center;
   padding: 22px 18px;
   border-radius: 24px;
-  background: rgba(232,229,223,.94);
+  background: rgba(213,211,206,.94);
 }
 
 .homepage-bottles-section { padding-top: 94px; }
