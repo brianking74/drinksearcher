@@ -1247,8 +1247,10 @@ async function importInventory() {
     config.items = mode === 'replace' ? items : [...config.items, ...items];
     storage.setDashboardState(state);
     let supabaseCount = 0;
+    const { data: authData } = await sb.auth.getUser().catch(() => ({}));
+    const userId = authData?.user?.id || null;
     for (const item of items) {
-      const { error } = await sb.from('drinks').insert({ name: item.name, price: item.price, availability: item.availability || 'In stock', status: 'pending', submitted_by: sb.auth.user()?.id || null, supplier_name: config.listingName || user.name || '', type: 'Spirit', origin: 'Hong Kong' });
+      const { error } = await sb.from('drinks').insert({ name: item.name, price: item.price, availability: item.availability || 'In stock', status: 'pending', submitted_by: userId, supplier_name: config.listingName || user.name || '', type: 'Spirit', origin: 'Hong Kong' });
       if (!error) supabaseCount++;
     }
     if (holder) holder.innerHTML = '<div class="notice">Imported <strong>' + items.length + '</strong> rows. <strong>' + supabaseCount + '</strong> submitted for review.</div>';
@@ -1497,7 +1499,7 @@ function renderBusinessDashboardPage() {
               price: item.price,
               availability: item.availability || 'In stock',
               status: 'pending',
-              submitted_by: sb.auth.user()?.id || null,
+              submitted_by: (await sb.auth.getUser())?.data?.user?.id || null,
               supplier_name: config.listingName || user.name || '',
               type: role === 'venue' ? 'Venue offer' : 'Spirit',
               origin: 'Hong Kong'
