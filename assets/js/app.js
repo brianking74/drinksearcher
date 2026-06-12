@@ -1415,7 +1415,7 @@ function renderBusinessDashboardPage() {
     });
     if (role === 'merchant' && $('#sheet-template-btn', app)) {
       $('#sheet-template-btn', app).addEventListener('click', () => {
-        $('#sheet-import-source', app).value = 'Name,Price,Availability,Visibility\nChardonnay Reserve,188,In stock,Enhanced\nSmall Batch Gin,420,Low stock,Featured\nZero-Proof Spritz,98,Pre-order,Enhanced';
+        $('#sheet-import-source', app).value = 'Name,Price,Availability\nChardonnay Reserve,188,In stock\nSmall Batch Gin,420,Low stock\nZero-Proof Spritz,98,Pre-order';
       });
       $('#sheet-import-btn', app).addEventListener('click', async () => {
         const source = $('#sheet-import-source', app).value.trim();
@@ -1577,7 +1577,6 @@ function importItemsFromCSV(text) {
   const nameIndex = inventoryColumnIndex(headers, ['name', 'title', 'product', 'product name', 'item']);
   const priceIndex = inventoryColumnIndex(headers, ['price', 'unit price', 'sale price']);
   const availabilityIndex = inventoryColumnIndex(headers, ['availability', 'stock status', 'stock', 'inventory', 'status']);
-  const visibilityIndex = inventoryColumnIndex(headers, ['visibility', 'tier', 'listing tier']);
   const items = rows.slice(1).map((row, index) => {
     const name = row[nameIndex] || row[0];
     if (!name) return null;
@@ -1586,7 +1585,7 @@ function importItemsFromCSV(text) {
       name: name.trim(),
       price: normalizeImportPrice(row[priceIndex]),
       availability: normalizeImportAvailability(row[availabilityIndex]),
-      visibility: row[visibilityIndex] || 'Enhanced'
+      status: 'Pending'
     };
   }).filter(Boolean);
   return items;
