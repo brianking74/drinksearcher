@@ -322,25 +322,14 @@ function buildSearchHref(base, query = '', area = '') {
   return `${base}${params.toString() ? `?${params.toString()}` : ''}`;
 }
 
-async function navHTML(active = '') {
+function navHTML(active = '') {
   const links = [
     ['index.html','Home'],
     ['drinks.html','Drinks'],
     ['events.html','Events'],
     ['bars-restaurants.html','Bars & Restaurants'],
     ];
-  let user = storage.getCurrentUser();
-  // Bridge: if Supabase session exists but localStorage doesn't, sync them
-  if (!user) {
-    const dsUser = await dsAuth.getCurrentUser();
-    if (dsUser) {
-      const users = storage.getUsers();
-      users.push({ name: dsUser.name || '', email: dsUser.email, password: '', city: '', role: dsUser.role || 'searcher', createdAt: new Date().toISOString() });
-      storage.setUsers(users);
-      storage.setCurrentUser(dsUser.email);
-      user = dsUser;
-    }
-  }
+  const user = storage.getCurrentUser();
   const authActions = user
     ? `<a class="btn btn-ghost btn-small" href="account.html">👤 Account</a>`
     : `<a class="btn btn-ghost btn-small" href="signin.html">Sign In</a><a class="btn btn-secondary btn-small" href="signup.html">Sign Up</a>`;
@@ -394,10 +383,10 @@ function footerHTML() {
     </footer>`;
 }
 
-async function setupChrome(activeLabel) {
+function setupChrome(activeLabel) {
   const nav = document.createElement('header');
   nav.className = 'nav';
-  nav.innerHTML = await navHTML(activeLabel);
+  nav.innerHTML = navHTML(activeLabel);
   document.body.prepend(nav);
   const footerWrap = document.createElement('div');
   footerWrap.innerHTML = footerHTML();
@@ -1018,18 +1007,7 @@ function renderPricingPage() {
 
 function renderLeadCapturePage() {
   const app = $('#app');
-  let user = storage.getCurrentUser();
-  // Bridge: if Supabase session exists but localStorage doesn't, sync them
-  if (!user) {
-    const dsUser = await dsAuth.getCurrentUser();
-    if (dsUser) {
-      const users = storage.getUsers();
-      users.push({ name: dsUser.name || '', email: dsUser.email, password: '', city: '', role: dsUser.role || 'searcher', createdAt: new Date().toISOString() });
-      storage.setUsers(users);
-      storage.setCurrentUser(dsUser.email);
-      user = dsUser;
-    }
-  }
+  const user = storage.getCurrentUser();
   if (!user) storage.setPostAuthRedirect(currentPagePath());
   const requestedType = queryParam('type') || 'merchant';
   const requestedPlan = queryParam('plan') || (requestedType === 'venue' ? 'venue-enhanced' : 'merchant-enhanced');
@@ -1165,18 +1143,7 @@ function renderSignUpPage() {
 
 function renderAccountPage() {
   const app = $('#app');
-  let user = storage.getCurrentUser();
-  // Bridge: if Supabase session exists but localStorage doesn't, sync them
-  if (!user) {
-    const dsUser = await dsAuth.getCurrentUser();
-    if (dsUser) {
-      const users = storage.getUsers();
-      users.push({ name: dsUser.name || '', email: dsUser.email, password: '', city: '', role: dsUser.role || 'searcher', createdAt: new Date().toISOString() });
-      storage.setUsers(users);
-      storage.setCurrentUser(dsUser.email);
-      user = dsUser;
-    }
-  }
+  const user = storage.getCurrentUser();
   if (!user) {
     storage.setPostAuthRedirect('account.html');
     window.location.href = 'signin.html';
@@ -1224,18 +1191,7 @@ function renderAccountLeads() {
 
 function renderBusinessDashboardPage() {
   const app = $('#app');
-  let user = storage.getCurrentUser();
-  // Bridge: if Supabase session exists but localStorage doesn't, sync them
-  if (!user) {
-    const dsUser = await dsAuth.getCurrentUser();
-    if (dsUser) {
-      const users = storage.getUsers();
-      users.push({ name: dsUser.name || '', email: dsUser.email, password: '', city: '', role: dsUser.role || 'searcher', createdAt: new Date().toISOString() });
-      storage.setUsers(users);
-      storage.setCurrentUser(dsUser.email);
-      user = dsUser;
-    }
-  }
+  const user = storage.getCurrentUser();
   if (!user) {
     storage.setPostAuthRedirect(currentPagePath());
     window.location.href = 'signin.html';
@@ -1613,18 +1569,7 @@ async function loadImportSourceText(source) {
 
 function renderAdminDashboardPage() {
   const app = $('#app');
-  let user = storage.getCurrentUser();
-  // Bridge: if Supabase session exists but localStorage doesn't, sync them
-  if (!user) {
-    const dsUser = await dsAuth.getCurrentUser();
-    if (dsUser) {
-      const users = storage.getUsers();
-      users.push({ name: dsUser.name || '', email: dsUser.email, password: '', city: '', role: dsUser.role || 'searcher', createdAt: new Date().toISOString() });
-      storage.setUsers(users);
-      storage.setCurrentUser(dsUser.email);
-      user = dsUser;
-    }
-  }
+  const user = storage.getCurrentUser();
   if (!user) {
     storage.setPostAuthRedirect('admin.html');
     window.location.href = 'signin.html';
@@ -1918,7 +1863,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     'venue-profile': 'Bars & Restaurants',
     'supplier-profile': 'Suppliers'
   };
-  await setupChrome(activeMap[page] || '');
+  setupChrome(activeMap[page] || '');
   if (page === 'home') await renderHomepage();
   if (page === 'venues') await renderVenueDirectory();
   if (page === 'suppliers') await renderSupplierDirectory();
