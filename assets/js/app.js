@@ -1224,6 +1224,11 @@ function renderAccountLeads() {
 }
 
 
+function fillSampleTemplate() {
+  var el = document.getElementById('sheet-import-source');
+  if (el) el.value = 'Name,Price,Availability\nChardonnay Reserve,188,In stock\nSmall Batch Gin,420,Low stock\nZero-Proof Spritz,98,Pre-order';
+}
+
 async function importInventory() {
   const source = document.getElementById('sheet-import-source')?.value?.trim();
   const mode = document.getElementById('sheet-import-mode')?.value || 'append';
@@ -1352,7 +1357,7 @@ function renderBusinessDashboardPage() {
               <p class="muted">Paste a published CSV URL from Google Sheets or paste CSV rows directly. This is the fastest path for suppliers who already manage stock in a spreadsheet.</p>
               <label class="dashboard-field"><span>Google Sheet CSV URL or pasted CSV</span><textarea class="input" rows="6" id="sheet-import-source" placeholder="https://docs.google.com/.../export?format=csv or pasted CSV rows"></textarea></label>
               <label class="dashboard-field"><span>Import mode</span><select class="select" id="sheet-import-mode"><option value="append">Append to current inventory</option><option value="replace">Replace current inventory</option></select></label>
-              <div class="admin-inline"><button class="btn btn-primary" id="sheet-import-btn" type="button" onclick="importInventory()">Import inventory</button><button class="btn btn-ghost" id="sheet-template-btn" type="button" onclick="document.getElementById('sheet-import-source').value='Name,Price,Availability\nChardonnay Reserve,188,In stock\nSmall Batch Gin,420,Low stock\nZero-Proof Spritz,98,Pre-order'">Insert sample template</button></div>
+              <div class="admin-inline"><button class="btn btn-primary" id="sheet-import-btn" type="button" onclick="importInventory()">Import inventory</button><button class="btn btn-ghost" id="sheet-template-btn" type="button" onclick="fillSampleTemplate()">Insert sample template</button></div>
               <div class="small-note">Recommended columns: Name, Price, Availability. You can extend the mapping later for SKU, size, pack, ABV, image, and product URL.</div>
               <div id="sheet-import-notice"></div>
             </div>
