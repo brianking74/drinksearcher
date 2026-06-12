@@ -106,11 +106,11 @@ const storage = {
     return {
       activeRole: 'merchant',
       merchant: {
-        membership: 'Merchant Enhanced',
-        billing: 'Monthly',
-        featuredSupplier: true,
+        membership: 'Merchant Starter',
+        billing: 'Free Entry',
+        featuredSupplier: false,
         featuredEvent: false,
-        extraProducts: true,
+        extraProducts: false,
         listingName: `${user?.name ? `${user.name}'s` : 'Founder'} Merchant Listing`,
         website: 'https://example-store.hk',
         contactEmail: user?.email || '',
@@ -124,10 +124,10 @@ const storage = {
         ]
       },
       venue: {
-        membership: 'Venue Enhanced',
-        billing: 'Annual',
-        featuredVenue: true,
-        featuredEvent: true,
+        membership: 'Venue Starter',
+        billing: 'Free Entry',
+        featuredVenue: false,
+        featuredEvent: false,
         bookingBoost: false,
         listingName: `${user?.name ? `${user.name}'s` : 'Founder'} Venue Listing`,
         website: 'https://example-bar.hk',
