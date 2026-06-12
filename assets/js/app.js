@@ -1223,6 +1223,36 @@ function renderAccountLeads() {
   holder.innerHTML = leads.length ? `<div class="grid grid-2">${leads.map(lead => `<div class="panel"><div class="eyebrow">${lead.listingType === 'venue' ? 'Venue enquiry' : 'Merchant enquiry'}</div><h3 style="margin:12px 0;">${lead.businessName}</h3><p class="muted">${lead.planInterest.replace(/-/g, ' ')} · ${lead.district}</p><div class="muted" style="display:grid; gap:8px; margin-top:14px;"><span>${lead.contactName}</span><span>${lead.email}</span><span>${lead.phone}</span></div><div class="inline-actions" style="margin-top:16px;"><a class="btn btn-ghost btn-small" href="list-your-business.html?type=${lead.listingType}&plan=${lead.planInterest}">Edit / submit another</a><a class="btn btn-primary btn-small" href="dashboard.html?role=${lead.listingType}">Open dashboard</a></div></div>`).join('')}</div>` : '<div class="empty-state">No business enquiries yet. Use the lead capture page to submit your first supplier or venue application.</div>';
 }
 
+
+async function importInventory() {
+  const source = document.getElementById('sheet-import-source')?.value?.trim();
+  const mode = document.getElementById('sheet-import-mode')?.value || 'append';
+  const holder = document.getElementById('sheet-import-notice');
+  if (!source) {
+    if (holder) holder.innerHTML = '<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Add CSV data first.</div>';
+    return;
+  }
+  try {
+    const text = /^https?:\/\//i.test(source) ? await (await fetch(source)).text() : source;
+    const items = importItemsFromCSV(text);
+    if (!items.length) throw new Error('No inventory rows detected.');
+    const state = storage.getDashboardState();
+    const user = storage.getCurrentUser();
+    const config = state[state.activeRole || 'merchant'];
+    config.items = mode === 'replace' ? items : [...config.items, ...items];
+    storage.setDashboardState(state);
+    let supabaseCount = 0;
+    for (const item of items) {
+      const { error } = await sb.from('drinks').insert({ name: item.name, price: item.price, availability: item.availability || 'In stock', status: 'pending', submitted_by: sb.auth.user()?.id || null, supplier_name: config.listingName || user.name || '', type: 'Spirit', origin: 'Hong Kong' });
+      if (!error) supabaseCount++;
+    }
+    if (holder) holder.innerHTML = '<div class="notice">Imported <strong>' + items.length + '</strong> rows. <strong>' + supabaseCount + '</strong> submitted for review.</div>';
+    setTimeout(() => location.reload(), 500);
+  } catch(e) {
+    if (holder) holder.innerHTML = '<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">' + (e.message || 'Import failed') + '</div>';
+  }
+}
+
 function renderBusinessDashboardPage() {
   const app = $('#app');
   const user = storage.getCurrentUser();
@@ -1322,7 +1352,7 @@ function renderBusinessDashboardPage() {
               <p class="muted">Paste a published CSV URL from Google Sheets or paste CSV rows directly. This is the fastest path for suppliers who already manage stock in a spreadsheet.</p>
               <label class="dashboard-field"><span>Google Sheet CSV URL or pasted CSV</span><textarea class="input" rows="6" id="sheet-import-source" placeholder="https://docs.google.com/.../export?format=csv or pasted CSV rows"></textarea></label>
               <label class="dashboard-field"><span>Import mode</span><select class="select" id="sheet-import-mode"><option value="append">Append to current inventory</option><option value="replace">Replace current inventory</option></select></label>
-              <div class="admin-inline"><button class="btn btn-primary" id="sheet-import-btn" type="button">Import inventory</button><button class="btn btn-ghost" id="sheet-template-btn" type="button">Insert sample template</button></div>
+              <div class="admin-inline"><button class="btn btn-primary" id="sheet-import-btn" type="button" onclick="importInventory()">Import inventory</button><button class="btn btn-ghost" id="sheet-template-btn" type="button" onclick="document.getElementById('sheet-import-source').value='Name,Price,Availability\nChardonnay Reserve,188,In stock\nSmall Batch Gin,420,Low stock\nZero-Proof Spritz,98,Pre-order'">Insert sample template</button></div>
               <div class="small-note">Recommended columns: Name, Price, Availability. You can extend the mapping later for SKU, size, pack, ABV, image, and product URL.</div>
               <div id="sheet-import-notice"></div>
             </div>
