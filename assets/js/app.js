@@ -1220,8 +1220,8 @@ function renderBusinessDashboardPage() {
     window.location.href = 'signin.html';
     return;
   }
-  let state = storage.getDashboardState();
-  if (!state) { state = storage.defaultDashboardState(user); }
+  const state = storage.getDashboardState();
+  if (!state) return;
   const roleQuery = queryParam('role');
   if (roleQuery === 'merchant' || roleQuery === 'venue') state.activeRole = roleQuery;
   const renderRole = (role) => {
