@@ -1100,7 +1100,7 @@ function renderSupplierProfile() {
   bindSaveButtons(app);
 }
 
-function renderSignInPage() {
+async function renderSignInPage() {
   const app = $('#app');
   const currentUser = storage.getCurrentUser();
   const hasPending = !!storage.getPendingSave() || new URLSearchParams(window.location.search).get('intent') === 'save';
@@ -1112,10 +1112,19 @@ function renderSignInPage() {
   }
   app.innerHTML = `
     <section class="hero" style="min-height:56vh;"><div class="hero-media" style="background-image:url('${siteImages.hero}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Sign in</span><h1>Access your profile and saved nightlife shortlist.</h1><p class="lead">Sign in to save drinks, events, and bars to your account, manage enquiries, and access your business dashboard.</p></div><div class="search-shell"><span class="eyebrow">Account sign in</span>${hasPending ? '<div class="notice">Sign in to finish saving the item you just selected.</div>' : ''}<form id="signin-form" class="form-grid" style="margin-top:14px;"><input class="input full" name="email" type="email" placeholder="Email" required /><input class="input full" name="password" type="password" placeholder="Password" required /><button class="btn btn-primary full" type="submit">Sign In</button></form><div id="signin-notice"></div><p class="muted" style="margin-top:16px;">New here? <a class="text-jade" href="signup.html">Create an account</a></p></div></div></section>`;
-  $('#signin-form').addEventListener('submit', e => {
+  $('#signin-form').addEventListener('submit', async e => {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
-    const result = storage.signIn(form.get('email'), form.get('password'));
+    const result = await dsAuth.signIn(form.get('email'), form.get('password'));
+    if (result.ok) {
+      // Bridge: save to localStorage so existing pages work
+      const users = storage.getUsers();
+      if (!users.find(u => u.email === result.user.email)) {
+        users.push({ name: result.user.name || '', email: result.user.email, password: '', city: '', role: result.user.role || 'searcher', createdAt: new Date().toISOString() });
+        storage.setUsers(users);
+      }
+      storage.setCurrentUser(result.user.email);
+    }
     $('#signin-notice').innerHTML = result.ok ? '<div class="notice">Signed in successfully. Taking you to your account…</div>' : `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">${result.message}</div>`;
     if (result.ok) setTimeout(() => finishAuthFlow('account.html'), 300);
   });
@@ -1888,7 +1897,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (page === 'admin') renderAdminDashboardPage();
   if (page === 'venue-profile') renderVenueProfile();
   if (page === 'supplier-profile') renderSupplierProfile();
-  if (page === 'signin') renderSignInPage();
+  if (page === 'signin') await renderSignInPage();
   if (page === 'signup') renderSignUpPage();
   if (page === 'account') renderAccountPage();
   setupAnchorSpy();
