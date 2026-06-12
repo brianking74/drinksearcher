@@ -332,7 +332,7 @@ function navHTML(active = '') {
   const user = storage.getCurrentUser();
   const authActions = user
     ? `<a class="btn btn-ghost btn-small" href="account.html">👤 Account</a>`
-    : `<a class="btn btn-secondary btn-small" href="signup.html">Signup</a>`;
+    : `<a class="btn btn-ghost btn-small" href="signin.html">Sign In</a><a class="btn btn-secondary btn-small" href="signup.html">Sign Up</a>`;
   return `
     <div class="container nav-inner">
       <a class="logo" href="index.html">drinksearcher<span>.hk</span></a>
