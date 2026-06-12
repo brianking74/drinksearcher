@@ -9,12 +9,12 @@
 @import url('https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&display=swap');
 
 :root {
-  --bg: #131318;
-  --bg-soft: #18181e;
-  --surface: #1c1c24;
-  --surface-2: #202028;
-  --surface-3: #282830;
-  --card: rgba(28, 28, 36, 0.9);
+  --bg: #1a1a22;
+  --bg-soft: #1f1f28;
+  --surface: #22222c;
+  --surface-2: #262630;
+  --surface-3: #2e2e38;
+  --card: rgba(34, 34, 44, 0.9);
   --border: rgba(255, 255, 255, 0.07);
   --border-strong: rgba(255, 255, 255, 0.14);
   --text: #f1eee6;
@@ -44,7 +44,7 @@ body {
   background:
     radial-gradient(circle at top left, rgba(189,161,111,.09), transparent 32%),
     radial-gradient(circle at top right, rgba(123,61,73,.08), transparent 28%),
-    linear-gradient(180deg, #202026 0%, #1a1a20 38%, #15151a 100%);
+    linear-gradient(180deg, #282830 0%, #22222a 38%, #1c1c24 100%);
   overflow-x: hidden;
 }
 
