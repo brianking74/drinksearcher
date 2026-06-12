@@ -118,9 +118,9 @@ const storage = {
         district: user?.city || 'Central',
         notes: 'Importer / retailer / drinks merchant profile with listing controls.',
         items: [
-          { id: 'm1', name: 'Château Margaux 2015', price: 'HK$7,980', availability: 'In stock', status: 'Pending' },
-          { id: 'm2', name: 'Yamazaki 12 Year Old', price: 'HK$1,880', availability: 'Low stock', status: 'Pending' },
-          { id: 'm3', name: 'Dassai 23 Junmai Daiginjo', price: 'HK$880', availability: 'Pre-order', status: 'Pending' }
+          { id: 'm1', name: 'Château Margaux 2015', price: 'HK$7,980', availability: 'In stock', status: 'Approved' },
+          { id: 'm2', name: 'Yamazaki 12 Year Old', price: 'HK$1,880', availability: 'Low stock', status: 'Approved' },
+          { id: 'm3', name: 'Dassai 23 Junmai Daiginjo', price: 'HK$880', availability: 'Pre-order', status: 'Approved' }
         ]
       },
       venue: {
@@ -136,9 +136,9 @@ const storage = {
         district: user?.city || 'Soho',
         notes: 'Bar / restaurant profile with booking and event promotion controls.',
         items: [
-          { id: 'v1', name: 'Thursday DJ & Cocktail Set', price: 'HK$220 min spend', availability: 'Live', status: 'Pending' },
-          { id: 'v2', name: 'Guest Shift: Tokyo Collective', price: 'HK$150 per ticket', availability: 'Selling', status: 'Pending' },
-          { id: 'v3', name: 'Weekend Table Inventory', price: 'From HK$500', availability: 'Open tables', status: 'Pending' }
+          { id: 'v1', name: 'Thursday DJ & Cocktail Set', price: 'HK$220 min spend', availability: 'Live', status: 'Approved' },
+          { id: 'v2', name: 'Guest Shift: Tokyo Collective', price: 'HK$150 per ticket', availability: 'Selling', status: 'Approved' },
+          { id: 'v3', name: 'Weekend Table Inventory', price: 'From HK$500', availability: 'Open tables', status: 'Approved' }
         ]
       }
     };
@@ -1401,7 +1401,7 @@ function renderBusinessDashboardPage() {
     };
     $('#save-items-btn', app).addEventListener('click', saveItems);
     $('#add-item-btn', app).addEventListener('click', () => {
-      config.items.push({ id: `${role}_${Date.now()}`, name: role === 'merchant' ? 'New product' : 'New venue offer', price: 'HK$0', availability: 'In stock', status: 'Pending' });
+      config.items.push({ id: `${role}_${Date.now()}`, name: role === 'merchant' ? 'New product' : 'New venue offer', price: 'HK$0', availability: 'In stock', status: 'Approved' });
       persist();
       renderBusinessDashboardPage();
     });
