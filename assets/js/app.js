@@ -1176,6 +1176,7 @@ function renderAccountPage() {
   renderAccountSaved();
   renderAccountLeads();
   $('#account-signout-btn').addEventListener('click', () => { storage.signOut(); window.location.href = 'index.html'; });
+  $('#account-signout-btn').addEventListener('click', () => { storage.signOut(); window.location.href = 'index.html'; });
 }
 
 function renderAccountSaved() {
