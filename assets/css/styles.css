@@ -249,7 +249,7 @@ h1 em, h2 em, h3 em { font-style: normal; font-weight: 500; letter-spacing: .04e
   border-bottom: 1px solid var(--border);
 }
 /* hero::before overlay removed */
-.hero-media { position: absolute; inset: 0; background-size: cover; background-position: center; transform: scale(1.04); filter: saturate(1.06); }
+.hero-media { position: absolute; inset: 0; background-size: cover; background-position: center; }
 .hero-grid { z-index: 2; display: grid; grid-template-columns: 1.25fr .9fr; gap: 28px; align-items: end; width: 100%; padding-inline: 10px; }
 .hero:not(.homepage-hero) .hero-grid { padding-inline: clamp(18px, 2vw, 30px); gap: clamp(30px, 4vw, 58px); }
 .hero-copy { padding: 114px 0 84px; max-width: min(760px, 100%); }
@@ -336,8 +336,8 @@ h1 em, h2 em, h3 em { font-style: normal; font-weight: 500; letter-spacing: .04e
 
 .search-shell {
   align-self: center;
-  background: linear-gradient(180deg, rgba(20,20,24,.92), rgba(14,14,18,.94));
-  border: 1px solid rgba(255,255,255,.06);
+  background: rgba(8,8,12,.75);
+  border: 1px solid rgba(255,255,255,.08);
   box-shadow: 0 22px 54px rgba(0,0,0,.28);
   padding: 18px;
   border-radius: 28px;
@@ -421,7 +421,7 @@ textarea:focus-visible {
 .stat {
   min-width: 150px; padding: 18px;
   border-radius: 24px;
-  background: linear-gradient(180deg, rgba(24,24,29,.92), rgba(14,14,18,.97));
+  background: rgba(10,10,16,.95);
   border: 1px solid rgba(255,255,255,.065);
   box-shadow: 0 22px 54px rgba(0,0,0,.28);
 }
@@ -443,7 +443,7 @@ textarea:focus-visible {
 
 .card {
   display: flex; flex-direction: column; min-height: 100%;
-  background: linear-gradient(180deg, rgba(24,24,29,.92), rgba(14,14,18,.97));
+  background: rgba(10,10,16,.95);
   border: 1px solid rgba(255,255,255,.03);
   border-radius: var(--radius);
   overflow: hidden;
@@ -531,7 +531,7 @@ textarea:focus-visible {
 /* ── Supplier Cards ── */
 
 .supplier-card {
-  background: linear-gradient(180deg, rgba(24,24,29,.92), rgba(14,14,18,.97));
+  background: rgba(10,10,16,.95);
   border-color: rgba(255,255,255,.03);
 }
 .supplier-card:hover {
@@ -568,7 +568,7 @@ textarea:focus-visible {
 /* ── Venue Cards ── */
 
 .venue-card {
-  background: linear-gradient(180deg, rgba(24,24,29,.92), rgba(14,14,18,.97));
+  background: rgba(10,10,16,.95);
   border-color: rgba(255,255,255,.03);
 }
 .venue-card:hover {
@@ -598,7 +598,7 @@ textarea:focus-visible {
 /* ── Event Cards ── */
 
 .event-card {
-  background: linear-gradient(180deg, rgba(24,24,29,.92), rgba(14,14,18,.97));
+  background: rgba(10,10,16,.95);
   border-color: rgba(255,255,255,.03);
 }
 .event-card:hover {
@@ -662,7 +662,7 @@ textarea:focus-visible {
 /* ── Panels & Lists ── */
 
 .panel {
-  background: linear-gradient(180deg, rgba(24,24,29,.92), rgba(14,14,18,.97));
+  background: rgba(10,10,16,.95);
   border: 1px solid rgba(255,255,255,.03);
   border-radius: 28px;
   padding: 24px;
@@ -670,7 +670,7 @@ textarea:focus-visible {
 }
 
 .list-panel {
-  background: linear-gradient(180deg, rgba(24,24,29,.92), rgba(14,14,18,.97));
+  background: rgba(10,10,16,.95);
   border: 1px solid rgba(255,255,255,.03);
   border-radius: 24px;
   overflow: hidden;
@@ -708,7 +708,7 @@ textarea:focus-visible {
 }
 .info-chip {
   padding: 14px 16px;
-  background: linear-gradient(180deg, rgba(24,24,29,.92), rgba(14,14,18,.97));
+  background: rgba(10,10,16,.95);
   border: 1px solid rgba(255,255,255,.03);
   border-radius: 24px;
 }
@@ -821,7 +821,7 @@ hr.sep { border: 0; height: 1px; background: rgba(255,255,255,.06); margin: 18px
  
   display: flex; flex-direction: column; gap: 16px;
   padding: 28px; min-height: 100%;
-  background: linear-gradient(180deg, rgba(24,24,29,.92), rgba(14,14,18,.97));
+  background: rgba(10,10,16,.95);
   border: 1px solid rgba(255,255,255,.03);
   border-radius: 28px;
   box-shadow: 0 8px 32px rgba(0,0,0,.18);
@@ -872,7 +872,7 @@ hr.sep { border: 0; height: 1px; background: rgba(255,255,255,.06); margin: 18px
   display: flex; justify-content: space-between; gap: 18px; align-items: center;
   padding: 18px 20px; border-radius: 28px;
   border: 1px solid rgba(255,255,255,.03);
-  background: linear-gradient(180deg, rgba(24,24,29,.92), rgba(14,14,18,.97));
+  background: rgba(10,10,16,.95);
   transition: transform .28s ease, border-color .28s ease, box-shadow .28s ease;
 }
 .addon-card:hover {
