@@ -48,17 +48,7 @@ body {
   overflow-x: hidden;
 }
 
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  opacity: .014;
-  background-image: radial-gradient(rgba(255,255,255,.04) 0.6px, transparent 0.6px);
-  background-size: 6px 6px;
-  mix-blend-mode: overlay;
-  z-index: 9999;
-}
+/* body::before overlay removed */
 
 a { color: inherit; text-decoration: none; }
 img { display: block; width: 100%; }
@@ -258,11 +248,7 @@ h1 em, h2 em, h3 em { font-style: normal; font-weight: 500; letter-spacing: .04e
   overflow: hidden; isolation: isolate;
   border-bottom: 1px solid var(--border);
 }
-.hero::before {
-  content: ""; position: absolute; inset: 0;
-  background: linear-gradient(180deg, rgba(0,0,0,.05) 0%, rgba(0,0,0,.15) 60%, rgba(0,0,0,.40) 100%);
-  z-index: 1;
-}
+/* hero::before overlay removed */
 .hero-media { position: absolute; inset: 0; background-size: cover; background-position: center; transform: scale(1.04); filter: saturate(1.06); }
 .hero-grid { z-index: 2; display: grid; grid-template-columns: 1.25fr .9fr; gap: 28px; align-items: end; width: 100%; padding-inline: 10px; }
 .hero:not(.homepage-hero) .hero-grid { padding-inline: clamp(18px, 2vw, 30px); gap: clamp(30px, 4vw, 58px); }
