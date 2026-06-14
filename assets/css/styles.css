@@ -252,6 +252,7 @@ h1 em, h2 em, h3 em { font-style: normal; font-weight: 500; letter-spacing: .04e
 /* ── Hero ── */
 
 .hero {
+  position: relative;
   min-height: 86vh;
   display: flex; align-items: center;
   overflow: hidden; isolation: isolate;
@@ -259,7 +260,7 @@ h1 em, h2 em, h3 em { font-style: normal; font-weight: 500; letter-spacing: .04e
 }
 .hero::before {
   content: ""; position: absolute; inset: 0;
-  background: linear-gradient(180deg, rgba(10,10,12,.04) 0%, rgba(10,10,12,.15) 50%, rgba(10,10,12,.35) 100%);
+  background: linear-gradient(180deg, rgba(0,0,0,.05) 0%, rgba(0,0,0,.15) 60%, rgba(0,0,0,.40) 100%);
   z-index: 1;
 }
 .hero-media { position: absolute; inset: 0; background-size: cover; background-position: center; transform: scale(1.04); filter: saturate(1.06); }
