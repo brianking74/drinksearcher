@@ -259,7 +259,7 @@ h1 em, h2 em, h3 em { font-style: normal; font-weight: 500; letter-spacing: .04e
 }
 .hero::before {
   content: ""; position: absolute; inset: 0;
-  background: linear-gradient(180deg, rgba(10,10,12,.08) 0%, rgba(10,10,12,.25) 42%, rgba(10,10,12,.72) 100%);
+  background: linear-gradient(180deg, rgba(10,10,12,.04) 0%, rgba(10,10,12,.15) 50%, rgba(10,10,12,.35) 100%);
   z-index: 1;
 }
 .hero-media { position: absolute; inset: 0; background-size: cover; background-position: center; transform: scale(1.04); filter: saturate(1.06); }
@@ -339,7 +339,7 @@ h1 em, h2 em, h3 em { font-style: normal; font-weight: 500; letter-spacing: .04e
 }
 .profile-hero::before {
   content: ""; position: absolute; inset: 0;
-  background: linear-gradient(180deg, rgba(10,10,12,.08) 0%, rgba(10,10,12,.25) 42%, rgba(10,10,12,.72) 100%);
+  background: linear-gradient(180deg, rgba(10,10,12,.04) 0%, rgba(10,10,12,.15) 50%, rgba(10,10,12,.35) 100%);
   z-index: 1;
 }
 .profile-content { z-index: 2; display: grid; grid-template-columns: 1.15fr .85fr; gap: 32px; align-items: end; padding-inline: clamp(18px, 2vw, 30px); }
