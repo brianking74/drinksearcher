@@ -255,11 +255,11 @@ h1 em, h2 em, h3 em { font-style: normal; font-weight: 500; letter-spacing: .04e
   min-height: 86vh;
   display: flex; align-items: center;
   overflow: hidden; isolation: isolate;
-  border-bottom: 1px solid rgba(255,255,255,.06);
+  border-bottom: 1px solid var(--border);
 }
 .hero::before {
   content: ""; position: absolute; inset: 0;
-  background: linear-gradient(180deg, rgba(10,10,12,.18) 0%, rgba(10,10,12,.42) 42%, rgba(10,10,12,.94) 100%);
+  background: linear-gradient(180deg, rgba(10,10,12,.08) 0%, rgba(10,10,12,.25) 42%, rgba(10,10,12,.72) 100%);
   z-index: 1;
 }
 .hero-media { position: absolute; inset: 0; background-size: cover; background-position: center; transform: scale(1.04); filter: saturate(1.06); }
@@ -335,11 +335,11 @@ h1 em, h2 em, h3 em { font-style: normal; font-weight: 500; letter-spacing: .04e
 
 .profile-hero {
   min-height: 560px; display: flex; align-items: end;
-  padding: 144px 0 48px; overflow: hidden; border-bottom: 1px solid rgba(255,255,255,.06);
+  padding: 144px 0 48px; overflow: hidden; border-bottom: 1px solid var(--border);
 }
 .profile-hero::before {
   content: ""; position: absolute; inset: 0;
-  background: linear-gradient(180deg, rgba(10,10,12,.18) 0%, rgba(10,10,12,.42) 42%, rgba(10,10,12,.94) 100%);
+  background: linear-gradient(180deg, rgba(10,10,12,.08) 0%, rgba(10,10,12,.25) 42%, rgba(10,10,12,.72) 100%);
   z-index: 1;
 }
 .profile-content { z-index: 2; display: grid; grid-template-columns: 1.15fr .85fr; gap: 32px; align-items: end; padding-inline: clamp(18px, 2vw, 30px); }
@@ -728,7 +728,7 @@ textarea:focus-visible {
 .anchor-nav {
   position: sticky; top: 76px; z-index: 200;
   background: rgba(7,8,13,.88);
-  border-bottom: 1px solid rgba(255,255,255,.06);
+  border-bottom: 1px solid var(--border);
   backdrop-filter: blur(14px);
 }
 .anchor-nav .container { display: flex; gap: 18px; overflow-x: auto; }
@@ -1023,7 +1023,7 @@ hr.sep { border: 0; height: 1px; background: rgba(255,255,255,.06); margin: 18px
   border: none;
 }
 .dashboard-shell .admin-table-head {
-  border-bottom: 1px solid rgba(255,255,255,.06);
+  border-bottom: 1px solid var(--border);
   font-size: .72rem;
   padding-bottom: 10px;
 }
@@ -1129,7 +1129,7 @@ hr.sep { border: 0; height: 1px; background: rgba(255,255,255,.06); margin: 18px
 
 /* Admin */
 .admin-page { padding: 24px; max-width: 1400px; margin: 0 auto; }
-.admin-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; padding-bottom: 14px; border-bottom: 1px solid rgba(255,255,255,.06); flex-wrap: wrap; gap: 10px; }
+.admin-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; padding-bottom: 14px; border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 10px; }
 .admin-top h1 { font-size: 1.2rem; font-weight: 600; margin: 0; color: var(--text); }
 .admin-top-stats { display: flex; gap: 14px; font-size: .8rem; color: var(--muted); }
 .admin-section { margin-bottom: 24px; }
@@ -1139,7 +1139,7 @@ hr.sep { border: 0; height: 1px; background: rgba(255,255,255,.06); margin: 18px
 .admin-filters a:hover { background: rgba(255,255,255,.04); }
 .admin-filter-active { background: rgba(255,255,255,.08); color: var(--text) !important; }
 .admin-table { width: 100%; border-collapse: collapse; font-size: .85rem; }
-.admin-table th { text-align: left; padding: 8px 10px; font-size: .75rem; text-transform: uppercase; letter-spacing: .08em; color: rgba(241,238,230,.35); font-weight: 500; border-bottom: 1px solid rgba(255,255,255,.06); }
+.admin-table th { text-align: left; padding: 8px 10px; font-size: .75rem; text-transform: uppercase; letter-spacing: .08em; color: rgba(241,238,230,.35); font-weight: 500; border-bottom: 1px solid var(--border); }
 .admin-table td { padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,.03); vertical-align: top; }
 .admin-select { background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); border-radius: 4px; color: var(--text); padding: 5px 8px; font-size: .8rem; min-width: 120px; }
 .admin-input { background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); border-radius: 4px; color: var(--text); padding: 5px 8px; font-size: .8rem; width: 100%; }
@@ -1280,7 +1280,7 @@ hr.sep { border: 0; height: 1px; background: rgba(255,255,255,.06); margin: 18px
 }
 /* ── Product page ── */
 .product-page { padding-top: 126px; }
-.product-hero { display: flex; gap: 48px; align-items: flex-start; padding: 48px 0; border-bottom: 1px solid rgba(255,255,255,.06); margin-bottom: 48px; }
+.product-hero { display: flex; gap: 48px; align-items: flex-start; padding: 48px 0; border-bottom: 1px solid var(--border); margin-bottom: 48px; }
 .product-hero-image { flex: 0 0 280px; border-radius: 12px; overflow: hidden; background: rgba(255,255,255,.03); }
 .product-hero-image img { width: 100%; height: auto; display: block; }
 .product-hero-info { flex: 1; padding-top: 8px; }
