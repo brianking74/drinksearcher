@@ -566,7 +566,7 @@ async function renderHomepage() {
     );
   }
   const events = [
-    { name:'Burgundy Grand Cru Masterclass', venue:'Mandarin Oriental, Central', date:'Nov 18', type:'Masterclass', image:siteImages.event },
+    { name:'Burgundy Grand Cru Masterclass', venue:'Mandarin Oriental, Central', date:'Nov 18', type:'Masterclass', image:siteImages.trio },
     { name:'Japanese Whisky Flight Night', venue:'Quinary, Central', date:'Nov 22', type:'Whisky', image:siteImages.rooftop },
     { name:'Natural Wine Tasting', venue:'La Cabane, Soho', date:'Nov 25', type:'Wine', image:siteImages.hero },
     { name:'Zero-Proof Cocktail Lab', venue:'PMQ, Central', date:'Dec 02', type:'Non-Alcoholic', image:siteImages.trio }
