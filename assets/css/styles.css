@@ -246,11 +246,16 @@ h1 em, h2 em, h3 em { font-style: normal; font-weight: 500; letter-spacing: .04e
   position: relative;
   min-height: 86vh;
   display: flex; align-items: center;
-  overflow: hidden;
+  overflow: hidden; isolation: isolate;
   border-bottom: 1px solid var(--border);
 }
 /* hero::before removed */
-.hero-media { position: absolute; inset: 0; background-size: cover; background-position: center; z-index: 0; }
+.hero-media { position: absolute; inset: 0; background-size: cover; background-position: center; }
+.hero::before {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(180deg, rgba(0,0,0,.1) 0%, rgba(0,0,0,.2) 50%, rgba(0,0,0,.35) 100%);
+  z-index: 1;
+}
 .hero-grid { z-index: 1; position: relative; display: grid; grid-template-columns: 1.25fr .9fr; gap: 28px; align-items: end; width: 100%; padding-inline: 10px; }
 .hero:not(.homepage-hero) .hero-grid { padding-inline: clamp(18px, 2vw, 30px); gap: clamp(30px, 4vw, 58px); }
 .hero-copy { padding: 114px 0 84px; max-width: min(760px, 100%); }
