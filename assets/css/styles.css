@@ -912,7 +912,7 @@ hr.sep { border: 0; height: 1px; background: rgba(255,255,255,.06); margin: 18px
 
 /* Dashboard tables */
 .dashboard-table-wrap { border: 1px solid rgba(255,255,255,.03); border-radius: 10px; overflow-x: auto; background: rgba(14,14,18,.9); }
-.dashboard-table-head, .dashboard-row { display: grid; grid-template-columns: 1fr 100px; gap: 10px; align-items: center; padding: 12px 12px; }
+.dashboard-table-head, .dashboard-row { display: grid; grid-template-columns: 1fr max-content; gap: 10px; align-items: center; padding: 12px 12px; }
 /* Status badges */
 .status-badge {
   display: inline-flex; align-items: center;
