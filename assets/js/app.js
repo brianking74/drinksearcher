@@ -1384,9 +1384,7 @@ function renderBusinessDashboardPage() {
                 <div class="dashboard-row">
                   <input class="input" data-item-name="${index}" value="${item.name}" /><button class="btn btn-ghost btn-small delete-item-btn" type="button" data-delete-index="${index}" title="Remove item" style="color:#ff6b9d;margin-left:4px;padding:4px 8px;font-size:1.1rem;">✕</button>
                   <input class="input" data-item-price="${index}" value="${item.price}" />
-                  <select class="select" data-item-availability="${index}">
-                    ${['In stock','Low stock','Pre-order','Live','Selling','Open tables','Sold out'].map(option => `<option value="${option}" ${item.availability === option ? 'selected' : ''}>${option}</option>`).join('')}
-                  </select>
+                  <span class="input" style="background:transparent;border:none;color:var(--muted);font-size:.88rem;">${item.availability || 'In stock'}</span>
                   <span class="status-badge status-${(item.status || 'pending').toLowerCase()}">${item.status || 'Pending'}</span>
                 </div>`).join('')}</div>
               <div class="inline-actions" style="padding:20px; border-top:1px solid rgba(255,255,255,.06);">
@@ -1459,7 +1457,6 @@ function renderBusinessDashboardPage() {
         id: config.items[index]?.id || `${role}_${Date.now()}_${index}`,
         name: $('[data-item-name]', row).value,
         price: $('[data-item-price]', row).value,
-        availability: $('[data-item-availability]', row).value,
         visibility: $('[data-item-visibility]', row).value
       }));
       persist();
@@ -1473,7 +1470,7 @@ function renderBusinessDashboardPage() {
       renderBusinessDashboardPage();
     }));
     $('#add-item-btn', app).addEventListener('click', () => {
-      config.items.push({ id: `${role}_${Date.now()}`, name: role === 'merchant' ? 'New product' : 'New venue offer', price: 'HK$0', availability: 'In stock', status: 'Approved' });
+      config.items.push({ id: `${role}_${Date.now()}`, name: role === 'merchant' ? 'New product' : 'New venue offer', price: 'HK$0', status: 'Approved' });
       persist();
       renderBusinessDashboardPage();
     });
