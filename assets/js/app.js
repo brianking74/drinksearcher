@@ -1231,7 +1231,7 @@ function removeDashboardItem(idx) {
   if (!c) return;
   c.items.splice(idx, 1);
   storage.setDashboardState(s);
-  location.reload();
+  renderBusinessDashboardPage();
 }
 
 function addDashboardItem() {
@@ -1241,7 +1241,7 @@ function addDashboardItem() {
   if (!c) return;
   c.items.push({ id: s.activeRole + '_' + Date.now(), name: 'New product', price: 'HK$0', status: 'Approved' });
   storage.setDashboardState(s);
-  location.reload();
+  renderBusinessDashboardPage();
 }
 
 function saveDashboardItems() {
@@ -1258,7 +1258,7 @@ function saveDashboardItems() {
     };
   });
   storage.setDashboardState(s);
-  location.reload();
+  renderBusinessDashboardPage();
 }
 
 function fillSampleTemplate() {
