@@ -1465,13 +1465,21 @@ function renderBusinessDashboardPage() {
     $('#save-items-btn', app).addEventListener('click', saveItems);
     $$('.delete-item-btn', app).forEach(btn => btn.addEventListener('click', () => {
       const idx = parseInt(btn.dataset.deleteIndex);
-      config.items.splice(idx, 1);
-      persist();
+      const s = storage.getDashboardState();
+      if (!s) return;
+      const c = s[state.activeRole || 'merchant'];
+      if (!c) return;
+      c.items.splice(idx, 1);
+      storage.setDashboardState(s);
       renderBusinessDashboardPage();
     }));
     $('#add-item-btn', app).addEventListener('click', () => {
-      config.items.push({ id: `${role}_${Date.now()}`, name: role === 'merchant' ? 'New product' : 'New venue offer', price: 'HK$0', status: 'Approved' });
-      persist();
+      const s = storage.getDashboardState();
+      if (!s) return;
+      const c = s[state.activeRole || 'merchant'];
+      if (!c) return;
+      c.items.push({ id: `${state.activeRole}_${Date.now()}`, name: state.activeRole === 'merchant' ? 'New product' : 'New venue offer', price: 'HK$0', status: 'Approved' });
+      storage.setDashboardState(s);
       renderBusinessDashboardPage();
     });
     if (state.activeRole === 'merchant' && $('#sheet-template-btn', app)) {
