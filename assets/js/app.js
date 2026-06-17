@@ -1722,14 +1722,11 @@ async function loadPendingItems() {
     }
     holder.innerHTML = items.map((item, index) => `
       <div class="admin-table-row" id="pending-row-${index}">
-        <div><strong>${item.name}</strong><div class="small-note">${item.type || 'Spirit'} · ${item.origin || 'HK'}</div></div>
-        <div>${item.supplier_name || item.submitted_by || 'Unknown'}</div>
+        <div><strong>${item.name}</strong></div>
+        <div>${item.supplier_name || 'Unknown'}</div>
         <div>${item.price || 'N/A'}</div>
-        <div><span class="status-badge status-pending">${item.status}</span></div>
-        <div class="admin-inline">
-          <button class="btn btn-primary btn-small" type="button" onclick="moderateItem('${item.id}', 'approved', ${index})">Approve</button>
-          <button class="btn btn-ghost btn-small" type="button" onclick="moderateItem('${item.id}', 'rejected', ${index})">Reject</button>
-        </div>
+        <div><span class="status-badge status-pending">Pending</span></div>
+        <div><button class="btn btn-primary btn-small" type="button" onclick="moderateItem('${item.id}','approved',${index})">Approve</button> <button class="btn btn-ghost btn-small" type="button" onclick="moderateItem('${item.id}','rejected',${index})">Reject</button></div>
       </div>`).join('');
   } catch (e) {
     holder.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Could not load pending items: ${e.message}</div>`;
@@ -1799,21 +1796,29 @@ function renderAdminDashboardPage() {
             <a class="toggle-pill ${appFilter === 'merchant' ? 'active' : ''}" href="admin.html?filter=merchant">Suppliers</a>
             <a class="toggle-pill ${appFilter === 'venue' ? 'active' : ''}" href="admin.html?filter=venue">Venues</a>
           </div>
-          <div id="admin-applications">${filteredApplications.map((entry, index) => `
-            <div class="admin-table-row" style="margin-bottom:8px;">
-              <div><strong>${entry.businessName}</strong><div class="small-note">${entry.listingType === 'venue' ? 'Venue' : 'Supplier'} · ${entry.district || 'HK'} · ${entry.priority}</div></div>
+          <div class="admin-table">
+            <div class="admin-table-head" style="grid-template-columns:1.5fr 1fr 1fr 1.2fr 1.2fr 60px;"><div>Business</div><div>District</div><div>Plan</div><div>Contact</div><div>Status</div><div></div></div>
+            ${filteredApplications.length ? filteredApplications.map((entry, index) => `
+            <div class="admin-table-row">
+              <div><strong>${entry.businessName}</strong></div>
+              <div>${entry.district || 'HK'}</div>
               <div>${adminPlanMeta(entry.planInterest, entry.listingType).name}</div>
-              <div>${entry.contactName || '?'} · ${entry.email || ''}</div>
-              <div>${adminStatusChip(entry.status)}<select class="select admin-select" data-application-status="${index}" style="margin-top:8px;width:100%;"><option value="New" ${entry.status === 'New' ? 'selected' : ''}>New</option><option value="Reviewing" ${entry.status === 'Reviewing' ? 'selected' : ''}>Reviewing</option><option value="Needs Info" ${entry.status === 'Needs Info' ? 'selected' : ''}>Needs Info</option><option value="Approved" ${entry.status === 'Approved' ? 'selected' : ''}>Approved</option><option value="Rejected" ${entry.status === 'Rejected' ? 'selected' : ''}>Rejected</option></select></div>
-              <div class="admin-inline"><button class="btn btn-primary btn-small" type="button" data-application-save="${index}">Save</button></div>
-            </div>`).join('') || '<div class="notice">No applications yet.</div>'}</div>
+              <div>${entry.contactName || '?'}<br><span class="small-note">${entry.email || ''}</span></div>
+              <div>${adminStatusChip(entry.status)}<select class="select admin-select" data-application-status="${index}" style="margin-top:6px;width:100%;"><option value="New" ${entry.status === 'New' ? 'selected' : ''}>New</option><option value="Reviewing" ${entry.status === 'Reviewing' ? 'selected' : ''}>Reviewing</option><option value="Needs Info" ${entry.status === 'Needs Info' ? 'selected' : ''}>Needs Info</option><option value="Approved" ${entry.status === 'Approved' ? 'selected' : ''}>Approved</option><option value="Rejected" ${entry.status === 'Rejected' ? 'selected' : ''}>Rejected</option></select></div>
+              <div><button class="btn btn-primary btn-small" type="button" data-application-save="${index}">Save</button></div>
+            </div>`).join('') : '<div class="notice">No applications yet.</div>'}
+          </div>
+          <div id="admin-applications-holder"></div>
           <div id="admin-applications-notice"></div>
         </div>
 
         <div class="panel">
           <span class="eyebrow">Pending inventory</span>
           <h2 style="margin:14px 0;">Awaiting approval</h2>
-          <div id="admin-pending-items"><div class="notice">Loading…</div></div>
+          <div class="admin-table">
+            <div class="admin-table-head" style="grid-template-columns:2fr 1fr 120px 100px 1fr;"><div>Product</div><div>Supplier</div><div>Price</div><div>Status</div><div></div></div>
+            <div id="admin-pending-items"><div class="notice">Loading…</div></div>
+          </div>
           <div id="admin-pending-notice"></div>
         </div>
       </div>

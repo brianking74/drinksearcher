@@ -1139,6 +1139,10 @@ hr.sep { border: 0; height: 1px; background: rgba(255,255,255,.06); margin: 18px
 .admin-filters a:hover { background: rgba(255,255,255,.04); }
 .admin-filter-active { background: rgba(255,255,255,.08); color: var(--text) !important; }
 .admin-table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+.admin-table-head { display: grid; gap: 8px; align-items: center; padding: 10px 12px; background: rgba(255,255,255,.04); color: rgba(241,238,230,.45); font-size: .72rem; text-transform: uppercase; letter-spacing: .09em; border-radius: 8px 8px 0 0; border: 1px solid rgba(255,255,255,.05); border-bottom: none; }
+.admin-table-row { display: grid; gap: 8px; align-items: center; padding: 14px 12px; border: 1px solid rgba(255,255,255,.05); border-top: none; }
+.admin-table-row:last-child { border-radius: 0 0 8px 8px; }
+.admin-table-row:first-child { border-top: 1px solid rgba(255,255,255,.05); }
 .admin-table th { text-align: left; padding: 8px 10px; font-size: .75rem; text-transform: uppercase; letter-spacing: .08em; color: rgba(241,238,230,.35); font-weight: 500; border-bottom: 1px solid rgba(255,255,255,.06); }
 .admin-table td { padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,.03); vertical-align: top; }
 .admin-select { background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); border-radius: 4px; color: var(--text); padding: 5px 8px; font-size: .8rem; min-width: 120px; }
@@ -1243,8 +1247,9 @@ hr.sep { border: 0; height: 1px; background: rgba(255,255,255,.06); margin: 18px
   .mobile-toggle { display: inline-flex; }
   .search-box, .filter-bar, .form-grid, .grid-3, .grid-4, .grid-5,
   .gallery-grid, .saved-grid, .table-head, .list-row,
-  .dashboard-table-head, .dashboard-row, .admin-table-head,
-  .admin-table-row, .admin-card-grid, .metric-grid { grid-template-columns: 1fr; }
+  .dashboard-table-head, .dashboard-row { grid-template-columns: 1fr; }
+  .admin-table-head, .admin-table-row { grid-template-columns: 1fr; }
+  .admin-card-grid, .metric-grid { grid-template-columns: 1fr; }
   .bottles-carousel > .card { flex-basis: calc((100% - 18px) / 2); }
   .carousel-controls { width: 100%; justify-content: space-between; }
   .addon-card { flex-direction: column; align-items: flex-start; }
