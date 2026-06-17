@@ -1382,9 +1382,10 @@ function renderBusinessDashboardPage() {
               <div class="dashboard-table-head"><div>${listingLabels[0]}</div><div>${listingLabels[1]}</div><div>${listingLabels[2]}</div><div>${listingLabels[3]}</div></div>
               <div id="dashboard-items">${config.items.map((item, index) => `
                 <div class="dashboard-row">
-                  <input class="input" data-item-name="${index}" value="${item.name}" /><button class="btn btn-ghost btn-small delete-item-btn" type="button" data-delete-index="${index}" title="Remove item" style="color:#ff6b9d;margin-left:4px;padding:4px 8px;font-size:1.1rem;">✕</button>
+                  <input class="input" data-item-name="${index}" value="${item.name}" />
                   <input class="input" data-item-price="${index}" value="${item.price}" />
                   <span class="status-badge status-${(item.status || 'pending').toLowerCase()}">${item.status || 'Pending'}</span>
+                  <button class="btn btn-ghost btn-small delete-item-btn" type="button" data-delete-index="${index}" title="Remove item" style="color:#ff6b9d;padding:3px 6px;font-size:1rem;">✕</button>
                 </div>`).join('')}</div>
               <div class="inline-actions" style="padding:20px; border-top:1px solid rgba(255,255,255,.06);">
                 <button class="btn btn-primary" id="save-items-btn" type="button">Save pricing & availability</button>
