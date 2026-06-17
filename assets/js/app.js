@@ -1224,6 +1224,43 @@ function renderAccountLeads() {
 }
 
 
+function removeDashboardItem(idx) {
+  var s = storage.getDashboardState();
+  if (!s) return;
+  var c = s[s.activeRole || 'merchant'];
+  if (!c) return;
+  c.items.splice(idx, 1);
+  storage.setDashboardState(s);
+  location.reload();
+}
+
+function addDashboardItem() {
+  var s = storage.getDashboardState();
+  if (!s) return;
+  var c = s[s.activeRole || 'merchant'];
+  if (!c) return;
+  c.items.push({ id: s.activeRole + '_' + Date.now(), name: 'New product', price: 'HK$0', status: 'Approved' });
+  storage.setDashboardState(s);
+  location.reload();
+}
+
+function saveDashboardItems() {
+  var s = storage.getDashboardState();
+  if (!s) return;
+  var c = s[s.activeRole || 'merchant'];
+  if (!c) return;
+  var rows = document.getElementsByClassName('dashboard-row');
+  c.items = Array.from(rows).map(function(row, i) {
+    return {
+      id: c.items[i] ? c.items[i].id : (s.activeRole + '_' + Date.now() + '_' + i),
+      name: row.querySelector('[data-item-name]') ? row.querySelector('[data-item-name]').value : '',
+      price: row.querySelector('[data-item-price]') ? row.querySelector('[data-item-price]').value : ''
+    };
+  });
+  storage.setDashboardState(s);
+  location.reload();
+}
+
 function fillSampleTemplate() {
   var el = document.getElementById('sheet-import-source');
   if (el) el.value = 'Name,Price,Availability\nChardonnay Reserve,188,In stock\nSmall Batch Gin,420,Low stock\nZero-Proof Spritz,98,Pre-order';
@@ -1385,11 +1422,11 @@ function renderBusinessDashboardPage() {
                   <input class="input" data-item-name="${index}" value="${item.name}" />
                   <input class="input" data-item-price="${index}" value="${item.price}" />
                   <span class="status-badge status-${(item.status || 'pending').toLowerCase()}">${item.status || 'Pending'}</span>
-                  <button class="btn btn-ghost btn-small delete-item-btn" type="button" data-delete-index="${index}" title="Remove item" style="color:#ff6b9d;padding:3px 6px;font-size:1rem;">✕</button>
+                  <button class="btn btn-ghost btn-small" type="button" title="Remove item" style="color:#ff6b9d;padding:3px 6px;font-size:1rem;" onclick="removeDashboardItem(${index})">✕</button>
                 </div>`).join('')}</div>
               <div class="inline-actions" style="padding:20px; border-top:1px solid rgba(255,255,255,.06);">
-                <button class="btn btn-primary" id="save-items-btn" type="button">Save pricing & availability</button>
-                <button class="btn btn-ghost" id="add-item-btn" type="button">Add another row</button>
+                <button class="btn btn-primary" type="button" onclick="saveDashboardItems()">Save pricing & availability</button>
+                <button class="btn btn-ghost" type="button" onclick="addDashboardItem()">Add another row</button>
               </div>
             </div>
           </div>
@@ -1452,19 +1489,7 @@ function renderBusinessDashboardPage() {
       notice.innerHTML = '<div class="notice">Membership and add-on preferences saved.</div>';
       renderBusinessDashboardPage();
     });
-    const saveItems = () => {
-      const activeRole = state.activeRole || 'merchant';
-      const c = state[activeRole];
-      if (!c) return;
-      c.items = $$('.dashboard-row', app).map((row, index) => ({
-        id: c.items[index]?.id || `${activeRole}_${Date.now()}_${index}`,
-        name: $('[data-item-name]', row).value,
-        price: $('[data-item-price]', row).value
-      }));
-      persist();
-      notice.innerHTML = '<div class="notice">Pricing and availability updated for this dashboard view.</div>';
-    };
-    $('#save-items-btn', app).addEventListener('click', saveItems);
+    // save items now uses inline onclick: saveDashboardItems()
     $$('.delete-item-btn', app).forEach(btn => btn.addEventListener('click', () => {
       const idx = parseInt(btn.dataset.deleteIndex);
       const activeRole = state.activeRole || 'merchant';
