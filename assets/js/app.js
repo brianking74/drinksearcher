@@ -1239,7 +1239,7 @@ function addDashboardItem() {
   if (!s) return;
   var c = s[s.activeRole || 'merchant'];
   if (!c) return;
-  c.items.push({ id: s.activeRole + '_' + Date.now(), name: 'New product', price: 'HK$0', status: 'Approved' });
+  c.items.push({ id: s.activeRole + '_' + Date.now(), name: 'New product', price: 'HK$0', status: 'Pending' });
   storage.setDashboardState(s);
   renderBusinessDashboardPage();
 }
