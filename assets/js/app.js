@@ -1769,142 +1769,125 @@ function renderAdminDashboardPage() {
     imports: state.importJobs.filter(entry => ['Queued', 'Scanning', 'Needs Review'].includes(entry.status)).length
   };
   app.innerHTML = `
-    <section class="hero" style="min-height:54vh;">
+    <section class="hero" style="min-height:44vh;">
       <div class="hero-media" style="background-image:url('${siteImages.hero}')"></div>
       <div class="container hero-grid">
         <div class="hero-copy">
-          <span class="kicker">Founder admin dashboard</span>
-          <h1>Run <span class="text-jade">suppliers</span>, <span class="text-pink">venue claims</span>, subscriptions, and moderation from one place.</h1>
-          <p class="lead">Manage listings, subscriptions, featured placements, and moderation from one founder workspace.</p>
-          <div class="hero-actions">
-            <a class="btn btn-primary" href="dashboard.html">Business dashboard</a>
-            <a class="btn btn-ghost" href="pricing.html">Pricing reference</a>
-            <a class="btn btn-secondary" href="list-your-business.html">New application flow</a>
-          </div>
+          <span class="kicker">Founder admin</span>
+          <h1>Site management <span class="text-jade">dashboard</span>.</h1>
+          <p class="lead">Review applications, manage subscriptions, moderate content, and approve inventory from one workspace.</p>
         </div>
         <div class="search-shell">
-          <span class="eyebrow">Founder snapshot</span>
+          <span class="eyebrow">Snapshot</span>
           <div class="metric-grid" style="margin-top:16px;">
-            <div class="metric-card"><strong>${counts.suppliers}</strong><span class="muted">supplier applications to review</span></div>
-            <div class="metric-card"><strong>${counts.venues}</strong><span class="muted">venue claims in pipeline</span></div>
-            <div class="metric-card"><strong>${counts.activeSubs}</strong><span class="muted">active or trial subscriptions</span></div>
-            <div class="metric-card"><strong>${counts.moderation}</strong><span class="muted">moderation items needing action</span></div>
-            <div class="metric-card"><strong>${counts.imports}</strong><span class="muted">inventory imports awaiting review</span></div>
+            <div class="metric-card"><strong>${counts.suppliers}</strong><span class="muted">supplier applications</span></div>
+            <div class="metric-card"><strong>${counts.venues}</strong><span class="muted">venue claims</span></div>
+            <div class="metric-card"><strong>${counts.activeSubs}</strong><span class="muted">active subscriptions</span></div>
+            <div class="metric-card"><strong>${counts.imports}</strong><span class="muted">imports pending</span></div>
           </div>
-          <div class="notice">Use this workspace to review submissions, update statuses, and manage placements across the site.</div>
         </div>
-      </div>
-    </section>
-
-    <section class="section-tight">
-      <div class="container">
-        <div class="section-head"><div><span class="eyebrow">Applications pipeline</span><h2>Suppliers and venue claims, prioritised.</h2></div></div>
-        <div class="admin-toolbar">
-          <a class="toggle-pill ${appFilter === 'all' ? 'active' : ''}" href="admin.html?filter=all">All</a>
-          <a class="toggle-pill ${appFilter === 'merchant' ? 'active' : ''}" href="admin.html?filter=merchant">Suppliers</a>
-          <a class="toggle-pill ${appFilter === 'venue' ? 'active' : ''}" href="admin.html?filter=venue">Venues</a>
-        </div>
-        <div class="admin-table">
-          <div class="admin-table-head"><div>Business</div><div>Plan intent</div><div>Contact</div><div>Status</div><div>Actions</div></div>
-          <div id="admin-applications">${filteredApplications.map((entry, index) => `
-            <div class="admin-table-row">
-              <div><strong>${entry.businessName}</strong><div class="small-note">${entry.listingType === 'venue' ? 'Venue claim' : 'Supplier application'} · ${entry.district || 'Hong Kong'} · ${entry.priority} priority</div></div>
-              <div><div>${adminPlanMeta(entry.planInterest, entry.listingType).name}</div><div class="small-note">Source: ${entry.source || 'site'}</div></div>
-              <div><div>${entry.contactName || 'Unknown contact'}</div><div class="small-note">${entry.email || 'No email supplied'}</div></div>
-              <div>${adminStatusChip(entry.status)}<select class="select admin-select" data-application-status="${index}" style="margin-top:10px;"><option value="New" ${entry.status === 'New' ? 'selected' : ''}>New</option><option value="Reviewing" ${entry.status === 'Reviewing' ? 'selected' : ''}>Reviewing</option><option value="Needs Info" ${entry.status === 'Needs Info' ? 'selected' : ''}>Needs Info</option><option value="Approved" ${entry.status === 'Approved' ? 'selected' : ''}>Approved</option><option value="Rejected" ${entry.status === 'Rejected' ? 'selected' : ''}>Rejected</option></select></div>
-              <div class="admin-inline"><button class="btn btn-primary btn-small" type="button" data-application-save="${index}">Save</button><button class="btn btn-ghost btn-small" type="button" data-create-subscription="${index}">Create subscription</button></div>
-            </div>`).join('')}</div>
-        </div>
-        <div id="admin-applications-notice"></div>
-      </div>
-    </section>
-
-    <section class="section-tight">
-      <div class="container">
-        <div class="section-head"><div><span class="eyebrow">Subscriptions</span><h2>Manage plans, billing health, and featured add-ons.</h2></div></div>
-        <div class="admin-card-grid" id="admin-subscriptions">${state.subscriptions.map((sub, index) => {
-          const planOptions = Object.values(adminPlanCatalog()[sub.listingType === 'venue' ? 'venue' : 'merchant']).map(meta => meta.name);
-          const addOnRows = sub.listingType === 'venue'
-            ? [['featuredVenue','Homepage featured venue'], ['featuredEvent','Featured event promotion'], ['bookingBoost','Booking boost']]
-            : [['featuredSupplier','Homepage featured supplier'], ['featuredEvent','Featured event promotion'], ['extraProducts','Extra product allocation']];
-          return `
-            <article class="panel admin-stack">
-              <div class="admin-inline" style="justify-content:space-between;"><div><span class="eyebrow">${sub.listingType === 'venue' ? 'Venue subscription' : 'Merchant subscription'}</span><h3 style="margin-top:12px;">${sub.businessName}</h3></div>${adminStatusChip(sub.status)}</div>
-              <label class="dashboard-field"><span>Plan</span><select class="select" data-subscription-plan="${index}">${planOptions.map(option => `<option value="${option}" ${sub.plan === option ? 'selected' : ''}>${option}</option>`).join('')}</select></label>
-              <div class="grid grid-2">
-                <label class="dashboard-field"><span>Billing</span><select class="select" data-subscription-billing="${index}"><option value="Monthly" ${sub.billing === 'Monthly' ? 'selected' : ''}>Monthly</option><option value="Annual" ${sub.billing === 'Annual' ? 'selected' : ''}>Annual</option></select></label>
-                <label class="dashboard-field"><span>Status</span><select class="select" data-subscription-status="${index}"><option value="Trial" ${sub.status === 'Trial' ? 'selected' : ''}>Trial</option><option value="Active" ${sub.status === 'Active' ? 'selected' : ''}>Active</option><option value="Past Due" ${sub.status === 'Past Due' ? 'selected' : ''}>Past Due</option><option value="Paused" ${sub.status === 'Paused' ? 'selected' : ''}>Paused</option><option value="Cancelled" ${sub.status === 'Cancelled' ? 'selected' : ''}>Cancelled</option></select></label>
-              </div>
-              <label class="dashboard-field"><span>Renewal date</span><input class="input" type="date" data-subscription-renewal="${index}" value="${sub.renewal}" /></label>
-              <div class="small-note">Current charge: <strong data-subscription-amount-label="${index}">${sub.amount}</strong> · Invoice status: ${sub.invoiceStatus}</div>
-              <div class="dashboard-toggle-group">
-                ${addOnRows.map(([key, label]) => `<label class="check-row"><input type="checkbox" data-subscription-addon="${index}" data-addon-key="${key}" ${sub.addOns?.[key] ? 'checked' : ''} /><span>${label}</span></label>`).join('')}
-              </div>
-              <div class="admin-inline"><button class="btn btn-primary btn-small" type="button" data-subscription-save="${index}">Save subscription</button><a class="btn btn-ghost btn-small" href="dashboard.html?role=${sub.listingType}">Open business view</a></div>
-            </article>`;
-        }).join('')}</div>
-        <div id="admin-subscriptions-notice"></div>
       </div>
     </section>
 
     <section class="section-tight">
       <div class="container grid grid-2">
-        <div>
-          <div class="section-head"><div><span class="eyebrow">Featured placements</span><h2>Control paid visibility inventory.</h2></div></div>
-          <div class="admin-card-grid" style="grid-template-columns:1fr;" id="admin-placements">${state.placements.map((slot, index) => `
-            <article class="panel admin-stack">
-              <div class="admin-inline" style="justify-content:space-between;"><div><strong>${slot.slot}</strong><div class="small-note">${slot.listingType === 'venue' ? 'Venue inventory' : 'Supplier inventory'}</div></div>${adminStatusChip(slot.status)}</div>
-              <label class="dashboard-field"><span>Current occupant</span><input class="input" data-placement-occupant="${index}" value="${slot.occupant}" /></label>
-              <label class="dashboard-field"><span>Status</span><select class="select" data-placement-status="${index}"><option value="Live" ${slot.status === 'Live' ? 'selected' : ''}>Live</option><option value="Scheduled" ${slot.status === 'Scheduled' ? 'selected' : ''}>Scheduled</option><option value="Review" ${slot.status === 'Review' ? 'selected' : ''}>Review</option><option value="Open" ${slot.status === 'Open' ? 'selected' : ''}>Open</option></select></label>
-              <label class="dashboard-field"><span>Founder note</span><textarea class="input" rows="3" data-placement-notes="${index}">${slot.notes || ''}</textarea></label>
-              <button class="btn btn-primary btn-small" type="button" data-placement-save="${index}">Save placement</button>
-            </article>`).join('')}</div>
-          <div id="admin-placements-notice"></div>
+        <div class="panel">
+          <span class="eyebrow">Applications</span>
+          <h2 style="margin:14px 0;">Supplier & venue pipeline</h2>
+          <div class="admin-toolbar" style="margin-bottom:16px;">
+            <a class="toggle-pill ${appFilter === 'all' ? 'active' : ''}" href="admin.html?filter=all">All</a>
+            <a class="toggle-pill ${appFilter === 'merchant' ? 'active' : ''}" href="admin.html?filter=merchant">Suppliers</a>
+            <a class="toggle-pill ${appFilter === 'venue' ? 'active' : ''}" href="admin.html?filter=venue">Venues</a>
+          </div>
+          <div id="admin-applications">${filteredApplications.map((entry, index) => `
+            <div class="admin-table-row" style="margin-bottom:8px;">
+              <div><strong>${entry.businessName}</strong><div class="small-note">${entry.listingType === 'venue' ? 'Venue' : 'Supplier'} · ${entry.district || 'HK'} · ${entry.priority}</div></div>
+              <div>${adminPlanMeta(entry.planInterest, entry.listingType).name}</div>
+              <div>${entry.contactName || '?'} · ${entry.email || ''}</div>
+              <div>${adminStatusChip(entry.status)}<select class="select admin-select" data-application-status="${index}" style="margin-top:8px;width:100%;"><option value="New" ${entry.status === 'New' ? 'selected' : ''}>New</option><option value="Reviewing" ${entry.status === 'Reviewing' ? 'selected' : ''}>Reviewing</option><option value="Needs Info" ${entry.status === 'Needs Info' ? 'selected' : ''}>Needs Info</option><option value="Approved" ${entry.status === 'Approved' ? 'selected' : ''}>Approved</option><option value="Rejected" ${entry.status === 'Rejected' ? 'selected' : ''}>Rejected</option></select></div>
+              <div class="admin-inline"><button class="btn btn-primary btn-small" type="button" data-application-save="${index}">Save</button></div>
+            </div>`).join('') || '<div class="notice">No applications yet.</div>'}</div>
+          <div id="admin-applications-notice"></div>
         </div>
-        <div>
-          <div class="section-head"><div><span class="eyebrow">Moderation queue</span><h2>Keep listings, events, and stock clean.</h2></div></div>
-          <div class="admin-card-grid" style="grid-template-columns:1fr;" id="admin-moderation">${state.moderation.map((item, index) => `
-            <article class="panel admin-stack">
-              <div class="admin-inline" style="justify-content:space-between;"><div><span class="eyebrow">${item.kind}</span><h3 style="margin-top:12px;">${item.title}</h3></div>${adminStatusChip(item.status)}</div>
-              <div class="small-note">Owner: ${item.owner} · Flag: ${item.flag}</div>
+
+        <div class="panel">
+          <span class="eyebrow">Pending inventory</span>
+          <h2 style="margin:14px 0;">Awaiting approval</h2>
+          <div id="admin-pending-items"><div class="notice">Loading…</div></div>
+          <div id="admin-pending-notice"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section-tight">
+      <div class="container grid grid-2">
+        <div class="panel">
+          <span class="eyebrow">Subscriptions</span>
+          <h2 style="margin:14px 0;">Plan management</h2>
+          <div id="admin-subscriptions">${state.subscriptions.map((sub, index) => {
+            const planOptions = Object.values(adminPlanCatalog()[sub.listingType === 'venue' ? 'venue' : 'merchant']).map(meta => meta.name);
+            const addOnRows = sub.listingType === 'venue'
+              ? [['featuredVenue','Homepage featured venue'], ['featuredEvent','Featured event promotion'], ['bookingBoost','Booking boost']]
+              : [['featuredSupplier','Homepage featured supplier'], ['featuredEvent','Featured event promotion'], ['extraProducts','Extra product allocation']];
+            return `
+              <div class="admin-stack" style="border-top:1px solid rgba(255,255,255,.06);padding-top:16px;margin-top:12px;">
+                <div class="admin-inline" style="justify-content:space-between;"><div><strong>${sub.businessName}</strong><div class="small-note">${sub.listingType === 'venue' ? 'Venue' : 'Merchant'}</div></div>${adminStatusChip(sub.status)}</div>
+                <label class="dashboard-field"><span>Plan</span><select class="select" data-subscription-plan="${index}">${planOptions.map(o => `<option value="${o}" ${sub.plan === o ? 'selected' : ''}>${o}</option>`).join('')}</select></label>
+                <div class="grid grid-2">
+                  <label class="dashboard-field"><span>Billing</span><select class="select" data-subscription-billing="${index}"><option value="Monthly" ${sub.billing === 'Monthly' ? 'selected' : ''}>Monthly</option><option value="Annual" ${sub.billing === 'Annual' ? 'selected' : ''}>Annual</option></select></label>
+                  <label class="dashboard-field"><span>Status</span><select class="select" data-subscription-status="${index}"><option value="Trial" ${sub.status === 'Trial' ? 'selected' : ''}>Trial</option><option value="Active" ${sub.status === 'Active' ? 'selected' : ''}>Active</option><option value="Past Due" ${sub.status === 'Past Due' ? 'selected' : ''}>Past Due</option><option value="Paused" ${sub.status === 'Paused' ? 'selected' : ''}>Paused</option></select></label>
+                </div>
+                <label class="dashboard-field"><span>Renewal</span><input class="input" type="date" data-subscription-renewal="${index}" value="${sub.renewal}" /></label>
+                <button class="btn btn-primary btn-small" type="button" data-subscription-save="${index}">Save</button>
+              </div>`;
+          }).join('') || '<div class="notice">No subscriptions yet.</div>'}</div>
+          <div id="admin-subscriptions-notice"></div>
+        </div>
+
+        <div class="panel">
+          <span class="eyebrow">Moderation</span>
+          <h2 style="margin:14px 0;">Content review</h2>
+          <div id="admin-moderation">${state.moderation.map((item, index) => `
+            <div class="admin-stack" style="border-top:1px solid rgba(255,255,255,.06);padding-top:16px;margin-top:12px;">
+              <div class="admin-inline" style="justify-content:space-between;"><div><strong>${item.title}</strong><div class="small-note">${item.kind} · ${item.owner}</div></div>${adminStatusChip(item.status)}</div>
               <label class="dashboard-field"><span>Status</span><select class="select" data-moderation-status="${index}"><option value="Queued" ${item.status === 'Queued' ? 'selected' : ''}>Queued</option><option value="Reviewing" ${item.status === 'Reviewing' ? 'selected' : ''}>Reviewing</option><option value="Approved" ${item.status === 'Approved' ? 'selected' : ''}>Approved</option><option value="Needs Edit" ${item.status === 'Needs Edit' ? 'selected' : ''}>Needs Edit</option><option value="Rejected" ${item.status === 'Rejected' ? 'selected' : ''}>Rejected</option></select></label>
-              <label class="dashboard-field"><span>Moderator note</span><textarea class="input" rows="3" data-moderation-notes="${index}">${item.notes || ''}</textarea></label>
-              <button class="btn btn-primary btn-small" type="button" data-moderation-save="${index}">Save moderation decision</button>
-            </article>`).join('')}</div>
+              <label class="dashboard-field"><span>Note</span><textarea class="input" rows="2" data-moderation-notes="${index}">${item.notes || ''}</textarea></label>
+              <button class="btn btn-primary btn-small" type="button" data-moderation-save="${index}">Save</button>
+            </div>`).join('') || '<div class="notice">No moderation items.</div>'}</div>
           <div id="admin-moderation-notice"></div>
         </div>
       </div>
     </section>
 
     <section class="section-tight">
-      <div class="container">
-        <div class="section-head"><div><span class="eyebrow">Inventory imports</span><h2>Google Sheets and website scans in one queue.</h2></div></div>
-        <div class="admin-table">
-          <div class="admin-table-head"><div>Business</div><div>Method</div><div>Source</div><div>Status</div><div>Actions</div></div>
-          <div id="admin-import-jobs">${state.importJobs.map((job, index) => `
-            <div class="admin-table-row">
-              <div><strong>${job.businessName}</strong><div class="small-note">${job.email || 'No email'} · ${job.platform || 'Mixed'} platform</div></div>
-              <div><div>${job.method}</div><div class="small-note">${job.itemCount || 0} items</div></div>
-              <div><div class="small-note">${job.source || 'No source provided'}</div><div class="small-note">${job.notes || ''}</div></div>
-              <div>${adminStatusChip(job.status)}<select class="select admin-select" data-import-status="${index}" style="margin-top:10px;"><option value="Queued" ${job.status === 'Queued' ? 'selected' : ''}>Queued</option><option value="Scanning" ${job.status === 'Scanning' ? 'selected' : ''}>Scanning</option><option value="Needs Review" ${job.status === 'Needs Review' ? 'selected' : ''}>Needs Review</option><option value="Imported" ${job.status === 'Imported' ? 'selected' : ''}>Imported</option><option value="Failed" ${job.status === 'Failed' ? 'selected' : ''}>Failed</option></select></div>
-              <div class="admin-inline"><button class="btn btn-primary btn-small" type="button" data-import-save="${index}">Save</button><button class="btn btn-ghost btn-small" type="button" data-import-promote="${index}">Create listing task</button></div>
-            </div>`).join('')}</div>
+      <div class="container grid grid-2">
+        <div class="panel">
+          <span class="eyebrow">Featured placements</span>
+          <h2 style="margin:14px 0;">Paid visibility</h2>
+          <div id="admin-placements">${state.placements.map((slot, index) => `
+            <div class="admin-stack" style="border-top:1px solid rgba(255,255,255,.06);padding-top:16px;margin-top:12px;">
+              <div class="admin-inline" style="justify-content:space-between;"><div><strong>${slot.slot}</strong><div class="small-note">${slot.listingType === 'venue' ? 'Venue' : 'Supplier'}</div></div>${adminStatusChip(slot.status)}</div>
+              <label class="dashboard-field"><span>Occupant</span><input class="input" data-placement-occupant="${index}" value="${slot.occupant}" /></label>
+              <label class="dashboard-field"><span>Status</span><select class="select" data-placement-status="${index}"><option value="Live" ${slot.status === 'Live' ? 'selected' : ''}>Live</option><option value="Scheduled" ${slot.status === 'Scheduled' ? 'selected' : ''}>Scheduled</option><option value="Review" ${slot.status === 'Review' ? 'selected' : ''}>Review</option><option value="Open" ${slot.status === 'Open' ? 'selected' : ''}>Open</option></select></label>
+              <button class="btn btn-primary btn-small" type="button" data-placement-save="${index}">Save</button>
+            </div>`).join('') || '<div class="notice">No placements defined.</div>'}</div>
+          <div id="admin-placements-notice"></div>
         </div>
-        <div id="admin-imports-notice"></div>
-      </div>
-    </section>
 
-    <section class="section-tight">
-      <div class="container">
-        <div class="section-head"><div><span class="eyebrow">Pending inventory</span><h2>Items waiting for approval before going live.</h2></div></div>
-        <div class="admin-table">
-          <div class="admin-table-head"><div>Product</div><div>Supplier</div><div>Price</div><div>Status</div><div>Actions</div></div>
-          <div id="admin-pending-items"><div class="notice">Loading pending items…</div></div>
+        <div class="panel">
+          <span class="eyebrow">Import queue</span>
+          <h2 style="margin:14px 0;">Sheet & scan jobs</h2>
+          <div id="admin-import-jobs">${state.importJobs.map((job, index) => `
+            <div class="admin-stack" style="border-top:1px solid rgba(255,255,255,.06);padding-top:16px;margin-top:12px;">
+              <div class="admin-inline" style="justify-content:space-between;"><div><strong>${job.businessName}</strong><div class="small-note">${job.method} · ${job.itemCount || 0} items</div></div>${adminStatusChip(job.status)}</div>
+              <div class="small-note">${job.source || 'No source'} · ${job.notes || ''}</div>
+              <label class="dashboard-field"><span>Status</span><select class="select" data-import-status="${index}"><option value="Queued" ${job.status === 'Queued' ? 'selected' : ''}>Queued</option><option value="Scanning" ${job.status === 'Scanning' ? 'selected' : ''}>Scanning</option><option value="Needs Review" ${job.status === 'Needs Review' ? 'selected' : ''}>Needs Review</option><option value="Imported" ${job.status === 'Imported' ? 'selected' : ''}>Imported</option><option value="Failed" ${job.status === 'Failed' ? 'selected' : ''}>Failed</option></select></label>
+              <button class="btn btn-primary btn-small" type="button" data-import-save="${index}">Save</button>
+            </div>`).join('') || '<div class="notice">No import jobs.</div>'}</div>
+          <div id="admin-imports-notice"></div>
         </div>
-        <div id="admin-pending-notice"></div>
       </div>
     </section>`;
-
   // Load pending inventory from Supabase
   loadPendingItems();
 
