@@ -1453,11 +1453,13 @@ function renderBusinessDashboardPage() {
       renderBusinessDashboardPage();
     });
     const saveItems = () => {
-      config.items = $$('.dashboard-row', app).map((row, index) => ({
-        id: config.items[index]?.id || `${role}_${Date.now()}_${index}`,
+      const activeRole = state.activeRole || 'merchant';
+      const c = state[activeRole];
+      if (!c) return;
+      c.items = $$('.dashboard-row', app).map((row, index) => ({
+        id: c.items[index]?.id || `${activeRole}_${Date.now()}_${index}`,
         name: $('[data-item-name]', row).value,
-        price: $('[data-item-price]', row).value,
-        visibility: $('[data-item-visibility]', row).value
+        price: $('[data-item-price]', row).value
       }));
       persist();
       notice.innerHTML = '<div class="notice">Pricing and availability updated for this dashboard view.</div>';
@@ -1465,21 +1467,17 @@ function renderBusinessDashboardPage() {
     $('#save-items-btn', app).addEventListener('click', saveItems);
     $$('.delete-item-btn', app).forEach(btn => btn.addEventListener('click', () => {
       const idx = parseInt(btn.dataset.deleteIndex);
-      const s = storage.getDashboardState();
-      if (!s) return;
-      const c = s[state.activeRole || 'merchant'];
+      const activeRole = state.activeRole || 'merchant';
+      const c = state[activeRole];
       if (!c) return;
       c.items.splice(idx, 1);
-      storage.setDashboardState(s);
       renderBusinessDashboardPage();
     }));
     $('#add-item-btn', app).addEventListener('click', () => {
-      const s = storage.getDashboardState();
-      if (!s) return;
-      const c = s[state.activeRole || 'merchant'];
+      const activeRole = state.activeRole || 'merchant';
+      const c = state[activeRole];
       if (!c) return;
-      c.items.push({ id: `${state.activeRole}_${Date.now()}`, name: state.activeRole === 'merchant' ? 'New product' : 'New venue offer', price: 'HK$0', status: 'Approved' });
-      storage.setDashboardState(s);
+      c.items.push({ id: `${activeRole}_${Date.now()}`, name: activeRole === 'merchant' ? 'New product' : 'New venue offer', price: 'HK$0', status: 'Approved' });
       renderBusinessDashboardPage();
     });
     if (state.activeRole === 'merchant' && $('#sheet-template-btn', app)) {
