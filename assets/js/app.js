@@ -1808,10 +1808,33 @@ function renderAdminDashboardPage() {
               <div><button class="btn btn-primary btn-small" type="button" data-application-save="${index}">Save</button></div>
             </div>`).join('') : '<div class="notice">No applications yet.</div>'}
           </div>
-          <div id="admin-applications-holder"></div>
           <div id="admin-applications-notice"></div>
         </div>
 
+        <div class="panel">
+          <span class="eyebrow">Subscriptions</span>
+          <h2 style="margin:14px 0;">Plan management</h2>
+          <div id="admin-subscriptions">${state.subscriptions.map((sub, index) => {
+            const planOptions = Object.values(adminPlanCatalog()[sub.listingType === 'venue' ? 'venue' : 'merchant']).map(meta => meta.name);
+            return `
+              <div class="admin-stack" style="border-top:1px solid rgba(255,255,255,.06);padding-top:16px;margin-top:12px;">
+                <div style="display:flex;justify-content:space-between;"><div><strong>${sub.businessName}</strong><div class="small-note">${sub.listingType === 'venue' ? 'Venue' : 'Merchant'}</div></div>${adminStatusChip(sub.status)}</div>
+                <label class="dashboard-field"><span>Plan</span><select class="select" data-subscription-plan="${index}">${planOptions.map(o => `<option value="${o}" ${sub.plan === o ? 'selected' : ''}>${o}</option>`).join('')}</select></label>
+                <div class="grid grid-2">
+                  <label class="dashboard-field"><span>Billing</span><select class="select" data-subscription-billing="${index}"><option value="Monthly" ${sub.billing === 'Monthly' ? 'selected' : ''}>Monthly</option><option value="Annual" ${sub.billing === 'Annual' ? 'selected' : ''}>Annual</option></select></label>
+                  <label class="dashboard-field"><span>Status</span><select class="select" data-subscription-status="${index}"><option value="Trial" ${sub.status === 'Trial' ? 'selected' : ''}>Trial</option><option value="Active" ${sub.status === 'Active' ? 'selected' : ''}>Active</option><option value="Past Due" ${sub.status === 'Past Due' ? 'selected' : ''}>Past Due</option><option value="Paused" ${sub.status === 'Paused' ? 'selected' : ''}>Paused</option></select></label>
+                </div>
+                <label class="dashboard-field"><span>Renewal</span><input class="input" type="date" data-subscription-renewal="${index}" value="${sub.renewal}" /></label>
+                <button class="btn btn-primary btn-small" type="button" data-subscription-save="${index}">Save</button>
+              </div>`;
+          }).join('') || '<div class="notice">No subscriptions yet.</div>'}</div>
+          <div id="admin-subscriptions-notice"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section-tight">
+      <div class="container">
         <div class="panel">
           <span class="eyebrow">Pending inventory</span>
           <h2 style="margin:14px 0;">Awaiting approval</h2>
@@ -1827,56 +1850,16 @@ function renderAdminDashboardPage() {
     <section class="section-tight">
       <div class="container grid grid-2">
         <div class="panel">
-          <span class="eyebrow">Subscriptions</span>
-          <h2 style="margin:14px 0;">Plan management</h2>
-          <div id="admin-subscriptions">${state.subscriptions.map((sub, index) => {
-            const planOptions = Object.values(adminPlanCatalog()[sub.listingType === 'venue' ? 'venue' : 'merchant']).map(meta => meta.name);
-            const addOnRows = sub.listingType === 'venue'
-              ? [['featuredVenue','Homepage featured venue'], ['featuredEvent','Featured event promotion'], ['bookingBoost','Booking boost']]
-              : [['featuredSupplier','Homepage featured supplier'], ['featuredEvent','Featured event promotion'], ['extraProducts','Extra product allocation']];
-            return `
-              <div class="admin-stack" style="border-top:1px solid rgba(255,255,255,.06);padding-top:16px;margin-top:12px;">
-                <div class="admin-inline" style="justify-content:space-between;"><div><strong>${sub.businessName}</strong><div class="small-note">${sub.listingType === 'venue' ? 'Venue' : 'Merchant'}</div></div>${adminStatusChip(sub.status)}</div>
-                <label class="dashboard-field"><span>Plan</span><select class="select" data-subscription-plan="${index}">${planOptions.map(o => `<option value="${o}" ${sub.plan === o ? 'selected' : ''}>${o}</option>`).join('')}</select></label>
-                <div class="grid grid-2">
-                  <label class="dashboard-field"><span>Billing</span><select class="select" data-subscription-billing="${index}"><option value="Monthly" ${sub.billing === 'Monthly' ? 'selected' : ''}>Monthly</option><option value="Annual" ${sub.billing === 'Annual' ? 'selected' : ''}>Annual</option></select></label>
-                  <label class="dashboard-field"><span>Status</span><select class="select" data-subscription-status="${index}"><option value="Trial" ${sub.status === 'Trial' ? 'selected' : ''}>Trial</option><option value="Active" ${sub.status === 'Active' ? 'selected' : ''}>Active</option><option value="Past Due" ${sub.status === 'Past Due' ? 'selected' : ''}>Past Due</option><option value="Paused" ${sub.status === 'Paused' ? 'selected' : ''}>Paused</option></select></label>
-                </div>
-                <label class="dashboard-field"><span>Renewal</span><input class="input" type="date" data-subscription-renewal="${index}" value="${sub.renewal}" /></label>
-                <button class="btn btn-primary btn-small" type="button" data-subscription-save="${index}">Save</button>
-              </div>`;
-          }).join('') || '<div class="notice">No subscriptions yet.</div>'}</div>
-          <div id="admin-subscriptions-notice"></div>
-        </div>
-
-        <div class="panel">
           <span class="eyebrow">Moderation</span>
           <h2 style="margin:14px 0;">Content review</h2>
           <div id="admin-moderation">${state.moderation.map((item, index) => `
             <div class="admin-stack" style="border-top:1px solid rgba(255,255,255,.06);padding-top:16px;margin-top:12px;">
-              <div class="admin-inline" style="justify-content:space-between;"><div><strong>${item.title}</strong><div class="small-note">${item.kind} · ${item.owner}</div></div>${adminStatusChip(item.status)}</div>
+              <div style="display:flex;justify-content:space-between;"><div><strong>${item.title}</strong><div class="small-note">${item.kind} · ${item.owner}</div></div>${adminStatusChip(item.status)}</div>
               <label class="dashboard-field"><span>Status</span><select class="select" data-moderation-status="${index}"><option value="Queued" ${item.status === 'Queued' ? 'selected' : ''}>Queued</option><option value="Reviewing" ${item.status === 'Reviewing' ? 'selected' : ''}>Reviewing</option><option value="Approved" ${item.status === 'Approved' ? 'selected' : ''}>Approved</option><option value="Needs Edit" ${item.status === 'Needs Edit' ? 'selected' : ''}>Needs Edit</option><option value="Rejected" ${item.status === 'Rejected' ? 'selected' : ''}>Rejected</option></select></label>
               <label class="dashboard-field"><span>Note</span><textarea class="input" rows="2" data-moderation-notes="${index}">${item.notes || ''}</textarea></label>
               <button class="btn btn-primary btn-small" type="button" data-moderation-save="${index}">Save</button>
             </div>`).join('') || '<div class="notice">No moderation items.</div>'}</div>
           <div id="admin-moderation-notice"></div>
-        </div>
-      </div>
-    </section>
-
-    <section class="section-tight">
-      <div class="container grid grid-2">
-        <div class="panel">
-          <span class="eyebrow">Featured placements</span>
-          <h2 style="margin:14px 0;">Paid visibility</h2>
-          <div id="admin-placements">${state.placements.map((slot, index) => `
-            <div class="admin-stack" style="border-top:1px solid rgba(255,255,255,.06);padding-top:16px;margin-top:12px;">
-              <div class="admin-inline" style="justify-content:space-between;"><div><strong>${slot.slot}</strong><div class="small-note">${slot.listingType === 'venue' ? 'Venue' : 'Supplier'}</div></div>${adminStatusChip(slot.status)}</div>
-              <label class="dashboard-field"><span>Occupant</span><input class="input" data-placement-occupant="${index}" value="${slot.occupant}" /></label>
-              <label class="dashboard-field"><span>Status</span><select class="select" data-placement-status="${index}"><option value="Live" ${slot.status === 'Live' ? 'selected' : ''}>Live</option><option value="Scheduled" ${slot.status === 'Scheduled' ? 'selected' : ''}>Scheduled</option><option value="Review" ${slot.status === 'Review' ? 'selected' : ''}>Review</option><option value="Open" ${slot.status === 'Open' ? 'selected' : ''}>Open</option></select></label>
-              <button class="btn btn-primary btn-small" type="button" data-placement-save="${index}">Save</button>
-            </div>`).join('') || '<div class="notice">No placements defined.</div>'}</div>
-          <div id="admin-placements-notice"></div>
         </div>
 
         <div class="panel">
@@ -1884,7 +1867,7 @@ function renderAdminDashboardPage() {
           <h2 style="margin:14px 0;">Sheet & scan jobs</h2>
           <div id="admin-import-jobs">${state.importJobs.map((job, index) => `
             <div class="admin-stack" style="border-top:1px solid rgba(255,255,255,.06);padding-top:16px;margin-top:12px;">
-              <div class="admin-inline" style="justify-content:space-between;"><div><strong>${job.businessName}</strong><div class="small-note">${job.method} · ${job.itemCount || 0} items</div></div>${adminStatusChip(job.status)}</div>
+              <div style="display:flex;justify-content:space-between;"><div><strong>${job.businessName}</strong><div class="small-note">${job.method} · ${job.itemCount || 0} items</div></div>${adminStatusChip(job.status)}</div>
               <div class="small-note">${job.source || 'No source'} · ${job.notes || ''}</div>
               <label class="dashboard-field"><span>Status</span><select class="select" data-import-status="${index}"><option value="Queued" ${job.status === 'Queued' ? 'selected' : ''}>Queued</option><option value="Scanning" ${job.status === 'Scanning' ? 'selected' : ''}>Scanning</option><option value="Needs Review" ${job.status === 'Needs Review' ? 'selected' : ''}>Needs Review</option><option value="Imported" ${job.status === 'Imported' ? 'selected' : ''}>Imported</option><option value="Failed" ${job.status === 'Failed' ? 'selected' : ''}>Failed</option></select></label>
               <button class="btn btn-primary btn-small" type="button" data-import-save="${index}">Save</button>
@@ -1892,9 +1875,29 @@ function renderAdminDashboardPage() {
           <div id="admin-imports-notice"></div>
         </div>
       </div>
+    </section>
+
+    <section class="section-tight">
+      <div class="container">
+        <div class="panel">
+          <span class="eyebrow">Featured placements</span>
+          <h2 style="margin:14px 0;">Paid visibility</h2>
+          <div id="admin-placements" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">${state.placements.map((slot, index) => `
+            <div style="border:1px solid rgba(255,255,255,.06);padding:16px;border-radius:8px;">
+              <div style="display:flex;justify-content:space-between;margin-bottom:12px;"><div><strong>${slot.slot}</strong><div class="small-note">${slot.listingType === 'venue' ? 'Venue' : 'Supplier'}</div></div>${adminStatusChip(slot.status)}</div>
+              <label class="dashboard-field"><span>Occupant</span><input class="input" data-placement-occupant="${index}" value="${slot.occupant}" /></label>
+              <label class="dashboard-field"><span>Status</span><select class="select" data-placement-status="${index}"><option value="Live" ${slot.status === 'Live' ? 'selected' : ''}>Live</option><option value="Scheduled" ${slot.status === 'Scheduled' ? 'selected' : ''}>Scheduled</option><option value="Review" ${slot.status === 'Review' ? 'selected' : ''}>Review</option><option value="Open" ${slot.status === 'Open' ? 'selected' : ''}>Open</option></select></label>
+              <button class="btn btn-primary btn-small" type="button" data-placement-save="${index}">Save</button>
+            </div>`).join('') || '<div class="notice">No placements defined.</div>'}</div>
+          <div id="admin-placements-notice"></div>
+        </div>
+      </div>
     </section>`;
-  // Load pending inventory from Supabase
+
+  // Load pending inventory
   loadPendingItems();
+
+
 
   const saveState = (message, selector) => {
     storage.setAdminState(state);
