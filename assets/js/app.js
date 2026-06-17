@@ -1721,7 +1721,7 @@ async function loadPendingItems() {
       return;
     }
     holder.innerHTML = items.map((item, index) => `
-      <div class="admin-table-row" id="pending-row-${index}">
+      <div class="admin-table-row" style="grid-template-columns:2fr 1fr 120px 100px 1fr;" id="pending-row-${index}">
         <div><strong>${item.name}</strong></div>
         <div>${item.supplier_name || 'Unknown'}</div>
         <div>${item.price || 'N/A'}</div>
@@ -1799,7 +1799,7 @@ function renderAdminDashboardPage() {
           <div class="admin-table">
             <div class="admin-table-head" style="grid-template-columns:1.5fr 1fr 1fr 1.2fr 1.2fr 60px;"><div>Business</div><div>District</div><div>Plan</div><div>Contact</div><div>Status</div><div></div></div>
             ${filteredApplications.length ? filteredApplications.map((entry, index) => `
-            <div class="admin-table-row">
+            <div class="admin-table-row" style="grid-template-columns:1.5fr 1fr 1fr 1.2fr 1.2fr 60px;">
               <div><strong>${entry.businessName}</strong></div>
               <div>${entry.district || 'HK'}</div>
               <div>${adminPlanMeta(entry.planInterest, entry.listingType).name}</div>
