@@ -817,7 +817,193 @@ async function renderDrinksPage() {
   const filteredDrinks = allDrinks.filter(d => matchesSearch([d.name, d.supplier, d.type, d.area], query) && (!area || d.area === area));
   app.innerHTML = `
     <section class="hero" style="min-height:56vh;"><div class="hero-media" style="background-image:url('${siteImages.event}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Drinks</span><h1>Bottles actually available in Hong Kong.</h1><p class="lead">From cellar icons to sake, Champagne, beer, spirits, and no-alcohol discoveries — all routed to local suppliers.</p></div><div class="search-shell"><div class="search-tabs"><span class="search-tab active">Search results</span></div><div class="notice">Showing <strong>${filteredDrinks.length}</strong> drinks${query ? ` for “${query}”` : ''}${area ? ` in ${area}` : ''}.</div><div class="panel" style="padding:18px; background:transparent; border:none; box-shadow:none;"><div class="muted" style="display:grid; gap:10px;"><span>Direct links to local supplier stores</span><span>HK pricing and neighbourhood context</span><span>A mix of discovery bottles and everyday favourites</span></div></div></div></div></section>
-    <section class="section"><div class="container"><div class="section-head"><div><span class="eyebrow">Featured bottles</span><h2>Popular drinks from Hong Kong suppliers.</h2></div></div>${filteredDrinks.length ? `<div class="grid grid-4">${filteredDrinks.map(d => renderCard({...d}, {type:'drink', portrait:true, showBadge:false, showDescription:false, href:buildSearchHref('drinks.html', d.name, d.area), cta:d.tier==='enhanced' ? ctaLink('View', d.buy || (d.supplier ? buildSearchHref('suppliers.html', d.supplier, d.area) : buildSearchHref('drinks.html', d.name, d.area)), 'btn btn-primary btn-small', 'View') : ctaLink('View', d.supplier ? buildSearchHref('suppliers.html', d.supplier, d.area) : buildSearchHref('drinks.html', d.name, d.area), 'btn btn-ghost btn-small')})).join('')}</div>` : '<div class="empty-state">No drinks match that search yet. Try a broader bottle name, category, or area.</div>'}</div></section>`;
+    <section class="section"><div class="container"><div class="section-head"><div><span class="eyebrow">Featured bottles</span><h2>Popular drinks from Hong Kong suppliers.</h2></div></div>${filteredDrinks.length ? `<div class="grid grid-4">${filteredDrinks.map(d => renderCard({...d}, {type:'drink', portrait:true, showBadge:false, showDescription:false, href:`product.html?name=${encodeURIComponent(d.name)}`, cta:d.tier==='enhanced' ? ctaLink('View', d.buy || (d.supplier ? buildSearchHref('suppliers.html', d.supplier, d.area) : `product.html?name=${encodeURIComponent(d.name)}`), 'btn btn-primary btn-small', 'View') : ctaLink('View', d.supplier ? buildSearchHref('suppliers.html', d.supplier, d.area) : `product.html?name=${encodeURIComponent(d.name)}`, 'btn btn-ghost btn-small')})).join('')}</div>` : '<div class="empty-state">No drinks match that search yet. Try a broader bottle name, category, or area.</div>'}</div></section>`;
+  bindSaveButtons(app);
+}
+
+function flashNotice(message) {
+  const existing = document.querySelector('.flash-notice');
+  if (existing) existing.remove();
+  const el = document.createElement('div');
+  el.className = 'flash-notice';
+  el.textContent = message;
+  document.body.appendChild(el);
+  setTimeout(() => { el.classList.add('flash-notice--show'); }, 10);
+  setTimeout(() => { el.classList.remove('flash-notice--show'); setTimeout(() => el.remove(), 300); }, 2800);
+}
+
+function starRating(rating) {
+  if (!rating) return '';
+  const full = Math.round(rating);
+  let html = '';
+  for (let i = 1; i <= 5; i++) html += i <= full ? '★' : '☆';
+  return `<span class="stars" aria-label="${rating} out of 5">${html}</span>`;
+}
+
+function formatDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return d.toLocaleDateString('en-HK', { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+async function renderBottleDetail() {
+  const app = $('#app');
+  const name = queryParam('name') || '';
+  if (!name) {
+    app.innerHTML = `<div class="empty-state">No bottle specified. <a href="drinks.html">Browse drinks →</a></div>`;
+    return;
+  }
+
+  const drink = await fetchDrinkByName(name);
+  if (!drink) {
+    app.innerHTML = `<div class="empty-state">Bottle not found: "${name}". <a href="drinks.html">Browse drinks →</a></div>`;
+    return;
+  }
+
+  const venues = await fetchVenuesForDrink(drink.id);
+  const reviews = await fetchReviewsForItem('drink', drink.id);
+  const slug = slugify(drink.name);
+
+  // OG meta tags
+  document.title = `${drink.name} — drinksearcher.hk`;
+  const metaDesc = $(`meta[name="description"]`);
+  if (metaDesc) metaDesc.setAttribute('content', `${drink.name} — ${drink.price}. Buy from ${drink.supplier_name}. Find where to drink it in Hong Kong.`);
+
+  app.innerHTML = `
+    <nav class="breadcrumb"><div class="container">
+      <a href="index.html">Home</a> › <a href="drinks.html">Drinks</a>${drink.type ? ` › <a href="drinks.html?q=${encodeURIComponent(drink.type)}">${drink.type}</a>` : ''} › <span>${drink.name}</span>
+    </div></nav>
+
+    <section class="section bottle-hero">
+      <div class="container">
+        <div class="bottle-hero-grid">
+          <div class="bottle-hero-media">
+            <img src="${drink.image || ''}" alt="${drink.name}" class="bottle-hero-img" onerror="this.src='assets/images/wine-shop.jpg'">
+          </div>
+          <div class="bottle-hero-info">
+            <span class="kicker">${drink.type || ''}</span>
+            <h1>${drink.name}</h1>
+            <div class="bottle-meta">
+              ${drink.abv ? `<span class="meta-tag">${drink.abv} ABV</span>` : ''}
+              ${drink.origin ? `<span class="meta-tag">${drink.origin}</span>` : ''}
+            </div>
+            <div class="bottle-price">${drink.price}</div>
+            ${drink.description ? `<p class="bottle-desc">${drink.description}</p>` : ''}
+            <div class="bottle-actions">
+              ${drink.buy_url ? `<a href="${drink.buy_url}" target="_blank" rel="noreferrer" class="btn btn-primary" onclick="trackClick('${drink.id}','${drink.name.replace(/'/g, "\\'")}','${(drink.supplier_name || '').replace(/'/g, "\\'")}')">Buy from ${drink.supplier_name || 'supplier'} →</a>` : ''}
+              ${saveButton({id: `drink:${slug}`, name: drink.name, kind: 'drink'})}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    ${venues.length ? `
+    <section class="section bottle-venues">
+      <div class="container">
+        <div class="section-head">
+          <div><span class="eyebrow">Drink it here</span><h2>Where to enjoy ${drink.name} in Hong Kong</h2></div>
+        </div>
+        <div class="grid grid-3">
+          ${venues.map(v => `
+            <article class="card venue-card">
+              <div class="card-media">
+                <img src="${v.image || 'assets/images/cocktail-bar.jpg'}" alt="${v.name}" onerror="this.src='assets/images/cocktail-bar.jpg'">
+                <span class="card-badge">${v.verified ? '✓ Verified' : 'Reported'}</span>
+              </div>
+              <div class="card-body">
+                <span class="card-kicker">${v.area || ''} · ${v.cuisine || ''}</span>
+                <h3 class="card-title">${v.name}</h3>
+                ${v.rating ? `<div class="card-rating">${starRating(parseFloat(v.rating))} ${v.rating}</div>` : ''}
+                ${v.specialty ? `<p class="card-subtitle">${v.specialty}</p>` : ''}
+                <div class="card-actions">
+                  <a class="btn btn-ghost btn-small" href="venue-profile.html?name=${encodeURIComponent(v.name)}">View →</a>
+                  ${v.website && v.website !== '#' ? `<a class="btn btn-primary btn-small" href="${v.website}" target="_blank" rel="noreferrer">Book →</a>` : ''}
+                </div>
+              </div>
+            </article>
+          `).join('')}
+        </div>
+      </div>
+    </section>
+    ` : `
+    <section class="section bottle-venues">
+      <div class="container">
+        <div class="section-head">
+          <div><span class="eyebrow">Drink it here</span><h2>No venues tagged yet</h2></div>
+        </div>
+        <p class="muted">Know a bar that pours this? <a href="signup.html">Join as a venue</a> and tag it.</p>
+      </div>
+    </section>
+    `}
+
+    <section class="section bottle-reviews">
+      <div class="container">
+        <div class="section-head">
+          <div><span class="eyebrow">What people say</span><h2>Reviews for ${drink.name.split(' ').slice(0, 3).join(' ')}</h2></div>
+        </div>
+        ${reviews.length ? `
+          <div class="reviews-list">
+            ${reviews.map(r => `
+              <div class="review-card">
+                <div class="review-header">
+                  <span class="review-author">${r.author}</span>
+                  ${r.rating ? starRating(r.rating) : ''}
+                  <span class="review-date">${formatDate(r.createdAt)}</span>
+                </div>
+                <p class="review-content">${r.content}</p>
+              </div>
+            `).join('')}
+          </div>
+        ` : `
+          <div class="empty-state">No reviews yet. Be the first to share your experience.</div>
+        `}
+        <div class="review-form-shell" id="review-form-shell">
+          <h3>Write a review</h3>
+          <p class="muted" id="review-signin-prompt">Please <a href="signin.html">sign in</a> to leave a review.</p>
+          <form id="review-form" style="display:none;">
+            <textarea id="review-content" rows="4" placeholder="What did you think of this bottle? Where did you try it?" required></textarea>
+            <div class="review-rating-row">
+              <label>Rating (optional):</label>
+              <select id="review-rating">
+                <option value="">No rating</option>
+                <option value="5">★★★★★</option>
+                <option value="4">★★★★</option>
+                <option value="3">★★★</option>
+                <option value="2">★★</option>
+                <option value="1">★</option>
+              </select>
+            </div>
+            <button type="submit" class="btn btn-primary">Submit review</button>
+          </form>
+        </div>
+      </div>
+    </section>
+  `;
+
+  // Wire up review form
+  const user = await dsAuth.getCurrentUser().catch(() => null);
+  const form = $('#review-form');
+  const prompt = $('#review-signin-prompt');
+  if (user) {
+    if (form) form.style.display = 'block';
+    if (prompt) prompt.style.display = 'none';
+  }
+  if (form) {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const content = $('#review-content').value.trim();
+      if (!content) return;
+      try {
+        await submitReview({ drinkId: drink.id, content, rating: parseInt($('#review-rating').value) || null });
+        flashNotice('Review submitted — it will appear after approval.');
+        form.reset();
+      } catch (err) {
+        flashNotice('Failed to submit review. Please try again.');
+      }
+    });
+  }
+
   bindSaveButtons(app);
 }
 
@@ -2056,6 +2242,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (page === 'venues') await renderVenueDirectory();
   if (page === 'suppliers') await renderSupplierDirectory();
   if (page === 'drinks') await renderDrinksPage();
+  if (page === 'product') await renderBottleDetail();
   if (page === 'events') await renderEventsPage();
   if (page === 'pricing') renderPricingPage();
   if (page === 'lead') renderLeadCapturePage();

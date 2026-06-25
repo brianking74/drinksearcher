@@ -174,6 +174,74 @@ async function trackClick(drinkId, drinkName, supplier) {
   }
 }
 
+// ============================================================
+// BOTTLE DETAIL PAGE — queries for the canonical bottle page
+// ============================================================
+
+async function fetchDrinkByName(name) {
+  const { data, error } = await sb.from('drinks').select('*').eq('name', name).eq('status', 'approved').single();
+  if (error || !data) return null;
+  return data;
+}
+
+async function fetchDrinkByNameSlug(slug) {
+  // Decode URL-encoded slug and try exact name match
+  const name = decodeURIComponent(String(slug || '')).replace(/-/g, ' ').trim();
+  // Try exact match first
+  let { data } = await sb.from('drinks').select('*').eq('status', 'approved').ilike('name', name).single();
+  if (data) return data;
+  // Fallback: try with extra spaces collapsed
+  const cleaned = name.replace(/\s+/g, ' ');
+  const { data: d2 } = await sb.from('drinks').select('*').eq('status', 'approved').ilike('name', `%${cleaned}%`).limit(1);
+  return (d2 && d2.length > 0) ? d2[0] : null;
+}
+
+async function fetchVenuesForDrink(drinkId) {
+  const { data, error } = await sb
+    .from('venue_drinks')
+    .select('venue_id, verified, venues!inner(id, slug, name, area, phone, cuisine, rating, booking, specialty, image, website, tier)')
+    .eq('drink_id', drinkId);
+  if (error) { console.error('fetchVenuesForDrink error:', error); return []; }
+  return (data || []).map(row => ({
+    ...row.venues,
+    verified: row.verified
+  }));
+}
+
+async function fetchReviewsForItem(itemType, itemId) {
+  const column = itemType === 'drink' ? 'drink_id' : 'venue_id';
+  const { data, error } = await sb
+    .from('reviews')
+    .select('id, content, rating, created_at, profiles!inner(name)')
+    .eq(column, itemId)
+    .eq('status', 'approved')
+    .order('created_at', { ascending: false })
+    .limit(20);
+  if (error) { console.error('fetchReviewsForItem error:', error); return []; }
+  return (data || []).map(r => ({
+    id: r.id,
+    content: r.content,
+    rating: r.rating,
+    createdAt: r.created_at,
+    author: (r.profiles && r.profiles.name) || 'Anonymous'
+  }));
+}
+
+async function submitReview(reviewData) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error('Not signed in');
+  const { data, error } = await sb.from('reviews').insert({
+    user_id: user.id,
+    drink_id: reviewData.drinkId || null,
+    venue_id: reviewData.venueId || null,
+    content: reviewData.content,
+    rating: reviewData.rating || null,
+    status: 'pending'
+  }).select().single();
+  if (error) throw error;
+  return data;
+}
+
 console.log('[supabase] Client initialized');
 
 // ============================================================
