@@ -179,9 +179,9 @@ async function trackClick(drinkId, drinkName, supplier) {
 // ============================================================
 
 async function fetchDrinkByName(name) {
-  const { data, error } = await sb.from('drinks').select('*').eq('name', name).eq('status', 'approved').single();
-  if (error || !data) return null;
-  return data;
+  const { data, error } = await sb.from('drinks').select('*').eq('name', name).eq('status', 'approved').order('price', { ascending: true });
+  if (error || !data || !data.length) return null;
+  return data; // Returns ALL supplier rows for this drink, cheapest first
 }
 
 async function fetchDrinkByNameSlug(slug) {

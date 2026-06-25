@@ -607,7 +607,7 @@ async function renderHomepage() {
     <section class="section homepage-bottles-section">
       <div class="container">
         <div class="section-head carousel-head"><div><span class="eyebrow">Popular in Hong Kong</span><h2>Featured bottles available now.</h2><p class="lead" style="margin-top:14px;">The bottles Hong Kong drinkers are searching for, available now from trusted local suppliers.</p></div><div class="carousel-controls"><button class="carousel-arrow" type="button" data-carousel-target="featured-bottles" data-dir="-1" aria-label="Scroll bottles left">←</button><button class="carousel-arrow" type="button" data-carousel-target="featured-bottles" data-dir="1" aria-label="Scroll bottles right">→</button><a class="btn btn-ghost" href="drinks.html">See all drinks</a></div></div>
-        <div class="carousel-shell"><div class="carousel-track bottles-carousel" id="featured-bottles">${featuredDrinks.map(d => renderCard({...d}, {type:'drink', portrait:true, showBadge:false, showDescription:false, href:buildSearchHref('drinks.html', d.name), className:'homepage-bottle-card', cta:ctaLink('View', d.buy || buildSearchHref('drinks.html', d.name), 'btn btn-primary btn-small', 'View details')})).join('')}</div></div>
+        <div class="carousel-shell"><div class="carousel-track bottles-carousel" id="featured-bottles">${featuredDrinks.map(d => renderCard({...d}, {type:'drink', portrait:true, showBadge:false, showDescription:false, href:`product.html?name=${encodeURIComponent(d.name)}`, className:'homepage-bottle-card', cta:`${ctaLink('View', `product.html?name=${encodeURIComponent(d.name)}`, 'btn btn-primary btn-small', 'View details')}${d.buy ? ` <a class="btn btn-ghost btn-small" href="${d.buy}" target="_blank" rel="noreferrer">Buy →</a>` : ''}`})).join('')}</div></div>
       </div>
     </section>
 
@@ -854,12 +854,18 @@ async function renderBottleDetail() {
     return;
   }
 
-  const drink = await fetchDrinkByName(name);
-  if (!drink) {
+  const rows = await fetchDrinkByName(name);
+  if (!rows || !rows.length) {
     app.innerHTML = `<div class="empty-state">Bottle not found: "${name}". <a href="drinks.html">Browse drinks →</a></div>`;
     return;
   }
 
+  // First row = canonical bottle data
+  const drink = rows[0];
+  const supplierCount = rows.length;
+  const cheapestPrice = rows[0].price;
+  const highestPrice = rows.length > 1 ? rows[rows.length - 1].price : null;
+  const priceDisplay = supplierCount > 1 ? `${cheapestPrice} – ${highestPrice}` : cheapestPrice;
   const venues = await fetchVenuesForDrink(drink.id);
   const reviews = await fetchReviewsForItem('drink', drink.id);
   const slug = slugify(drink.name);
@@ -867,7 +873,7 @@ async function renderBottleDetail() {
   // OG meta tags
   document.title = `${drink.name} — drinksearcher.hk`;
   const metaDesc = $(`meta[name="description"]`);
-  if (metaDesc) metaDesc.setAttribute('content', `${drink.name} — ${drink.price}. Buy from ${drink.supplier_name}. Find where to drink it in Hong Kong.`);
+  if (metaDesc) metaDesc.setAttribute('content', `${drink.name} — from ${priceDisplay}. ${supplierCount} supplier${supplierCount>1?'s':''}. Find where to drink it in Hong Kong.`);
 
   app.innerHTML = `
     <nav class="breadcrumb"><div class="container">
@@ -886,17 +892,42 @@ async function renderBottleDetail() {
             <div class="bottle-meta">
               ${drink.abv ? `<span class="meta-tag">${drink.abv} ABV</span>` : ''}
               ${drink.origin ? `<span class="meta-tag">${drink.origin}</span>` : ''}
+              ${supplierCount > 1 ? `<span class="meta-tag meta-tag--suppliers">${supplierCount} suppliers</span>` : ''}
             </div>
-            <div class="bottle-price">${drink.price}</div>
+            <div class="bottle-price">${priceDisplay}</div>
             ${drink.description ? `<p class="bottle-desc">${drink.description}</p>` : ''}
             <div class="bottle-actions">
-              ${drink.buy_url ? `<a href="${drink.buy_url}" target="_blank" rel="noreferrer" class="btn btn-primary" onclick="trackClick('${drink.id}','${drink.name.replace(/'/g, "\\'")}','${(drink.supplier_name || '').replace(/'/g, "\\'")}')">Buy from ${drink.supplier_name || 'supplier'} →</a>` : ''}
               ${saveButton({id: `drink:${slug}`, name: drink.name, kind: 'drink'})}
             </div>
           </div>
         </div>
       </div>
     </section>
+
+    ${supplierCount ? `
+    <section class="section bottle-suppliers">
+      <div class="container">
+        <div class="section-head">
+          <div><span class="eyebrow">Buy it here</span><h2>${supplierCount} supplier${supplierCount>1?'s':''} in Hong Kong</h2></div>
+        </div>
+        <div class="supplier-compare-table">
+          ${rows.map((s, i) => `
+            <div class="supplier-row${i===0?' supplier-row--best':''}">
+              <div class="supplier-row__info">
+                <span class="supplier-row__name">${s.supplier_name || 'Supplier'}</span>
+                ${s.availability ? `<span class="supplier-row__stock ${s.availability.toLowerCase().includes('stock') ? 'in-stock' : ''}">${s.availability}</span>` : ''}
+              </div>
+              <div class="supplier-row__price">${s.price}</div>
+              <div class="supplier-row__actions">
+                ${i === 0 ? '<span class="best-price-badge">Best price</span>' : ''}
+                ${s.buy_url ? `<a href="${s.buy_url}" target="_blank" rel="noreferrer" class="btn btn-primary btn-small" onclick="trackClick('${s.id}','${s.name.replace(/'/g, "\\'")}','${(s.supplier_name || '').replace(/'/g, "\\'")}')">Buy →</a>` : ''}
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    </section>
+    ` : ''}
 
     ${venues.length ? `
     <section class="section bottle-venues">
