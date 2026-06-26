@@ -7,7 +7,7 @@ import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") || "";
 
 const EMAIL_FROM = "drinksearcher.hk <noreply@drinksearcher.hk>";
-const ADMIN_EMAIL = "brian@metabev.com";
+const ADMIN_EMAIL = "briankng@sky.com";
 
 const TEMPLATES = {
   // Sent to new consumer accounts

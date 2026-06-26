@@ -1300,7 +1300,7 @@ function renderLeadCapturePage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          to: 'brian@metabev.com',
+          to: 'briankng@sky.com',
           template: 'admin_new_lead',
           data: {
             businessName,
