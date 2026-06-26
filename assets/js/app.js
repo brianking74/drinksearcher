@@ -117,11 +117,7 @@ const storage = {
         phone: '+852 1234 5678',
         district: user?.city || 'Central',
         notes: 'Tell us about your business (max 50 words)',
-        items: [
-          { id: 'm1', name: 'Château Margaux 2015', price: 'HK$7,980', availability: 'In stock', status: 'Approved' },
-          { id: 'm2', name: 'Yamazaki 12 Year Old', price: 'HK$1,880', availability: 'Low stock', status: 'Approved' },
-          { id: 'm3', name: 'Dassai 23 Junmai Daiginjo', price: 'HK$880', availability: 'Pre-order', status: 'Approved' }
-        ]
+        items: []
       },
       venue: {
         membership: 'Venue Starter',
@@ -135,11 +131,7 @@ const storage = {
         phone: '+852 9876 5432',
         district: user?.city || 'Soho',
         notes: 'Tell us about your business (max 50 words)',
-        items: [
-          { id: 'v1', name: 'Thursday DJ & Cocktail Set', price: 'HK$220 min spend', availability: 'Live', status: 'Approved' },
-          { id: 'v2', name: 'Guest Shift: Tokyo Collective', price: 'HK$150 per ticket', availability: 'Selling', status: 'Approved' },
-          { id: 'v3', name: 'Weekend Table Inventory', price: 'From HK$500', availability: 'Open tables', status: 'Approved' }
-        ]
+        items: []
       }
     };
   },
