@@ -174,6 +174,14 @@ serve(async (req) => {
 
     const result = await res.json();
 
+    if (!res.ok) {
+      console.error("Resend error:", result);
+      return new Response(JSON.stringify({ ok: false, error: result.message || "Resend API error", details: result }), {
+        status: 502,
+        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
+      });
+    }
+
     return new Response(JSON.stringify({ ok: true, id: result.id, to, subject }), {
       status: 200,
       headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }

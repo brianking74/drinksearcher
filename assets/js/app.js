@@ -1285,7 +1285,7 @@ function renderLeadCapturePage() {
       notes: form.get('notes') || '',
       source
     });
-    leadNotice.innerHTML = `<div class="notice">Account created! Your enquiry for <strong>${lead.businessName}</strong> has been received. Redirecting to your account…</div>`;
+    leadNotice.innerHTML = `<div class="notice">Account created! Your enquiry for <strong>${lead.businessName}</strong> has been received. Redirecting to your dashboard…</div>`;
     // Send admin notification email
     try {
       await fetch('https://kktlbznmhxaortogqspy.supabase.co/functions/v1/send-email', {
@@ -1307,7 +1307,7 @@ function renderLeadCapturePage() {
         })
       });
     } catch (e) { console.warn('Email notification failed (non-critical):', e); }
-    setTimeout(() => { window.location.href = 'account.html'; }, 600);
+    setTimeout(() => { window.location.href = `dashboard.html?role=${listingType}`; }, 600);
   });
 }
 
@@ -1436,7 +1436,7 @@ async function renderSignUpPage() {
 
 async function renderAccountPage() {
   const app = $('#app');
-  const user = storage.getCurrentUser();
+  let user = storage.getCurrentUser();
   // Bridge if Supabase session exists
   if (!user) {
     const dsUser = await dsAuth.getCurrentUser();
