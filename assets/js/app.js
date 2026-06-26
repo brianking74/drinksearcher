@@ -1581,6 +1581,7 @@ function renderBusinessDashboardPage() {
   if (!state) { state = storage.defaultDashboardState(user); }
   const roleQuery = queryParam('role');
   if (roleQuery === 'merchant' || roleQuery === 'venue') state.activeRole = roleQuery;
+  const roleLocked = !!(roleQuery === 'merchant' || roleQuery === 'venue');
   const renderRole = (role) => {
     const config = state[role];
     const roleTitle = role === 'merchant' ? 'Merchant dashboard' : 'Bar & venue dashboard';
@@ -1616,11 +1617,15 @@ function renderBusinessDashboardPage() {
             </div>
             <div class="search-shell">
               <span class="eyebrow">Workspace mode</span>
+              ${roleLocked ? `
+              <div class="notice" style="margin-top:16px;">You are viewing your <strong>${roleQuery} dashboard</strong>. This is your business workspace — only your ${roleQuery} tools and settings are shown here.</div>
+              ` : `
               <div class="role-switch" style="margin-top:16px;">
                 <button class="toggle-pill ${role === 'merchant' ? 'active' : ''}" data-role-switch="merchant">Merchant view</button>
                 <button class="toggle-pill ${role === 'venue' ? 'active' : ''}" data-role-switch="venue">Venue view</button>
               </div>
               <div class="notice">Changes made here stay tied to your signed-in account, so you can manage supplier and venue workflows from one place.</div>
+              `}
             </div>
           </div>
         </section>
