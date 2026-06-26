@@ -1246,29 +1246,76 @@ function renderLeadCapturePage() {
     ? `<div class="notice">Signed in as ${user.email}. Your details are prefilled and any submission will appear in your account dashboard.</div>`
     : `<div class="notice">Have an account already? <a class="text-jade" href="signin.html">Sign in</a> to prefill your details and track submissions.</div>`;
   app.innerHTML = `
-    <section class="hero" style="min-height:62vh;"><div class="hero-media" style="background-image:url('${requestedType === 'venue' ? siteImages.rooftop : siteImages.shop}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">List your business / Claim your venue</span><h1>${requestedType === 'venue' ? 'Claim your venue and start turning visibility into bookings.' : 'List your business and start turning discovery into sales.'}</h1><p class="lead">Tell us about your business and we'll help match you with the right listing, profile, and visibility options.</p><div class="hero-actions"><a class="btn btn-primary" href="pricing.html">Back to pricing</a><a class="btn btn-ghost" href="${user ? 'account.html' : 'signin.html'}">${user ? 'My account' : 'Sign in'}</a></div></div><div class="search-shell"><span class="eyebrow">Application form</span>${signedInNote}<div class="notice">Start with the right listing and we’ll organise the details you need for profile, visibility, and next-step setup.</div><form id="lead-form" class="form-grid" style="margin-top:14px;"><select class="select full" name="listingType"><option value="merchant" ${requestedType === 'merchant' ? 'selected' : ''}>Supplier / Merchant</option><option value="venue" ${requestedType === 'venue' ? 'selected' : ''}>Bar / Restaurant / Venue</option></select><input class="input" name="businessName" placeholder="Business name" required /><input class="input" name="contactName" placeholder="Contact name" value="${user?.name || ''}" required /><input class="input" name="email" type="email" placeholder="Email" value="${user?.email || ''}" required /><input class="input" name="phone" placeholder="Phone number" required /><input class="input" name="district" placeholder="Primary district / location" value="${user?.city || ''}" required /><input class="input" name="website" placeholder="Website / booking URL" /><textarea class="input full" name="notes" rows="5" placeholder="Tell us what you want to list, what plan you are interested in, and what makes the business special."></textarea><button class="btn btn-primary full" type="submit">Create Account</button></form><div id="lead-notice"></div></div></div></section>
+    <section class="hero" style="min-height:62vh;"><div class="hero-media" style="background-image:url('${requestedType === 'venue' ? siteImages.rooftop : siteImages.shop}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">List your business / Claim your venue</span><h1>${requestedType === 'venue' ? 'Claim your venue and start turning visibility into bookings.' : 'List your business and start turning discovery into sales.'}</h1><p class="lead">Tell us about your business and we'll help match you with the right listing, profile, and visibility options.</p><div class="hero-actions"><a class="btn btn-primary" href="pricing.html">Back to pricing</a><a class="btn btn-ghost" href="${user ? 'account.html' : 'signin.html'}">${user ? 'My account' : 'Sign in'}</a></div></div><div class="search-shell"><span class="eyebrow">Application form</span>${signedInNote}<div class="notice">Start with the right listing and we’ll organise the details you need for profile, visibility, and next-step setup.</div><form id="lead-form" class="form-grid" style="margin-top:14px;"><select class="select full" name="listingType"><option value="merchant" ${requestedType === 'merchant' ? 'selected' : ''}>Supplier / Merchant</option><option value="venue" ${requestedType === 'venue' ? 'selected' : ''}>Bar / Restaurant / Venue</option></select><input class="input" name="businessName" placeholder="Business name" required /><input class="input" name="contactName" placeholder="Contact name" value="${user?.name || ''}" required /><input class="input" name="email" type="email" placeholder="Email" value="${user?.email || ''}" required /><input class="input" name="phone" placeholder="Phone number" required /><input class="input" name="district" placeholder="Primary district / location" value="${user?.city || ''}" required /><input class="input" name="website" placeholder="Website / booking URL" />${!user ? '<input class="input full" name="password" type="password" placeholder="Create password (required for new accounts)" required />' : ''}<textarea class="input full" name="notes" rows="5" placeholder="Tell us what you want to list, what plan you are interested in, and what makes the business special."></textarea><button class="btn btn-primary full" type="submit">Create Account</button></form><div id="lead-notice"></div></div></div></section>
     <section class="section"><div class="container grid grid-2"><div class="panel"><span class="eyebrow">What happens next</span><h2 style="margin:14px 0;">What happens next.</h2><div class="muted" style="display:grid; gap:12px;"><span>• We review your application and listing details.</span><span>• If you're signed in, your account information pre-fills automatically.</span><span>• We confirm the right plan, profile type, and any featured add-ons.</span><span>• Once approved, your business can appear across the directory, profile pages, and relevant discovery sections.</span></div></div><div class="panel"><span class="eyebrow">Why this matters</span><h2 style="margin:14px 0;">Why list on drinksearcher.hk.</h2><p class="muted">This is where suppliers and venues move from browsing to joining — with a clear path into profiles, product visibility, featured placements, and direct customer discovery.</p><div class="inline-actions" style="margin-top:18px;"><a class="btn btn-ghost btn-small" href="suppliers.html">View directory</a><a class="btn btn-ghost btn-small" href="bars-restaurants.html">View directory</a></div></div></div></section>`;
 
   const typeField = $('[name="listingType"]', app);
   const leadNotice = $('#lead-notice', app);
 
-  $('#lead-form').addEventListener('submit', e => {
+  $('#lead-form').addEventListener('submit', async e => {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
+    const listingType = form.get('listingType');
+    const email = String(form.get('email') || '').trim().toLowerCase();
+    const contactName = form.get('contactName');
+    const businessName = form.get('businessName');
+
+    // If not signed in, create a Supabase Auth account first
+    if (!user) {
+      const password = form.get('password');
+      if (!password || password.length < 6) {
+        leadNotice.innerHTML = '<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Password must be at least 6 characters.</div>';
+        return;
+      }
+      const signUpResult = await dsAuth.signUp({ name: contactName, city: form.get('district'), email, password, role: listingType });
+      if (!signUpResult.ok) {
+        leadNotice.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">${signUpResult.message}</div>`;
+        return;
+      }
+      // Bridge to localStorage
+      const users = storage.getUsers();
+      if (!users.find(u => u.email === email)) {
+        users.push({ name: contactName || '', email, password: '', city: form.get('district') || '', role: listingType, createdAt: new Date().toISOString() });
+        storage.setUsers(users);
+      }
+      storage.setCurrentUser(email);
+    }
+
     const lead = storage.addLead({
-      accountEmail: user?.email || '',
-      listingType: form.get('listingType'),
-      businessName: form.get('businessName'),
-      contactName: form.get('contactName'),
-      email: String(form.get('email') || '').trim().toLowerCase(),
+      accountEmail: email,
+      listingType,
+      businessName,
+      contactName,
+      email,
       phone: form.get('phone'),
       district: form.get('district'),
       website: form.get('website'),
+      notes: form.get('notes') || '',
       source
     });
-    leadNotice.innerHTML = `<div class="notice">Thanks — your enquiry for <strong>${lead.businessName}</strong> has been received. ${user ? 'You can review it in your account dashboard.' : 'Create or sign into an account later to connect submissions to a profile.'}</div>`;
-    if (user) setTimeout(() => { window.location.href = 'account.html'; }, 450);
-    else e.currentTarget.reset();
+    leadNotice.innerHTML = `<div class="notice">Account created! Your enquiry for <strong>${lead.businessName}</strong> has been received. Redirecting to your account…</div>`;
+    // Send admin notification email
+    try {
+      await fetch('https://kktlbznmhxaortogqspy.supabase.co/functions/v1/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: 'brian@metabev.com',
+          template: 'admin_new_lead',
+          data: {
+            businessName,
+            listingType,
+            contactName,
+            email,
+            phone: form.get('phone'),
+            district: form.get('district'),
+            planInterest: requestedPlan,
+            notes: form.get('notes') || ''
+          }
+        })
+      });
+    } catch (e) { console.warn('Email notification failed (non-critical):', e); }
+    setTimeout(() => { window.location.href = 'account.html'; }, 600);
   });
 }
 
@@ -1370,12 +1417,28 @@ async function renderSignUpPage() {
   }
   app.innerHTML = `
     <section class="hero" style="min-height:58vh;"><div class="hero-media" style="background-image:url('${siteImages.event}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Create account</span><h1>Create your account.</h1><p class="lead">Create an account to save bottles, venues, and events, track enquiries, and manage your business profile in one place.</p></div><div class="search-shell"><span class="eyebrow">Sign up</span><form id="signup-form" class="form-grid" style="margin-top:14px;"><input class="input" name="name" placeholder="Full name" required /><input class="input" name="city" placeholder="Preferred district" required /><input class="input full" name="email" type="email" placeholder="Email" required /><input class="input full" name="password" type="password" placeholder="Create password" required /><button class="btn btn-primary full" type="submit">Create account</button></form><div id="signup-notice"></div><p class="muted" style="margin-top:16px;">Already have an account? <a class="text-jade" href="signin.html">Sign in</a></p></div></div></section>`;
-  $('#signup-form').addEventListener('submit', e => {
+  $('#signup-form').addEventListener('submit', async e => {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
-    const result = storage.signUp({ name: form.get('name'), city: form.get('city'), email: form.get('email'), password: form.get('password') });
-    $('#signup-notice').innerHTML = result.ok ? '<div class="notice">Account created successfully. Taking you to your profile…</div>' : `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">${result.message}</div>`;
-    if (result.ok) setTimeout(() => finishAuthFlow('account.html'), 300);
+    const result = await dsAuth.signUp({ name: form.get('name'), city: form.get('city'), email: form.get('email'), password: form.get('password'), role: 'searcher' });
+    if (result.ok) {
+      // Bridge to localStorage for backward compat
+      const users = storage.getUsers();
+      if (!users.find(u => u.email === result.user.email)) {
+        users.push({ name: result.user.name || '', email: result.user.email, password: '', city: form.get('city') || '', role: result.user.role || 'searcher', createdAt: new Date().toISOString() });
+        storage.setUsers(users);
+      }
+      storage.setCurrentUser(result.user.email);
+      // Send welcome email (non-critical, fire-and-forget)
+      fetch('https://kktlbznmhxaortogqspy.supabase.co/functions/v1/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to: result.user.email, template: 'welcome_consumer', data: { name: result.user.name || '' } })
+      }).catch(() => {});
+      window.location.href = 'account.html';
+    } else {
+      $('#signup-notice').innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">${result.message}</div>`;
+    }
   });
 }
 
