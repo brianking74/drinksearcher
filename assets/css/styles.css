@@ -1363,7 +1363,7 @@ hr.sep { border: 0; height: 1px; background: rgba(255,255,255,.06); margin: 18px
 .bottle-hero-media {
   flex: 0 0 360px;
   max-width: 360px;
-  background: var(--card-bg, #08080c);
+  background: transparent;
   border-radius: 12px;
   overflow: hidden;
 }
@@ -1371,8 +1371,7 @@ hr.sep { border: 0; height: 1px; background: rgba(255,255,255,.06); margin: 18px
   width: 100%;
   height: auto;
   display: block;
-  object-fit: contain;
-  aspect-ratio: 3/4;
+  border-radius: 12px;
 }
 .bottle-hero-info {
   flex: 1;
