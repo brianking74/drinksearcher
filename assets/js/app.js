@@ -2219,9 +2219,11 @@ function renderAdminDashboardPage() {
           <div id="admin-moderation">${state.moderation.map((item, index) => `
             <div class="admin-stack" style="border-top:1px solid rgba(255,255,255,.06);padding-top:16px;margin-top:12px;">
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;"><div><strong>${item.title}</strong><div class="small-note">${item.kind} · ${item.owner}</div></div>${adminStatusChip(item.status)}</div>
-              <label class="dashboard-field"><span>Status</span><select class="select" data-moderation-status="${index}"><option value="Queued" ${item.status === 'Queued' ? 'selected' : ''}>Queued</option><option value="Reviewing" ${item.status === 'Reviewing' ? 'selected' : ''}>Reviewing</option><option value="Approved" ${item.status === 'Approved' ? 'selected' : ''}>Approved</option><option value="Needs Edit" ${item.status === 'Needs Edit' ? 'selected' : ''}>Needs Edit</option><option value="Rejected" ${item.status === 'Rejected' ? 'selected' : ''}>Rejected</option></select></label>
+              <div style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:end;">
+                <label class="dashboard-field"><span>Status</span><select class="select" data-moderation-status="${index}"><option value="Queued" ${item.status === 'Queued' ? 'selected' : ''}>Queued</option><option value="Reviewing" ${item.status === 'Reviewing' ? 'selected' : ''}>Reviewing</option><option value="Approved" ${item.status === 'Approved' ? 'selected' : ''}>Approved</option><option value="Needs Edit" ${item.status === 'Needs Edit' ? 'selected' : ''}>Needs Edit</option><option value="Rejected" ${item.status === 'Rejected' ? 'selected' : ''}>Rejected</option></select></label>
+                <button class="btn btn-primary btn-small" type="button" data-moderation-save="${index}">Save</button>
+              </div>
               <label class="dashboard-field"><span>Note</span><textarea class="input" rows="2" data-moderation-notes="${index}">${item.notes || ''}</textarea></label>
-              <button class="btn btn-primary btn-small" type="button" data-moderation-save="${index}">Save</button>
             </div>`).join('') || '<div class="notice">No moderation items.</div>'}</div>
           <div id="admin-moderation-notice"></div>
         </div>
@@ -2237,8 +2239,10 @@ function renderAdminDashboardPage() {
             <div class="admin-stack" style="border-top:1px solid rgba(255,255,255,.06);padding-top:16px;margin-top:12px;">
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;"><div><strong>${job.businessName}</strong><div class="small-note">${job.method} · ${job.itemCount || 0} items</div></div>${adminStatusChip(job.status)}</div>
               <div class="small-note">${job.source || 'No source'} · ${job.notes || ''}</div>
-              <label class="dashboard-field"><span>Status</span><select class="select" data-import-status="${index}"><option value="Queued" ${job.status === 'Queued' ? 'selected' : ''}>Queued</option><option value="Scanning" ${job.status === 'Scanning' ? 'selected' : ''}>Scanning</option><option value="Needs Review" ${job.status === 'Needs Review' ? 'selected' : ''}>Needs Review</option><option value="Imported" ${job.status === 'Imported' ? 'selected' : ''}>Imported</option><option value="Failed" ${job.status === 'Failed' ? 'selected' : ''}>Failed</option></select></label>
-              <button class="btn btn-primary btn-small" type="button" data-import-save="${index}">Save</button>
+              <div style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:end;">
+                <label class="dashboard-field"><span>Status</span><select class="select" data-import-status="${index}"><option value="Queued" ${job.status === 'Queued' ? 'selected' : ''}>Queued</option><option value="Scanning" ${job.status === 'Scanning' ? 'selected' : ''}>Scanning</option><option value="Needs Review" ${job.status === 'Needs Review' ? 'selected' : ''}>Needs Review</option><option value="Imported" ${job.status === 'Imported' ? 'selected' : ''}>Imported</option><option value="Failed" ${job.status === 'Failed' ? 'selected' : ''}>Failed</option></select></label>
+                <button class="btn btn-primary btn-small" type="button" data-import-save="${index}">Save</button>
+              </div>
             </div>`).join('') || '<div class="notice">No import jobs.</div>'}</div>
           <div id="admin-imports-notice"></div>
         </div>
