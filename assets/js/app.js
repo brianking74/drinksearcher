@@ -2174,8 +2174,10 @@ function renderAdminDashboardPage() {
                   <label class="dashboard-field"><span>Billing</span><select class="select" data-subscription-billing="${index}"><option value="Monthly" ${sub.billing === 'Monthly' ? 'selected' : ''}>Monthly</option><option value="Annual" ${sub.billing === 'Annual' ? 'selected' : ''}>Annual</option></select></label>
                   <label class="dashboard-field"><span>Status</span><select class="select" data-subscription-status="${index}"><option value="Trial" ${sub.status === 'Trial' ? 'selected' : ''}>Trial</option><option value="Active" ${sub.status === 'Active' ? 'selected' : ''}>Active</option><option value="Past Due" ${sub.status === 'Past Due' ? 'selected' : ''}>Past Due</option><option value="Paused" ${sub.status === 'Paused' ? 'selected' : ''}>Paused</option></select></label>
                 </div>
-                <label class="dashboard-field"><span>Renewal</span><input class="input" type="date" data-subscription-renewal="${index}" value="${sub.renewal}" /></label>
-                <button class="btn btn-primary btn-small" type="button" data-subscription-save="${index}">Save</button>
+                <div style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:end;">
+                  <label class="dashboard-field"><span>Renewal</span><input class="input" type="date" data-subscription-renewal="${index}" value="${sub.renewal}" /></label>
+                  <button class="btn btn-primary btn-small" type="button" data-subscription-save="${index}">Save</button>
+                </div>
               </div>`;
           }).join('') || '<div class="notice">No subscriptions yet.</div>'}</div>
           <div id="admin-subscriptions-notice"></div>
