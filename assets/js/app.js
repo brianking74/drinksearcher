@@ -2004,9 +2004,10 @@ async function loadPendingItems() {
       return;
     }
     holder.innerHTML = items.map((item, index) => `
-      <div class="admin-table-row" style="grid-template-columns:2fr 1fr 120px 100px 1fr;" id="pending-row-${index}">
+      <div class="admin-table-row" style="grid-template-columns:2fr 1fr 100px 120px 100px 1fr;" id="pending-row-${index}">
         <div><strong>${item.name}</strong></div>
         <div>${item.supplier_name || 'Unknown'}</div>
+        <div><input class="input" id="pending-img-${index}" placeholder="Image URL" value="${item.image || ''}" style="width:100%;font-size:.78rem;" /></div>
         <div>${item.price || 'N/A'}</div>
         <div><span class="status-badge status-pending">Pending</span></div>
         <div><button class="btn btn-primary btn-small" type="button" onclick="moderateItem('${item.id}','approved',${index})">Approve</button> <button class="btn btn-ghost btn-small" type="button" onclick="moderateItem('${item.id}','rejected',${index})">Reject</button></div>
@@ -2019,12 +2020,72 @@ async function loadPendingItems() {
 async function moderateItem(id, status, index) {
   const notice = $('#admin-pending-notice');
   try {
-    const { error } = await sb.from('drinks').update({ status }).eq('id', id);
+    // Get the image URL from the input if provided
+    let imageUrl = null;
+    const imgInput = document.getElementById(`pending-img-${index}`);
+    if (imgInput && imgInput.value.trim()) imageUrl = imgInput.value.trim();
+
+    const updates = { status };
+    if (imageUrl) updates.image = imageUrl;
+    
+    const { error } = await sb.from('drinks').update(updates).eq('id', id);
     if (error) throw error;
+
+    // If approving with a new image, propagate to all rows with the same drink name
+    if (status === 'approved' && imageUrl) {
+      const { data: row } = await sb.from('drinks').select('name').eq('id', id).single();
+      if (row) {
+        await sb.from('drinks').update({ image: imageUrl }).eq('name', row.name).neq('id', id);
+      }
+    }
+
     const row = $(`#pending-row-${index}`);
     if (row) row.style.opacity = '0.3';
-    if (notice) notice.innerHTML = `<div class="notice">Item ${status}.</div>`;
+    if (notice) notice.innerHTML = `<div class="notice">Item ${status === 'approved' ? 'approved ✓' : 'rejected'}.${imageUrl ? ' Image updated.' : ''}</div>`;
     setTimeout(() => loadPendingItems(), 500);
+  } catch (e) {
+    if (notice) notice.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Failed: ${e.message}</div>`;
+  }
+}
+
+async function loadImageManager() {
+  const holder = $('#admin-image-manager');
+  if (!holder) return;
+  try {
+    // Get distinct approved drink names with their current images
+    const { data: items, error } = await sb.from('drinks').select('name, image').eq('status', 'approved').order('name');
+    if (error) throw error;
+    // Deduplicate by name
+    const seen = new Set();
+    const unique = [];
+    for (const item of (items || [])) {
+      if (!seen.has(item.name)) { seen.add(item.name); unique.push(item); }
+    }
+    if (!unique.length) {
+      holder.innerHTML = '<div class="notice">No approved drinks yet.</div>';
+      return;
+    }
+    holder.innerHTML = unique.map((item, index) => `
+      <div class="admin-table-row" style="grid-template-columns:2fr 1fr 120px;" id="img-row-${index}">
+        <div><strong>${item.name}</strong></div>
+        <div><input class="input" id="img-url-${index}" placeholder="Image URL" value="${item.image || ''}" style="width:100%;font-size:.78rem;" /></div>
+        <div><button class="btn btn-primary btn-small" type="button" onclick="saveDrinkImage('${item.name.replace(/'/g, "\\'")}',${index})">Save</button></div>
+      </div>`).join('');
+  } catch (e) {
+    holder.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Could not load: ${e.message}</div>`;
+  }
+}
+
+async function saveDrinkImage(name, index) {
+  const notice = $('#admin-image-notice');
+  const input = document.getElementById(`img-url-${index}`);
+  if (!input) return;
+  const url = input.value.trim();
+  if (!url) { if (notice) notice.innerHTML = '<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Please enter an image URL.</div>'; return; }
+  try {
+    const { error } = await sb.from('drinks').update({ image: url }).eq('name', name);
+    if (error) throw error;
+    if (notice) notice.innerHTML = `<div class="notice">Image updated for all "${name}" rows.</div>`;
   } catch (e) {
     if (notice) notice.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Failed: ${e.message}</div>`;
   }
@@ -2126,10 +2187,22 @@ function renderAdminDashboardPage() {
           <span class="eyebrow">Pending inventory</span>
           <h2 style="margin:14px 0;">Awaiting approval</h2>
           <div class="admin-table">
-            <div class="admin-table-head" style="grid-template-columns:2fr 1fr 120px 100px 1fr;"><div>Product</div><div>Supplier</div><div>Price</div><div>Status</div><div></div></div>
+            <div class="admin-table-head" style="grid-template-columns:2fr 1fr 100px 120px 100px 1fr;"><div>Product</div><div>Supplier</div><div>Image</div><div>Price</div><div>Status</div><div></div></div>
             <div id="admin-pending-items"><div class="notice">Loading…</div></div>
           </div>
           <div id="admin-pending-notice"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section-tight">
+      <div class="container">
+        <div class="panel">
+          <span class="eyebrow">Image manager</span>
+          <h2 style="margin:14px 0;">Set product images</h2>
+          <p class="muted" style="margin-bottom:16px;">Paste an image URL for each drink. Saving updates all supplier rows for that drink name.</p>
+          <div id="admin-image-manager"><div class="notice">Loading…</div></div>
+          <div id="admin-image-notice"></div>
         </div>
       </div>
     </section>
@@ -2185,8 +2258,9 @@ function renderAdminDashboardPage() {
       </div>
     </section>`;
 
-  // Load pending inventory
+  // Load pending inventory and image manager
   loadPendingItems();
+  loadImageManager();
 
 
 
