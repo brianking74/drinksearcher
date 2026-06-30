@@ -876,7 +876,7 @@ async function renderBottleDetail() {
       <div class="container">
         <div class="bottle-hero-grid">
           <div class="bottle-hero-media">
-            <img src="${drink.image || ''}" alt="${drink.name}" class="bottle-hero-img" onerror="this.src='assets/images/wine-shop.jpg'">
+            <img src="${drink.image || 'assets/images/bottle-placeholder.svg'}" alt="${drink.name}" class="bottle-hero-img" onerror="this.src='assets/images/bottle-placeholder.svg'">
           </div>
           <div class="bottle-hero-info">
             <span class="kicker">${drink.type || ''}</span>
@@ -1541,7 +1541,7 @@ function saveDashboardItems() {
 
 function fillSampleTemplate() {
   var el = document.getElementById('sheet-import-source');
-  if (el) el.value = 'Name,Price,Availability\nChardonnay Reserve,188,In stock\nSmall Batch Gin,420,Low stock\nZero-Proof Spritz,98,Pre-order';
+  if (el) el.value = 'Name,Price,Availability,Image\nChardonnay Reserve,188,In stock,\nSmall Batch Gin,420,Low stock,\nZero-Proof Spritz,98,Pre-order,';
 }
 
 async function importInventory() {
@@ -1565,7 +1565,7 @@ async function importInventory() {
     const { data: authData } = await sb.auth.getUser().catch(() => ({}));
     const userId = authData?.user?.id || null;
     for (const item of items) {
-      const { error } = await sb.from('drinks').insert({ name: item.name, price: item.price, availability: item.availability || 'In stock', status: 'pending', submitted_by: userId, supplier_name: config.listingName || user.name || '', type: 'Spirit', origin: 'Hong Kong' });
+      const { error } = await sb.from('drinks').insert({ name: item.name, price: item.price, availability: item.availability || 'In stock', image: item.image || null, status: 'pending', submitted_by: userId, supplier_name: config.listingName || user.name || '', type: 'Spirit', origin: 'Hong Kong' });
       if (!error) supabaseCount++;
     }
     if (holder) holder.innerHTML = '<div class="notice">Imported <strong>' + items.length + '</strong> rows. <strong>' + supabaseCount + '</strong> submitted for review.</div>';
@@ -1790,7 +1790,7 @@ function renderBusinessDashboardPage() {
     });
     if (state.activeRole === 'merchant' && $('#sheet-template-btn', app)) {
       $('#sheet-template-btn', app).addEventListener('click', () => {
-        $('#sheet-import-source', app).value = 'Name,Price,Availability\nChardonnay Reserve,188,In stock\nSmall Batch Gin,420,Low stock\nZero-Proof Spritz,98,Pre-order';
+        $('#sheet-import-source', app).value = 'Name,Price,Availability,Image\nChardonnay Reserve,188,In stock,\nSmall Batch Gin,420,Low stock,\nZero-Proof Spritz,98,Pre-order,';
       });
       $('#sheet-import-btn', app).addEventListener('click', async () => {
         const source = $('#sheet-import-source', app).value.trim();
@@ -1970,6 +1970,7 @@ function importItemsFromCSV(text) {
   const nameIndex = inventoryColumnIndex(headers, ['name', 'title', 'product', 'product name', 'item']);
   const priceIndex = inventoryColumnIndex(headers, ['price', 'unit price', 'sale price']);
   const availabilityIndex = inventoryColumnIndex(headers, ['availability', 'stock status', 'stock', 'inventory', 'status']);
+  const imageIndex = inventoryColumnIndex(headers, ['image', 'image url', 'image_url', 'img', 'photo', 'picture']);
   const items = rows.slice(1).map((row, index) => {
     const name = row[nameIndex] || row[0];
     if (!name) return null;
@@ -1978,6 +1979,7 @@ function importItemsFromCSV(text) {
       name: name.trim(),
       price: normalizeImportPrice(row[priceIndex]),
       availability: normalizeImportAvailability(row[availabilityIndex]),
+      image: imageIndex >= 0 ? String(row[imageIndex] || '').trim() : '',
       status: 'Pending'
     };
   }).filter(Boolean);

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 500" fill="none">
+  <rect width="400" height="500" rx="12" fill="#08080c"/>
+  <g transform="translate(125,160)">
+    <!-- Bottle shape -->
+    <path d="M150 240V120c0-20-10-35-25-45V40h-100v35c-15 10-25 25-25 45v120c0 45 15 80 40 105l10 20v30h50v-30l10-20c25-25 40-60 40-105z" fill="rgba(189,161,111,.08)" stroke="rgba(189,161,111,.2)" stroke-width="2"/>
+    <!-- Label area -->
+    <rect x="35" y="80" width="80" height="120" rx="4" fill="rgba(189,161,111,.06)" stroke="rgba(189,161,111,.12)" stroke-width="1"/>
+    <!-- Neck -->
+    <rect x="60" y="20" width="30" height="20" rx="2" fill="rgba(189,161,111,.04)" stroke="rgba(189,161,111,.1)" stroke-width="1"/>
+  </g>
+  <text x="200" y="430" text-anchor="middle" fill="rgba(255,255,255,.15)" font-family="system-ui,sans-serif" font-size="14">Image coming soon</text>
+</svg>
