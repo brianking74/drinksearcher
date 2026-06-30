@@ -7,101 +7,116 @@ import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") || "";
 
 const EMAIL_FROM = "drinksearcher.hk <noreply@drinksearcher.hk>";
-const ADMIN_EMAIL = "briankng@sky.com";
+const ADMIN_EMAIL = "brianking@sky.com";
 
 const TEMPLATES = {
-  // Sent to new consumer accounts
+  // --- Welcome — Consumer signup ---
   welcome_consumer: (data) => ({
-    subject: `Welcome to drinksearcher.hk, ${data.name || "friend"}!`,
+    subject: `Welcome to drinksearcher.hk, ${data.name || "friend"}`,
     html: `
-      <div style="font-family:-apple-system,BlinkMacSystemFont,sans-serif;max-width:560px;margin:0 auto;background:#12161e;color:#e0e0e0;border-radius:8px;overflow:hidden;">
-        <div style="background:#08080c;padding:32px;text-align:center;">
-          <h1 style="color:#bda16f;margin:0;font-size:1.5rem;">drinksearcher<span style="color:#fff;">.hk</span></h1>
+      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:560px;margin:0 auto;background:#0d1117;color:#c9d1d9;border-radius:10px;overflow:hidden;">
+        <div style="background:linear-gradient(135deg,#08080c,#141820);padding:40px 32px;text-align:center;border-bottom:1px solid rgba(189,161,111,.15);">
+          <p style="font-size:.75rem;text-transform:uppercase;letter-spacing:.15em;color:#bda16f;margin:0 0 12px;">Your account is ready</p>
+          <h1 style="color:#fff;margin:0;font-size:1.6rem;font-weight:700;">Welcome to <span style="color:#bda16f;">drinksearcher</span><span style="color:#fff;">.hk</span></h1>
         </div>
-        <div style="padding:32px;">
-          <h2 style="color:#fff;margin:0 0 16px;">Welcome, ${data.name || "drinks explorer"}!</h2>
-          <p style="color:rgba(255,255,255,.7);line-height:1.6;margin:0 0 16px;">
-            Your account is ready. You can now save bottles, bars, and events — and get notified when new stock drops in Hong Kong.
+        <div style="padding:36px 32px;">
+          <p style="color:#c9d1d9;line-height:1.7;margin:0 0 20px;font-size:.97rem;">
+            Hi${data.name ? ` ${data.name.split(' ')[0]}` : ''}, your account is set up. You can now save bottles, follow bars, track events, and discover what's actually available in Hong Kong — all from one place.
           </p>
-          <div style="margin:24px 0;">
-            <a href="https://drinksearcher.vercel.app/account" style="display:inline-block;background:#bda16f;color:#000;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;">Go to your account →</a>
+          <div style="margin:28px 0;">
+            <a href="https://drinksearcher.vercel.app/account" style="display:inline-block;background:#bda16f;color:#000;padding:14px 32px;border-radius:6px;text-decoration:none;font-weight:600;font-size:.95rem;">Explore your account →</a>
           </div>
-          <p style="color:rgba(255,255,255,.4);font-size:.85rem;margin:0;">
-            If you didn't create this account, you can ignore this email.
-          </p>
+          <div style="border-top:1px solid rgba(255,255,255,.06);padding-top:20px;margin-top:16px;">
+            <p style="color:#8b949e;font-size:.82rem;line-height:1.6;margin:0 0 12px;"><strong style="color:#c9d1d9;">What you can do:</strong></p>
+            <table style="width:100%;border-collapse:collapse;">
+              <tr><td style="padding:6px 0;color:#8b949e;font-size:.82rem;">🔍</td><td style="padding:6px 0;color:#c9d1d9;font-size:.82rem;">Search 12,000+ bottles available now in Hong Kong</td></tr>
+              <tr><td style="padding:6px 0;color:#8b949e;font-size:.82rem;">❤️</td><td style="padding:6px 0;color:#c9d1d9;font-size:.82rem;">Save drinks, venues, and events to your shortlist</td></tr>
+              <tr><td style="padding:6px 0;color:#8b949e;font-size:.82rem;">📍</td><td style="padding:6px 0;color:#c9d1d9;font-size:.82rem;">Find where to drink your favourite bottles around HK</td></tr>
+            </table>
+          </div>
+          <p style="color:#484f58;font-size:.75rem;margin:28px 0 0;">If you didn't create this account, you can ignore this email.</p>
         </div>
       </div>
     `
   }),
 
-  // Sent to new supplier/venue accounts
+  // --- Welcome — Business signup (supplier or venue) ---
   welcome_business: (data) => ({
-    subject: `Your ${data.listingType === "venue" ? "venue" : "supplier"} account — drinksearcher.hk`,
+    subject: `Welcome to drinksearcher.hk — let's get your ${data.listingType === "venue" ? "venue" : "supplier"} listing live`,
     html: `
-      <div style="font-family:-apple-system,BlinkMacSystemFont,sans-serif;max-width:560px;margin:0 auto;background:#12161e;color:#e0e0e0;border-radius:8px;overflow:hidden;">
-        <div style="background:#08080c;padding:32px;text-align:center;">
-          <h1 style="color:#bda16f;margin:0;font-size:1.5rem;">drinksearcher<span style="color:#fff;">.hk</span></h1>
+      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:560px;margin:0 auto;background:#0d1117;color:#c9d1d9;border-radius:10px;overflow:hidden;">
+        <div style="background:linear-gradient(135deg,#08080c,#141820);padding:40px 32px;text-align:center;border-bottom:1px solid rgba(189,161,111,.15);">
+          <p style="font-size:.75rem;text-transform:uppercase;letter-spacing:.15em;color:#bda16f;margin:0 0 12px;">Application received</p>
+          <h1 style="color:#fff;margin:0;font-size:1.5rem;font-weight:700;">${data.businessName || data.name}, welcome to <span style="color:#bda16f;">drinksearcher</span><span style="color:#fff;">.hk</span></h1>
         </div>
-        <div style="padding:32px;">
-          <h2 style="color:#fff;margin:0 0 16px;">Welcome, ${data.businessName || data.name}!</h2>
-          <p style="color:rgba(255,255,255,.7);line-height:1.6;margin:0 0 16px;">
-            Your ${data.listingType === "venue" ? "venue claim" : "supplier listing"} has been received. We'll review your application and get back to you within 24-48 hours.
+        <div style="padding:36px 32px;">
+          <p style="color:#c9d1d9;line-height:1.7;margin:0 0 20px;font-size:.97rem;">
+            We've received your ${data.listingType === "venue" ? "venue claim" : "supplier application"} and will review it within 24–48 hours. Once approved, your business will appear across the drinksearcher.hk directory — helping ${data.listingType === "venue" ? "drinks lovers find your bar" : "buyers discover your bottles"}.
           </p>
-          <p style="color:rgba(255,255,255,.7);line-height:1.6;margin:0 0 16px;">
-            In the meantime, you can access your account dashboard to manage your profile and track your application status.
-          </p>
-          <div style="margin:24px 0;">
-            <a href="https://drinksearcher.vercel.app/dashboard" style="display:inline-block;background:#bda16f;color:#000;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;">View dashboard →</a>
+          <div style="background:rgba(189,161,111,.06);border-left:3px solid #bda16f;padding:16px 20px;border-radius:0 6px 6px 0;margin:24px 0;">
+            <p style="color:#c9d1d9;font-size:.88rem;line-height:1.6;margin:0;"><strong style="color:#bda16f;">Next steps:</strong> While we review your application, you can access your ${data.listingType === "venue" ? "venue" : "supplier"} dashboard to add listings, update your profile, and explore the tools available for your plan.</p>
+          </div>
+          <div style="margin:28px 0;">
+            <a href="https://drinksearcher.vercel.app/dashboard?role=${data.listingType}" style="display:inline-block;background:#bda16f;color:#000;padding:14px 32px;border-radius:6px;text-decoration:none;font-weight:600;font-size:.95rem;">Open your dashboard →</a>
+          </div>
+          <div style="border-top:1px solid rgba(255,255,255,.06);padding-top:20px;margin-top:16px;">
+            <table style="width:100%;border-collapse:collapse;">
+              <tr><td style="padding:6px 0;color:#8b949e;font-size:.82rem;">📋</td><td style="padding:6px 0;color:#c9d1d9;font-size:.82rem;"><strong>Business name:</strong> ${data.businessName || data.name}</td></tr>
+              <tr><td style="padding:6px 0;color:#8b949e;font-size:.82rem;">🏷️</td><td style="padding:6px 0;color:#c9d1d9;font-size:.82rem;"><strong>Account type:</strong> ${data.listingType === "venue" ? "Bar / Restaurant / Venue" : "Supplier / Merchant"}</td></tr>
+              <tr><td style="padding:6px 0;color:#8b949e;font-size:.82rem;">📧</td><td style="padding:6px 0;color:#c9d1d9;font-size:.82rem;"><strong>Contact:</strong> ${data.contactName || data.name} · ${data.email || ''}</td></tr>
+            </table>
           </div>
         </div>
       </div>
     `
   }),
 
-  // Sent to admin when a new lead is submitted
+  // --- Admin notification — new business lead ---
   admin_new_lead: (data) => ({
-    subject: `New lead: ${data.businessName} — ${data.listingType}`,
+    subject: `New ${data.listingType} lead: ${data.businessName}`,
     html: `
-      <div style="font-family:-apple-system,BlinkMacSystemFont,sans-serif;max-width:560px;margin:0 auto;background:#12161e;color:#e0e0e0;border-radius:8px;overflow:hidden;">
-        <div style="background:#08080c;padding:32px;">
-          <h1 style="color:#bda16f;margin:0;font-size:1.2rem;">New Business Lead</h1>
+      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:560px;margin:0 auto;background:#0d1117;color:#c9d1d9;border-radius:10px;overflow:hidden;">
+        <div style="background:linear-gradient(135deg,#08080c,#141820);padding:36px 32px;border-bottom:1px solid rgba(189,161,111,.15);">
+          <p style="font-size:.7rem;text-transform:uppercase;letter-spacing:.15em;color:#f85149;margin:0 0 8px;">New business lead</p>
+          <h1 style="color:#fff;margin:0;font-size:1.3rem;font-weight:700;">${data.businessName}</h1>
+          <p style="color:#8b949e;font-size:.85rem;margin:6px 0 0;">${data.listingType === "venue" ? "Venue claim" : "Supplier application"} · ${data.planInterest || "No plan selected"}</p>
         </div>
         <div style="padding:32px;">
           <table style="width:100%;border-collapse:collapse;">
-            <tr><td style="padding:8px 0;color:rgba(255,255,255,.5);">Business</td><td style="color:#fff;">${data.businessName}</td></tr>
-            <tr><td style="padding:8px 0;color:rgba(255,255,255,.5);">Type</td><td style="color:#fff;">${data.listingType}</td></tr>
-            <tr><td style="padding:8px 0;color:rgba(255,255,255,.5);">Contact</td><td style="color:#fff;">${data.contactName}</td></tr>
-            <tr><td style="padding:8px 0;color:rgba(255,255,255,.5);">Email</td><td style="color:#fff;">${data.email}</td></tr>
-            <tr><td style="padding:8px 0;color:rgba(255,255,255,.5);">Phone</td><td style="color:#fff;">${data.phone}</td></tr>
-            <tr><td style="padding:8px 0;color:rgba(255,255,255,.5);">District</td><td style="color:#fff;">${data.district}</td></tr>
-            <tr><td style="padding:8px 0;color:rgba(255,255,255,.5);">Plan</td><td style="color:#fff;">${data.planInterest}</td></tr>
-            <tr><td style="padding:8px 0;color:rgba(255,255,255,.5);">Notes</td><td style="color:#fff;">${data.notes || "—"}</td></tr>
+            <tr style="border-bottom:1px solid rgba(255,255,255,.04);"><td style="padding:10px 0;color:#8b949e;font-size:.85rem;width:80px;">Contact</td><td style="padding:10px 0;color:#c9d1d9;font-size:.85rem;">${data.contactName}</td></tr>
+            <tr style="border-bottom:1px solid rgba(255,255,255,.04);"><td style="padding:10px 0;color:#8b949e;font-size:.85rem;">Email</td><td style="padding:10px 0;color:#bda16f;font-size:.85rem;">${data.email}</td></tr>
+            <tr style="border-bottom:1px solid rgba(255,255,255,.04);"><td style="padding:10px 0;color:#8b949e;font-size:.85rem;">Phone</td><td style="padding:10px 0;color:#c9d1d9;font-size:.85rem;">${data.phone || "—"}</td></tr>
+            <tr style="border-bottom:1px solid rgba(255,255,255,.04);"><td style="padding:10px 0;color:#8b949e;font-size:.85rem;">District</td><td style="padding:10px 0;color:#c9d1d9;font-size:.85rem;">${data.district || "—"}</td></tr>
+            ${data.notes ? `<tr style="border-bottom:1px solid rgba(255,255,255,.04);"><td style="padding:10px 0;color:#8b949e;font-size:.85rem;">Notes</td><td style="padding:10px 0;color:#c9d1d9;font-size:.85rem;">${data.notes}</td></tr>` : ''}
           </table>
-          <div style="margin:24px 0;">
-            <a href="https://drinksearcher.vercel.app/admin" style="display:inline-block;background:#bda16f;color:#000;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;">Open admin panel →</a>
+          <div style="margin:28px 0 0;">
+            <a href="https://drinksearcher.vercel.app/admin" style="display:inline-block;background:#bda16f;color:#000;padding:12px 28px;border-radius:6px;text-decoration:none;font-weight:600;font-size:.9rem;">View in admin panel →</a>
           </div>
         </div>
       </div>
     `
   }),
 
-  // Sent to supplier when their drink is approved/rejected
+  // --- Drink status — approved or rejected ---
   drink_status: (data) => ({
-    subject: `Your drink "${data.drinkName}" has been ${data.status} — drinksearcher.hk`,
+    subject: data.status === "approved"
+      ? `✓ Your drink "${data.drinkName}" is now live on drinksearcher.hk`
+      : `Update needed for "${data.drinkName}" — drinksearcher.hk`,
     html: `
-      <div style="font-family:-apple-system,BlinkMacSystemFont,sans-serif;max-width:560px;margin:0 auto;background:#12161e;color:#e0e0e0;border-radius:8px;overflow:hidden;">
-        <div style="background:#08080c;padding:32px;">
-          <h1 style="color:#bda16f;margin:0;font-size:1.2rem;">Drink ${data.status === "approved" ? "Approved ✓" : "Update Needed"}</h1>
+      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:560px;margin:0 auto;background:#0d1117;color:#c9d1d9;border-radius:10px;overflow:hidden;">
+        <div style="background:linear-gradient(135deg,#08080c,#141820);padding:36px 32px;text-align:center;border-bottom:1px solid ${data.status === "approved" ? "rgba(0,200,120,.2)" : "rgba(248,81,73,.2)"};">
+          <p style="font-size:2.5rem;margin:0 0 8px;">${data.status === "approved" ? "✓" : "!"}</p>
+          <h1 style="color:#fff;margin:0;font-size:1.3rem;font-weight:700;">${data.status === "approved" ? "Drink approved" : "Updates needed"}</h1>
         </div>
         <div style="padding:32px;">
-          <h3 style="color:#fff;margin:0 0 12px;">${data.drinkName}</h3>
-          <p style="color:rgba(255,255,255,.7);line-height:1.6;margin:0 0 16px;">
+          <h3 style="color:#fff;margin:0 0 12px;font-size:1.05rem;">${data.drinkName}</h3>
+          <p style="color:#c9d1d9;line-height:1.7;margin:0 0 24px;font-size:.93rem;">
             ${data.status === "approved"
-              ? "Your drink has been approved and is now live on drinksearcher.hk. Customers can find it, compare prices, and click through to your store."
-              : "Your drink submission needs some updates before it can go live. Please check your dashboard for details."}
+              ? "Your drink is now live on drinksearcher.hk. Customers can discover it, compare prices, and click through to your store. It will appear in search results and on relevant category pages."
+              : "Your drink submission needs a few changes before it can go live. Check your dashboard for details on what needs updating."}
           </p>
           <div style="margin:24px 0;">
-            <a href="https://drinksearcher.vercel.app/dashboard" style="display:inline-block;background:#bda16f;color:#000;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;">View dashboard →</a>
+            <a href="https://drinksearcher.vercel.app/dashboard" style="display:inline-block;background:#bda16f;color:#000;padding:12px 28px;border-radius:6px;text-decoration:none;font-weight:600;font-size:.9rem;">View dashboard →</a>
           </div>
         </div>
       </div>

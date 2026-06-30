@@ -1292,7 +1292,7 @@ function renderLeadCapturePage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          to: 'briankng@sky.com',
+          to: 'brianking@sky.com',
           template: 'admin_new_lead',
           data: {
             businessName,
@@ -1307,6 +1307,14 @@ function renderLeadCapturePage() {
         })
       });
     } catch (e) { console.warn('Email notification failed (non-critical):', e); }
+    // Send welcome email to the new business account
+    try {
+      await fetch('https://kktlbznmhxaortogqspy.supabase.co/functions/v1/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to: email, template: 'welcome_business', data: { name: contactName, businessName, listingType } })
+      });
+    } catch (e) { console.warn('Welcome email failed (non-critical):', e); }
     setTimeout(() => { window.location.href = `dashboard.html?role=${listingType}`; }, 600);
   });
 }
