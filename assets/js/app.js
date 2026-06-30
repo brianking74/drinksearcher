@@ -2088,6 +2088,7 @@ async function saveDrinkImage(name, index) {
     const { error } = await sb.from('drinks').update({ image: url }).eq('name', name);
     if (error) throw error;
     if (notice) notice.innerHTML = `<div class="notice">Image updated for all "${name}" rows.</div>`;
+    flashNotice('Image saved ✓');
   } catch (e) {
     if (notice) notice.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Failed: ${e.message}</div>`;
   }
