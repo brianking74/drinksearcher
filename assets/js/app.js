@@ -484,7 +484,7 @@ function renderCard(item, options = {}) {
   return `
     <article class="${cardClasses}">
       <div class="${imageClass}">
-        <img src="${item.image}" alt="${item.name}" />
+        <img src="${item.image || 'assets/images/bottle-placeholder.svg'}" alt="${item.name}" onerror="this.src='assets/images/bottle-placeholder.svg'" />
         <div class="card-overlay"></div>
         <div class="badge-row">${topBadges}</div>
       </div>
