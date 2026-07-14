@@ -323,11 +323,11 @@ function navHTML(active = '') {
     ];
   const user = storage.getCurrentUser();
   const authActions = user
-    ? `<a class="btn btn-ghost btn-small" href="account.html">👤 Account</a>`
-    : `<a class="btn btn-ghost btn-small" href="signin.html">Sign In</a><a class="btn btn-secondary btn-small" href="signup.html">Sign Up</a>`;
+    ? `<a class="btn btn-ghost btn-small" href="account.html">My Account</a>`
+    : `<a class="btn btn-ghost btn-small" href="signin.html">Sign In / Create Account</a>`;
   return `
     <div class="container nav-inner">
-      <a class="logo" href="index.html">drinksearcher<span>.hk</span></a>
+      <a class="logo brand-logo" href="index.html" aria-label="DrinkSearcher home"><img src="assets/brand/drinksearcher-logo.webp" alt="DrinkSearcher"></a>
       <button class="mobile-toggle" aria-label="Toggle menu">☰</button>
       <nav class="nav-links">
         ${links.map(([href,label]) => `<a class="${active===label?'active':''}" href="${href}">${label}</a>`).join('')}
@@ -344,7 +344,7 @@ function footerHTML() {
     <footer class="footer">
       <div class="container footer-grid">
         <div>
-          <div class="logo" style="margin-bottom:10px; display:inline-block;">drinksearcher<span>.hk</span></div>
+          <a class="logo brand-logo footer-brand" href="index.html" aria-label="DrinkSearcher home"><img src="assets/brand/drinksearcher-logo.webp" alt="DrinkSearcher"></a>
           <p class="muted">Discover bottles, bars, restaurants, and tastings worth your time — all focused on Hong Kong.</p>
         </div>
         <div>
@@ -364,7 +364,6 @@ function footerHTML() {
             <a href="list-your-business.html?type=venue">Claim your venue</a>
             <a href="events.html">Promote an event</a>
             <a href="pricing.html">Membership pricing</a>
-            <a href="dashboard.html">Business dashboard</a>
           </div>
         </div>
         <div>
@@ -2426,12 +2425,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     'supplier-profile': 'Suppliers'
   };
   setupChrome(activeMap[page] || '');
-  if (page === 'home') await renderHomepage();
-  if (page === 'venues') await renderVenueDirectory();
-  if (page === 'suppliers') await renderSupplierDirectory();
-  if (page === 'drinks') await renderDrinksPage();
+  const premiumMainPages = ['home', 'venues', 'suppliers', 'drinks', 'events'];
+  if (premiumMainPages.includes(page) && window.DrinkSearcherPremium) {
+    // Discovery pages use the bundled catalogue for an immediate first paint.
+    // Supabase remains available for auth, writes, and detail-level data.
+    window.DrinkSearcherPremium.renderMain(page);
+  } else {
+    if (page === 'home') await renderHomepage();
+    if (page === 'venues') await renderVenueDirectory();
+    if (page === 'suppliers') await renderSupplierDirectory();
+    if (page === 'drinks') await renderDrinksPage();
+    if (page === 'events') await renderEventsPage();
+  }
   if (page === 'product') await renderBottleDetail();
-  if (page === 'events') await renderEventsPage();
   if (page === 'pricing') renderPricingPage();
   if (page === 'lead') renderLeadCapturePage();
   if (page === 'dashboard') renderBusinessDashboardPage();

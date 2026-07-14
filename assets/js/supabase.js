@@ -42,57 +42,35 @@ function slugify(text) {
 
 // --- Drinks ---
 async function fetchDrinks(filters = {}) {
-  let query = sb.from('drinks').select('*').eq('status', 'approved');
-  if (filters.search) query = query.or(`name.ilike.%${filters.search}%,supplier_name.ilike.%${filters.search}%,type.ilike.%${filters.search}%`);
-  if (filters.area && filters.area !== 'all') query = query.eq('area', filters.area);
-  const { data, error } = await query.order('created_at', { ascending: false });
-  if (error) { console.error('fetchDrinks error:', error); return []; }
-  // Map to drinksInventory shape for backward compat
-  return (data || []).map(d => ({
-    name: d.name,
-    supplier: d.supplier_name || '',
-    supplierSlug: d.supplier_name ? slugify(d.supplier_name) : '',
-    area: '',
-    type: d.type || '',
-    price: d.price || '',
-    image: d.image || '',
-    tier: d.tier || 'standard',
-    buy: d.buy_url || '',
-    description: d.description || '',
-    origin: d.origin || '',
-    abv: d.abv || ''
-  }));
+  // Discovery pages render from the bundled catalogue immediately. Remote data
+  // must never block first paint; Supabase remains the source for authenticated
+  // writes and detail-level data.
+  let rows = typeof drinksInventory !== 'undefined' ? drinksInventory.slice() : [];
+  if (filters.search) {
+    const q = String(filters.search).toLowerCase();
+    rows = rows.filter(d => [d.name, d.supplier, d.type].some(v => String(v || '').toLowerCase().includes(q)));
+  }
+  if (filters.area && filters.area !== 'all') rows = rows.filter(d => d.area === filters.area);
+  return rows;
 }
 
 // --- Suppliers ---
 async function fetchSuppliers() {
-  const { data } = await sb.from('suppliers').select('*').order('name');
-  const rows = data || [];
-  return {
-    enhanced: rows.filter(s => s.tier === 'enhanced'),
-    featured: rows.filter(s => s.tier === 'featured'),
-    standard: rows.filter(s => s.tier === 'standard').map(s => [s.name, s.area, s.phone, s.specialty])
-  };
+  return typeof supplierListings !== 'undefined'
+    ? { enhanced: supplierListings.enhanced.slice(), featured: supplierListings.featured.slice(), standard: supplierListings.standard.slice() }
+    : { enhanced: [], featured: [], standard: [] };
 }
 
 // --- Venues ---
 async function fetchVenues() {
-  const { data } = await sb.from('venues').select('*').order('name');
-  const rows = data || [];
-  return {
-    enhanced: rows.filter(v => v.tier === 'enhanced'),
-    featured: rows.filter(v => v.tier === 'featured'),
-    standard: rows.filter(v => v.tier === 'standard').map(v => [v.name, v.area, v.phone, v.cuisine])
-  };
+  return typeof venueListings !== 'undefined'
+    ? { enhanced: venueListings.enhanced.slice(), featured: venueListings.featured.slice(), standard: venueListings.standard.slice() }
+    : { enhanced: [], featured: [], standard: [] };
 }
 
 // --- Events ---
 async function fetchEvents() {
-  const { data } = await sb.from('events').select('*').order('created_at', { ascending: false });
-  return (data || []).map(e => ({
-    ...e,
-    date: e.event_date || '' // map event_date → date for backward compat
-  }));
+  return typeof eventsData !== 'undefined' ? eventsData.slice() : [];
 }
 
 // --- Supplier Dashboard ---
