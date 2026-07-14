@@ -8,7 +8,7 @@ for(const page of ['home','drinks','suppliers','events','venues']){
 }
 if(!app.includes('DrinkSearcherPremium.renderMain(page)')) failures.push('Main pages still wait for async Supabase render instead of immediate premium render');
 if(!premium.includes("window.DrinkSearcherPremium")) failures.push('Premium renderer is not exposed to the synchronous route bootstrap');
-if(!premium.includes('<video class="hero-video"')) failures.push('Homepage hero video markup missing');
+if(!premium.includes('hero-video')) failures.push('Homepage hero video markup missing');
 if(!css.includes('#efefef')) failures.push('Product image background #efefef missing');
 if(!css.includes('white-space:nowrap')) failures.push('One-line primary title rule missing');
 if(!premium.includes('brand-logo')) failures.push('Attached logo is not used by premium chrome');

@@ -24,7 +24,8 @@ h1,h2,h3,h4{font-family:var(--serif);font-weight:400;letter-spacing:-.025em;colo
 .brand-logo{display:flex;align-items:center;flex:0 0 auto;width:72px;height:64px;overflow:hidden}
 .brand-logo img{display:block;width:100%;height:100%;object-fit:contain}
 .footer-brand{width:132px;height:132px;margin:-18px 0 4px}.wizard-brand{margin:-18px 0 10px;width:116px;height:116px}
-.hero-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center;z-index:0}
+.hero-video-wrap{position:absolute;inset:0;overflow:hidden}
+.hero-video{position:absolute;inset:0;width:100%;height:100%;border:0;object-fit:cover;object-position:center;z-index:0;pointer-events:none}
 .hero-media:has(.hero-video){background-image:url('../images/hongkong-view.jpg')!important}
 .result-image,.card-media.portrait,.card-media.portrait-bottle,.homepage-bottle-card .card-media,.bottle-hero-media,.product-hero-image{background:#efefef!important}
 .result-image img,.card-media.portrait img,.card-media.portrait-bottle img,.homepage-bottle-card .card-media img,.bottle-hero-media img,.product-hero-image img{background:#efefef!important;mix-blend-mode:multiply}
@@ -39,5 +40,5 @@ h1,h2,h3,h4{font-family:var(--serif);font-weight:400;letter-spacing:-.025em;colo
 .section-head h2{letter-spacing:-.015em;text-wrap:balance}
 @media(max-width:1100px){.directory-head h1{font-size:clamp(1.8rem,3.55vw,3.4rem)}}
 @media(max-width:640px){.directory-head h1{white-space:normal;font-size:clamp(2.25rem,11vw,3.25rem);text-wrap:balance}.brand-logo{width:58px;height:54px}.footer-brand{width:110px;height:110px}.nav-inner{min-height:64px}.page{padding-top:64px}}
-@media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;transition:none!important;animation:none!important}.hero-video{display:none}}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;transition:none!important;animation:none!important}.hero-video-wrap{display:none}}
 none{}
