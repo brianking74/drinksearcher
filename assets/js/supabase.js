@@ -42,15 +42,26 @@ function slugify(text) {
 
 // --- Drinks ---
 async function fetchDrinks(filters = {}) {
-  // Discovery pages render from the bundled catalogue immediately. Remote data
-  // must never block first paint; Supabase remains the source for authenticated
-  // writes and detail-level data.
+  // Render local catalogue immediately so first paint stays fast.
   let rows = typeof drinksInventory !== 'undefined' ? drinksInventory.slice() : [];
   if (filters.search) {
     const q = String(filters.search).toLowerCase();
     rows = rows.filter(d => [d.name, d.supplier, d.type].some(v => String(v || '').toLowerCase().includes(q)));
   }
   if (filters.area && filters.area !== 'all') rows = rows.filter(d => d.area === filters.area);
+
+  // Asynchronously promote admin-uploaded images from Supabase so the
+  // drink image manager shows across the directory without blocking render.
+  try {
+    const { data } = await sb.from('drinks').select('name,image').not('image', 'is', null).limit(1000);
+    if (Array.isArray(data) && data.length) {
+      const map = {};
+      data.forEach((r) => { if (r.name && r.image) map[r.name] = r.image; });
+      rows = rows.map((d) => map[d.name] ? { ...d, image: map[d.name] } : d);
+    }
+  } catch (e) {
+    // keep bundled catalogue if Supabase is unreachable/unauthorized
+  }
   return rows;
 }
 
