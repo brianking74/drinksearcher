@@ -28,7 +28,7 @@ h1,h2,h3,h4{font-family:var(--serif);font-weight:400;letter-spacing:-.025em;colo
 .hero-video{position:absolute;inset:0;width:100%;height:100%;border:0;object-fit:cover;object-position:center;z-index:0;pointer-events:none}
 .hero-media:has(.hero-video){background-image:url('../images/hongkong-view.jpg')!important}
 .result-image,.card-media.portrait,.card-media.portrait-bottle,.homepage-bottle-card .card-media,.bottle-hero-media,.product-hero-image{background:#efefef!important}
-.result-image img,.card-media.portrait img,.card-media.portrait-bottle img,.homepage-bottle-card .card-media img,.bottle-hero-media img,.product-hero-image img{background:#efefef!important;mix-blend-mode:multiply}
+.result-image img,.card-media.portrait img,.card-media.portrait-bottle img,.homepage-bottle-card .card-media img,.bottle-hero-media img,.product-hero-image img,.supplier-result .result-image img,.venue-result .result-image img{background:#efefef!important;mix-blend-mode:multiply}
 .result-main h3,.card h3,.event-result h3,.venue-result h3,.supplier-result h3{letter-spacing:.006em;line-height:1.16;text-wrap:balance}
 .card-body{font-size:.95rem}.card-kicker{font-size:.76rem}.homepage-bottle-card h3{font-size:clamp(1.08rem,1.25vw,1.3rem)}
 .homepage-bottle-card .meta,.venue-card .card-inline-meta,.event-card .card-inline-meta{font-size:.86rem}
