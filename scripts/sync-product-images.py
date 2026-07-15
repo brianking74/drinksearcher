@@ -1,8 +1,7 @@
 import io
-import os
 import pathlib
 from urllib.request import Request, urlopen
-from PIL import Image
+from PIL import Image, ImageChops
 
 OUTPUT = pathlib.Path('assets/images/products')
 FILES = [
@@ -30,9 +29,6 @@ FILES = [
 ]
 
 HEADERS = {'user-agent': 'drinksearcher-local-sync/1.0'}
-OW, OH = 512, 512
-NEAR_WHITE_THRESH = 230
-COLOR_VARIANCE = 15
 
 
 def download(url):
@@ -43,42 +39,34 @@ def download(url):
         return resp.read()
 
 
-def remove_white_background(im: Image.Image) -> Image.Image:
+def make_transparent(im: Image.Image) -> Image.Image:
     im = im.convert('RGBA')
-    pixels = im.load()
-    w, h = im.size
-
-    # Determine background color from top-left pixel
-    bg_r, bg_g, bg_b, _ = pixels[0, 0]
-    diff = Image.new('L', im.size, 0)
-
-    for y in range(h):
-        for x in range(w):
-            r, g, b, a = pixels[x, y]
-            # Check if pixel is close to background color
-            if abs(r - bg_r) <= COLOR_VARIANCE and abs(g - bg_g) <= COLOR_VARIANCE and abs(b - bg_b) <= COLOR_VARIANCE:
-                pixels[x, y] = (r, g, b, 0)
-            # Also make near-white pixels transparent
-            elif r > NEAR_WHITE_THRESH and g > NEAR_WHITE_THRESH and b > NEAR_WHITE_THRESH:
-                pixels[x, y] = (r, g, b, 0)
-
+    bg = Image.new('RGBA', im.size, (255, 255, 255, 255))
+    diff = ImageChops.difference(im, bg)
+    # Convert to luminance mask; anything near-white becomes transparent.
+    # Use a slightly aggressive threshold because product shots show studio-white.
+    mask = diff.convert('L')
+    mask = mask.point(lambda p: 0 if p < 35 else 255)
+    im.putalpha(mask)
     return im
 
 
 def process(url, name):
-    print(f'downloading {url}')
+    print(f'download {url}')
     data = download(url)
-    if not data:
-        print(f'  SKIP empty download')
-        return
+    im = Image.open(io.BytesIO(data)).convert('RGBA')
+    im = make_transparent(im)
 
-    im = Image.open(io.BytesIO(data))
-    im = remove_white_background(im)
-    im = im.resize((OW, OH), Image.LANCZOS)
+    max_dim = 640
+    w, h = im.size
+    if w > max_dim or h > max_dim:
+        scale = max_dim / max(w, h)
+        new_size = (max(1, int(w * scale)), max(1, int(h * scale)))
+        im = im.resize(new_size, Image.LANCZOS)
 
     out = OUTPUT / name
     im.save(out, 'WEBP', quality=92, lossless=False, method=6)
-    print(f'  saved {out} ({out.stat().st_size} bytes)')
+    print(f'saved {out} {im.size} {out.stat().st_size} bytes')
 
 
 OUTPUT.mkdir(parents=True, exist_ok=True)
@@ -86,7 +74,6 @@ for url, name in FILES:
     try:
         process(url, name)
     except Exception as e:
-        print(f'  FAIL {name}: {e}')
-        continue
+        print(f'FAIL {name}: {e}')
 
 print('done')
