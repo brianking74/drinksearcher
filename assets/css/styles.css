@@ -259,7 +259,7 @@ h1 em, h2 em, h3 em { font-style: normal; font-weight: 500; letter-spacing: .04e
 }
 .hero::before {
   content: ""; position: absolute; inset: 0;
-  background: linear-gradient(180deg, rgba(10,10,12,.18) 0%, rgba(10,10,12,.42) 42%, rgba(10,10,12,.94) 100%);
+  background: linear-gradient(180deg, rgba(10,10,12,.10) 0%, rgba(10,10,12,.22) 42%, rgba(10,10,12,.45) 100%);
   z-index: 1;
 }
 .hero-media { position: absolute; inset: 0; background-size: cover; background-position: center; transform: scale(1.04); filter: saturate(1.06); }
@@ -286,6 +286,12 @@ h1 em, h2 em, h3 em { font-style: normal; font-weight: 500; letter-spacing: .04e
   padding: 136px 0 12px;
   max-width: 980px;
   margin: 0 auto;
+}
+.homepage-hero::before {
+  display: none;
+}
+.homepage-hero .hero-video-wrap {
+  opacity: .75;
 }
 .homepage-hero h1 {
   font-size: clamp(2.4rem, 5.2vw, 5rem);
@@ -1371,11 +1377,15 @@ hr.sep { border: 0; height: 1px; background: rgba(255,255,255,.06); margin: 18px
   width: 100%;
   height: auto;
   display: block;
-  border-radius: 12px;
 }
 .bottle-hero-info {
   flex: 1;
   min-width: 0;
+}
+.product-venue-title {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .bottle-hero-info h1 {
   font-size: 2rem;
@@ -1629,5 +1639,14 @@ hr.sep { border: 0; height: 1px; background: rgba(255,255,255,.06); margin: 18px
   }
   .bottle-price {
     font-size: 1.5rem;
+  }
+}
+@media (max-width: 640px) {
+  .homepage-hero .hero-video-wrap,
+  .homepage-hero .hero-video {
+    display: none !important;
+  }
+  .homepage-hero .hero-media {
+    filter: none;
   }
 }

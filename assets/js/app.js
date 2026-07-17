@@ -319,6 +319,7 @@ function navHTML(active = '') {
     ['index.html','Home'],
     ['drinks.html','Drinks'],
     ['events.html','Events'],
+    ['blog.html','Blog'],
     ['bars-restaurants.html','Bars & Restaurants'],
     ];
   const user = storage.getCurrentUser();
@@ -598,7 +599,7 @@ async function renderHomepage() {
     <section class="section homepage-bottles-section">
       <div class="container">
         <div class="section-head carousel-head"><div><span class="eyebrow">Popular in Hong Kong</span><h2>Featured bottles available now.</h2><p class="lead" style="margin-top:14px;">The bottles Hong Kong drinkers are searching for, available now from trusted local suppliers.</p></div><div class="carousel-controls"><button class="carousel-arrow" type="button" data-carousel-target="featured-bottles" data-dir="-1" aria-label="Scroll bottles left">←</button><button class="carousel-arrow" type="button" data-carousel-target="featured-bottles" data-dir="1" aria-label="Scroll bottles right">→</button><a class="btn btn-ghost" href="drinks.html">See all drinks</a></div></div>
-        <div class="carousel-shell"><div class="carousel-track bottles-carousel" id="featured-bottles">${featuredDrinks.map(d => renderCard({...d}, {type:'drink', portrait:true, showBadge:false, showDescription:false, href:`product.html?name=${encodeURIComponent(d.name)}`, className:'homepage-bottle-card', cta:`${ctaLink('View', `product.html?name=${encodeURIComponent(d.name)}`, 'btn btn-primary btn-small', 'View details')}${d.buy ? ` <a class="btn btn-ghost btn-small" href="${d.buy}" target="_blank" rel="noreferrer">Buy →</a>` : ''}`})).join('')}</div></div>
+        <div class="carousel-shell"><div class="carousel-track bottles-carousel" id="featured-bottles">${featuredDrinks.map(d => renderCard({...d}, {type:'drink', portrait:true, showBadge:false, showDescription:false, href:`product.html?name=${slugify(d.name)}`, className:'homepage-bottle-card', cta:`${ctaLink('View', `product.html?name=${slugify(d.name)}`, 'btn btn-primary btn-small', 'View details')}${d.buy ? ` <a class="btn btn-ghost btn-small" href="${d.buy}" target="_blank" rel="noreferrer">Buy →</a>` : ''}`})).join('')}</div></div>
       </div>
     </section>
 
@@ -808,7 +809,7 @@ async function renderDrinksPage() {
   const filteredDrinks = allDrinks.filter(d => matchesSearch([d.name, d.supplier, d.type, d.area], query) && (!area || d.area === area));
   app.innerHTML = `
     <section class="hero" style="min-height:56vh;"><div class="hero-media" style="background-image:url('${siteImages.event}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Drinks</span><h1>Bottles actually available in Hong Kong.</h1><p class="lead">From cellar icons to sake, Champagne, beer, spirits, and no-alcohol discoveries — all routed to local suppliers.</p></div><div class="search-shell"><div class="search-tabs"><span class="search-tab active">Search results</span></div><div class="notice">Showing <strong>${filteredDrinks.length}</strong> drinks${query ? ` for “${query}”` : ''}${area ? ` in ${area}` : ''}.</div><div class="panel" style="padding:18px; background:transparent; border:none; box-shadow:none;"><div class="muted" style="display:grid; gap:10px;"><span>Direct links to local supplier stores</span><span>HK pricing and neighbourhood context</span><span>A mix of discovery bottles and everyday favourites</span></div></div></div></div></section>
-    <section class="section"><div class="container"><div class="section-head"><div><span class="eyebrow">Featured bottles</span><h2>Popular drinks from Hong Kong suppliers.</h2></div></div>${filteredDrinks.length ? `<div class="grid grid-4">${filteredDrinks.map(d => renderCard({...d}, {type:'drink', portrait:true, showBadge:false, showDescription:false, href:`product.html?name=${encodeURIComponent(d.name)}`, cta:d.tier==='enhanced' ? `${ctaLink('View', `product.html?name=${encodeURIComponent(d.name)}`, 'btn btn-primary btn-small', 'View')}${d.buy ? ` <a class="btn btn-ghost btn-small" href="${d.buy}" target="_blank" rel="noreferrer">Buy →</a>` : ''}` : ctaLink('View', `product.html?name=${encodeURIComponent(d.name)}`, 'btn btn-ghost btn-small')})).join('')}</div>` : '<div class="empty-state">No drinks match that search yet. Try a broader bottle name, category, or area.</div>'}</div></section>`;
+    <section class="section"><div class="container"><div class="section-head"><div><span class="eyebrow">Featured bottles</span><h2>Popular drinks from Hong Kong suppliers.</h2></div></div>${filteredDrinks.length ? `<div class="grid grid-4">${filteredDrinks.map(d => renderCard({...d}, {type:'drink', portrait:true, showBadge:false, showDescription:false, href:`product.html?name=${slugify(d.name)}`, cta:d.tier==='enhanced' ? `${ctaLink('View', `product.html?name=${slugify(d.name)}`, 'btn btn-primary btn-small', 'View')}${d.buy ? ` <a class="btn btn-ghost btn-small" href="${d.buy}" target="_blank" rel="noreferrer">Buy →</a>` : ''}` : ctaLink('View', `product.html?name=${slugify(d.name)}`, 'btn btn-ghost btn-small')})).join('')}</div>` : '<div class="empty-state">No drinks match that search yet. Try a broader bottle name, category, or area.</div>'}</div></section>`;
   bindSaveButtons(app);
 }
 
@@ -845,7 +846,7 @@ async function renderBottleDetail() {
     return;
   }
 
-  const rows = await fetchDrinkByName(name);
+  const rows = await fetchDrinkByName(decodeURIComponent(name).replace(/-/g, ' ').trim());
   if (!rows || !rows.length) {
     app.innerHTML = `<div class="empty-state">Bottle not found: "${name}". <a href="drinks.html">Browse drinks →</a></div>`;
     return;
@@ -924,7 +925,7 @@ async function renderBottleDetail() {
     <section class="section bottle-venues">
       <div class="container">
         <div class="section-head">
-          <div><span class="eyebrow">Drink it here</span><h2>Where to enjoy ${drink.name} in Hong Kong</h2></div>
+          <span class="eyebrow">Drink it here</span><h2 class="product-venue-title">Where to enjoy ${drink.name} in Hong Kong</h2></div>
         </div>
         <div class="grid grid-3">
           ${venues.map(v => `
@@ -939,7 +940,7 @@ async function renderBottleDetail() {
                 ${v.rating ? `<div class="card-rating">${starRating(parseFloat(v.rating))} ${v.rating}</div>` : ''}
                 ${v.specialty ? `<p class="card-subtitle">${v.specialty}</p>` : ''}
                 <div class="card-actions">
-                  <a class="btn btn-ghost btn-small" href="venue-profile.html?name=${encodeURIComponent(v.name)}">View →</a>
+                  <a class="btn btn-ghost btn-small" href="venue-profile.html?name=${slugify(v.name)}">View →</a>
                   ${v.website && v.website !== '#' ? `<a class="btn btn-primary btn-small" href="${v.website}" target="_blank" rel="noreferrer">Book →</a>` : ''}
                 </div>
               </div>
@@ -2406,7 +2407,147 @@ function setupAnchorSpy() {
   update();
 }
 
-document.addEventListener('DOMContentLoaded', async () => {
+async function renderBlogPage() {
+  const app = $('#app');
+  const { data: posts, error } = await sb
+    .from('blog_posts')
+    .select('*')
+    .eq('published', true)
+    .order('published_at', { ascending: false });
+
+  const list = (error || !posts || !posts.length)
+    ? '<div class="empty-state"><h3>No posts yet.</h3><p>Check back soon for stories from Hong Kong’s drinks scene.</p></div>'
+    : posts.map(post => `
+        <article class="card blog-card">
+          <div class="blog-card__body">
+            <span class="eyebrow">${post.published_at ? new Date(post.published_at).toLocaleDateString('en-HK', { year:'numeric', month:'short', day:'numeric' }) : 'Draft'}</span>
+            <h3 class="card-title">${post.title}</h3>
+            ${post.excerpt ? `<p class="muted">${post.excerpt}</p>` : ''}
+            <div id="blog-body-${post.id}" class="blog-card__content" style="display:none">${post.body}</div>
+            <button class="btn btn-ghost btn-small" type="button" data-blog-toggle="${post.id}">Read →</button>
+          </div>
+        </article>
+      `).join('');
+
+  app.innerHTML = `
+    <section class="section" style="padding-top:48px">
+      <div class="container">
+        <div class="section-head">
+          <div><span class="eyebrow">From the cellar</span><h1>Blog</h1></div>
+        </div>
+        <p class="lead" style="margin-bottom:28px">Guides, neighbourhood notes, and tasting dispatches from Hong Kong.</p>
+        <div class="grid grid-3">${list}</div>
+      </div>
+    </section>
+  `;
+
+  $$('[data-blog-toggle]', app).forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.blogToggle;
+      const body = $(`#blog-body-${id}`);
+      if (!body) return;
+      const open = body.style.display !== 'none';
+      if (open) { body.style.display = 'none'; btn.textContent = 'Read →'; }
+      else { body.style.display = 'block'; btn.textContent = 'Show less'; }
+    });
+  });
+}
+
+async function renderBlogAdminPage() {
+  const app = $('#app');
+  const user = storage.getCurrentUser();
+  if (!user) { window.location.href = 'signin.html'; return; }
+
+  const { data: posts, error } = await sb
+    .from('blog_posts')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(200);
+
+  const rows = (posts || []).map(post => `
+    <div class="admin-row">
+      <div>
+        <strong>${post.title}</strong>
+        <span class="muted" style="margin-left:10px">${post.published ? '✓ Published' : 'Draft'}</span>
+      </div>
+      <div class="inline-actions">
+        <button class="btn btn-ghost btn-small" type="button" data-blog-edit="${post.id}">Edit</button>
+        <button class="btn btn-ghost btn-small" type="button" data-blog-toggle-status="${post.id}">${post.published ? 'Unpublish' : 'Publish'}</button>
+        <button class="btn btn-ghost btn-small" type="button" data-blog-delete="${post.id}">Delete</button>
+      </div>
+    </div>
+  `).join('');
+
+  app.innerHTML = `
+    <section class="section" style="padding-top:48px">
+      <div class="container">
+        <div class="section-head">
+          <div><span class="eyebrow">Content</span><h1>Blog admin</h1></div>
+        </div>
+        <div class="panel" style="margin-bottom:24px">
+          <h3 style="margin-bottom:12px">New post</h3>
+          <div class="grid grid-2">
+            <input class="input" id="blog-title" placeholder="Title">
+            <input class="input" id="blog-excerpt" placeholder="Short excerpt">
+          </div>
+          <textarea class="input" id="blog-body" rows="6" placeholder="Full post body (plain text or basic HTML)" style="margin-top:12px"></textarea>
+          <div class="inline-actions" style="margin-top:12px">
+            <button class="btn btn-primary btn-small" type="button" id="blog-create">Create draft</button>
+          </div>
+          <p class="muted" style="margin-top:10px" id="blog-admin-notice"></p>
+        </div>
+        <div class="list-panel">
+          <div class="table-head"><div>Post</div><div style="text-align:right">Actions</div></div>
+          <div id="blog-admin-list">${rows || '<div class="empty-state"><h3>No posts yet.</h3></div>'}</div>
+        </div>
+      </div>
+    </section>
+  `;
+
+  const rowAction = async (id, action) => {
+    const notice = $('#blog-admin-notice', app);
+    try {
+      if (action === 'delete') {
+        await sb.from('blog_posts').delete().eq('id', id);
+      } else if (action === 'publish' || action === 'unpublish') {
+        const published = action === 'publish';
+        const { error } = await sb.from('blog_posts').update({
+          published,
+          published_at: published ? new Date().toISOString() : null
+        }).eq('id', id);
+        if (error) throw error;
+      }
+      renderBlogAdminPage();
+    } catch (e) {
+      if (notice) notice.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2">Failed: ${e.message}</div>`;
+    }
+  };
+
+  $('#blog-create')?.addEventListener('click', async () => {
+    const title = ($('#blog-title')?.value || '').trim();
+    const excerpt = ($('#blog-excerpt')?.value || '').trim();
+    const body = ($('#blog-body')?.value || '').trim();
+    const notice = $('#blog-admin-notice', app);
+    if (!title || !body) { if (notice) notice.innerHTML = '<div class="notice">Title and body are required.</div>'; return; }
+    try {
+      const { error } = await sb.from('blog_posts').insert({
+        title,
+        slug: slugify(title),
+        excerpt,
+        body,
+        published: false
+      });
+      if (error) throw error;
+      renderBlogAdminPage();
+    } catch (e) {
+      if (notice) notice.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2">Failed: ${e.message}</div>`;
+    }
+  });
+
+  $$('[data-blog-delete]', app).forEach(btn => btn.addEventListener('click', () => rowAction(btn.dataset.blogDelete, 'delete')));
+  $$('[data-blog-toggle-status]', app).forEach(btn => btn.addEventListener('click', () => rowAction(btn.dataset.blogToggleStatus, btn.dataset.blogToggleStatus === 'true' ? 'unpublish' : 'publish')));
+}
+
   const page = document.body.dataset.page;
   const activeMap = {
     home: 'Home',
@@ -2446,6 +2587,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (page === 'supplier-profile') renderSupplierProfile();
   if (page === 'signin') await renderSignInPage();
   if (page === 'signup') await renderSignUpPage();
+  if (page === 'blog') await renderBlogPage();
   if (page === 'account') await renderAccountPage();
   setupAnchorSpy();
   syncSaveButtons();
