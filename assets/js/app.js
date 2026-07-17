@@ -847,7 +847,7 @@ async function renderBottleDetail() {
   }
 
   const rows = (await fetchDrinkByName(decodeURIComponent(name).replace(/-/g, ' ').trim())) || [];
-  const supplierRows = rows.filter(r => (r.supplier_name || '').trim() || (r.buy_url || '').trim());
+  const supplierRows = rows.filter(r => (r.supplier_name || '').trim() || (r.buy_url || '').trim() || (r.price || '').trim());
   const supplierCount = supplierRows.length;
   if (!supplierCount) {
     app.innerHTML = `<div class="empty-state">Bottle not found: "${name}". <a href="drinks.html">Browse drinks →</a></div>`;
