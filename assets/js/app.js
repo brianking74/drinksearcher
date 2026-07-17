@@ -846,17 +846,16 @@ async function renderBottleDetail() {
     return;
   }
 
-  const rows = await fetchDrinkByName(decodeURIComponent(name).replace(/-/g, ' ').trim());
-  if (!rows || !rows.length) {
+  const rows = (await fetchDrinkByName(decodeURIComponent(name).replace(/-/g, ' ').trim())) || [];
+  const supplierRows = rows.filter(r => (r.supplier_name || '').trim() || (r.buy_url || '').trim());
+  const supplierCount = supplierRows.length;
+  if (!supplierCount) {
     app.innerHTML = `<div class="empty-state">Bottle not found: "${name}". <a href="drinks.html">Browse drinks →</a></div>`;
     return;
   }
-
-  // First row = canonical bottle data
-  const drink = rows[0];
-  const supplierCount = rows.length;
-  const cheapestPrice = rows[0].price;
-  const highestPrice = rows.length > 1 ? rows[rows.length - 1].price : null;
+  const drink = supplierRows[0];
+  const cheapestPrice = supplierRows[0].price;
+  const highestPrice = supplierRows.length > 1 ? supplierRows[supplierRows.length - 1].price : null;
   const priceDisplay = supplierCount > 1 ? `${cheapestPrice} – ${highestPrice}` : cheapestPrice;
   const venues = await fetchVenuesForDrink(drink.id);
   const reviews = await fetchReviewsForItem('drink', drink.id);
@@ -897,7 +896,7 @@ async function renderBottleDetail() {
                 <span class="eyebrow">Buy it here</span><h3>${supplierCount} supplier${supplierCount>1?'s':''} in Hong Kong</h3>
               </div>
               <div class="supplier-compare-table" style="margin-top:14px">
-                ${rows.map((s, i) => `
+                ${supplierRows.map((s, i) => `
                   <div class="supplier-row${i===0?' supplier-row--best':''}">
                     <div class="supplier-row__info">
                       <span class="supplier-row__name">${s.supplier_name || 'Supplier'}</span>
