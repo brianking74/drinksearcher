@@ -1554,39 +1554,39 @@ hr.sep { border: 0; height: 1px; background: rgba(255,255,255,.06); margin: 18px
   border-top: 1px solid rgba(255,255,255,.06);
 }
 .supplier-compare-table {
-  display: flex;
-  flex-direction: column;
+  display: grid;
   gap: 0;
   border: 1px solid rgba(255,255,255,.08);
   border-radius: 8px;
   overflow: hidden;
+  grid-template-columns: minmax(0,1fr) minmax(120px,auto) minmax(140px,auto);
 }
 .supplier-row {
+  display: contents;
+}
+.supplier-row > * {
   display: flex;
   align-items: center;
-  gap: 16px;
   padding: 16px 20px;
   background: var(--card-bg, #08080c);
   border-bottom: 1px solid rgba(255,255,255,.04);
-  flex-wrap: wrap;
+  gap: 10px;
 }
-.supplier-row:last-child {
+.supplier-row:last-child > * {
   border-bottom: none;
 }
-.supplier-row--best {
-  background: rgba(189,161,111,.06);
-  border-left: 3px solid var(--gold, #bda16f);
-}
 .supplier-row__info {
-  flex: 1;
-  min-width: 0;
   display: flex;
   align-items: center;
   gap: 10px;
+  min-width: 0;
 }
 .supplier-row__name {
   font-weight: 600;
   color: var(--text-primary, #fff);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .supplier-row__stock {
   font-size: .78rem;
@@ -1594,6 +1594,7 @@ hr.sep { border: 0; height: 1px; background: rgba(255,255,255,.06); margin: 18px
   border-radius: 4px;
   background: rgba(255,255,255,.05);
   color: var(--text-secondary, rgba(255,255,255,.55));
+  white-space: nowrap;
 }
 .supplier-row__stock.in-stock {
   background: rgba(0,200,120,.1);
@@ -1604,13 +1605,21 @@ hr.sep { border: 0; height: 1px; background: rgba(255,255,255,.06); margin: 18px
   font-size: 1.05rem;
   color: var(--gold, #bda16f);
   white-space: nowrap;
-  min-width: 100px;
-  text-align: right;
+  justify-content: flex-end;
 }
 .supplier-row__actions {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 8px;
+  white-space: nowrap;
+}
+.supplier-row--best > :first-child {
+  border-left: 3px solid var(--gold, #bda16f);
+  background: rgba(189,161,111,.04);
+}
+.supplier-row--best > :not(:first-child) {
+  background: rgba(189,161,111,.025);
 }
 
 .best-price-badge {
