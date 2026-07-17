@@ -891,35 +891,33 @@ async function renderBottleDetail() {
             <div class="bottle-actions">
               ${saveButton({id: `drink:${slug}`, name: drink.name, kind: 'drink'})}
             </div>
+            ${supplierCount ? `
+            <div class="supplier-inline" style="margin-top:24px">
+              <div class="section-head">
+                <span class="eyebrow">Buy it here</span><h3>${supplierCount} supplier${supplierCount>1?'s':''} in Hong Kong</h3>
+              </div>
+              <div class="supplier-compare-table" style="margin-top:14px">
+                ${rows.map((s, i) => `
+                  <div class="supplier-row${i===0?' supplier-row--best':''}">
+                    <div class="supplier-row__info">
+                      <span class="supplier-row__name">${s.supplier_name || 'Supplier'}</span>
+                      ${s.availability ? `<span class="supplier-row__stock ${s.availability.toLowerCase().includes('stock') ? 'in-stock' : ''}">${s.availability}</span>` : ''}
+                    </div>
+                    <div class="supplier-row__price">${s.price}</div>
+                    <div class="supplier-row__actions">
+                      ${i === 0 ? '<span class="best-price-badge">Best price</span>' : ''}
+                      ${s.buy_url ? `<a href="${s.buy_url}" target="_blank" rel="noreferrer" class="btn btn-primary btn-small" onclick="trackClick('${s.id}','${s.name.replace(/'/g, "\\'")}','${(s.supplier_name || '').replace(/'/g, "\\'")}')">Buy →</a>` : ''}
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+            ` : ''}
           </div>
         </div>
       </div>
     </section>
-
-    ${supplierCount ? `
-    <section class="section bottle-suppliers">
-      <div class="container">
-        <div class="section-head">
-          <div><span class="eyebrow">Buy it here</span><h2>${supplierCount} supplier${supplierCount>1?'s':''} in Hong Kong</h2></div>
-        </div>
-        <div class="supplier-compare-table">
-          ${rows.map((s, i) => `
-            <div class="supplier-row${i===0?' supplier-row--best':''}">
-              <div class="supplier-row__info">
-                <span class="supplier-row__name">${s.supplier_name || 'Supplier'}</span>
-                ${s.availability ? `<span class="supplier-row__stock ${s.availability.toLowerCase().includes('stock') ? 'in-stock' : ''}">${s.availability}</span>` : ''}
-              </div>
-              <div class="supplier-row__price">${s.price}</div>
-              <div class="supplier-row__actions">
-                ${i === 0 ? '<span class="best-price-badge">Best price</span>' : ''}
-                ${s.buy_url ? `<a href="${s.buy_url}" target="_blank" rel="noreferrer" class="btn btn-primary btn-small" onclick="trackClick('${s.id}','${s.name.replace(/'/g, "\\'")}','${(s.supplier_name || '').replace(/'/g, "\\'")}')">Buy →</a>` : ''}
-              </div>
-            </div>
-          `).join('')}
-        </div>
-      </div>
-    </section>
-    ` : ''}
+  </div>
 
     ${venues.length ? `
     <section class="section bottle-venues">
