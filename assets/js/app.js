@@ -2548,6 +2548,7 @@ async function renderBlogAdminPage() {
   $$('[data-blog-toggle-status]', app).forEach(btn => btn.addEventListener('click', () => rowAction(btn.dataset.blogToggleStatus, btn.dataset.blogToggleStatus === 'true' ? 'unpublish' : 'publish')));
 }
 
+document.addEventListener('DOMContentLoaded', async () => {
   const page = document.body.dataset.page;
   const activeMap = {
     home: 'Home',
@@ -2568,8 +2569,6 @@ async function renderBlogAdminPage() {
   setupChrome(activeMap[page] || '');
   const premiumMainPages = ['home', 'venues', 'suppliers', 'drinks', 'events'];
   if (premiumMainPages.includes(page) && window.DrinkSearcherPremium) {
-    // Discovery pages use the bundled catalogue for an immediate first paint.
-    // Supabase remains available for auth, writes, and detail-level data.
     window.DrinkSearcherPremium.renderMain(page);
   } else {
     if (page === 'home') await renderHomepage();
