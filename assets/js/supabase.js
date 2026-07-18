@@ -265,11 +265,18 @@ const dsAuth = {
   async signIn(email, password) {
     try {
       const { data, error } = await sb.auth.signInWithPassword({ email: String(email || '').trim().toLowerCase(), password: String(password || '') });
-      if (error) return { ok: false, message: 'Email or password not recognised.' };
-      const { data: profile } = await sb.from('profiles').select('*').eq('id', data.user.id).single();
+      if (error) return { ok: false, message: error.message || 'Email or password not recognised.' };
+      let profile = null;
+      try {
+        const { data: p } = await sb.from('profiles').select('*').eq('id', data.user.id).single();
+        profile = p;
+      } catch (profileErr) {
+        console.warn('Profile lookup failed for', data.user.email, profileErr.message);
+        // continue without a profile — user still authenticated
+      }
       return { ok: true, user: { email: data.user.email, name: (profile && profile.name) || '', role: (profile && profile.role) || 'searcher', id: data.user.id } };
     } catch (e) {
-      return { ok: false, message: 'Email or password not recognised.' };
+      return { ok: false, message: e.message || 'Email or password not recognised.' };
     }
   },
 
