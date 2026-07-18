@@ -846,7 +846,12 @@ async function renderBottleDetail() {
     return;
   }
 
-  const rows = (await fetchDrinkByName(decodeURIComponent(name).replace(/-/g, ' ').trim())) || [];
+  let rows = (await fetchDrinkByName(decodeURIComponent(name).replace(/-/g, ' ').trim())) || [];
+  // If slug-based name with special chars fails, try fuzzy match
+  if (!rows.length && name.includes('-')) {
+    const fuzzy = await fetchDrinkByNameSlug(name);
+    if (fuzzy) rows = [fuzzy];
+  }
   const supplierRows = rows.filter(r => (r.supplier_name || '').trim() || (r.buy_url || '').trim() || (r.price || '').trim());
   const supplierCount = supplierRows.length;
   if (!supplierCount) {

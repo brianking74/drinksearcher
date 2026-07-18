@@ -201,10 +201,18 @@ async function fetchDrinkByNameSlug(slug) {
   // Try exact match first
   let { data } = await sb.from('drinks').select('*').eq('status', 'approved').ilike('name', name).single();
   if (data) return data;
-  // Fallback: try with extra spaces collapsed
+  // Fallback: word-by-word matching handles apostrophes and special chars
   const cleaned = name.replace(/\s+/g, ' ');
-  const { data: d2 } = await sb.from('drinks').select('*').eq('status', 'approved').ilike('name', `%${cleaned}%`).limit(1);
-  return (d2 && d2.length > 0) ? d2[0] : null;
+  let { data: d2 } = await sb.from('drinks').select('*').eq('status', 'approved').ilike('name', `%${cleaned}%`).limit(1);
+  if (d2 && d2.length) return d2[0];
+  // Final fallback: split into words and join with % wildcards
+  const words = cleaned.split(/\s+/).filter(Boolean);
+  if (words.length > 1) {
+    const pattern = words.join('%');
+    const { data: d3 } = await sb.from('drinks').select('*').eq('status', 'approved').ilike('name', `%${pattern}%`).limit(1);
+    if (d3 && d3.length) return d3[0];
+  }
+  return null;
 }
 
 async function fetchVenuesForDrink(drinkId) {
