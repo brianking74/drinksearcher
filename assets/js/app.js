@@ -2068,12 +2068,12 @@ async function loadProductManager() {
       </div>
       ${!filtered.length ? '<div class="notice">No products match this filter.</div>' : `
       <div class="admin-table">
-        <div class="admin-table-head" style="grid-template-columns:2.5fr 1fr 100px 120px 100px 1fr;"><div>Product</div><div>Supplier</div><div>Image</div><div>Price</div><div>Status</div><div>Actions</div></div>
+        <div class="admin-table-head" style="grid-template-columns:2fr 0.8fr 200px 100px 90px 1fr;"><div>Product</div><div>Supplier</div><div>Image</div><div>Price</div><div>Status</div><div>Actions</div></div>
         ${filtered.map((item, index) => `
-          <div class="admin-table-row" style="grid-template-columns:2.5fr 1fr 100px 120px 100px 1fr;" id="pm-row-${index}">
+          <div class="admin-table-row" style="grid-template-columns:2fr 0.8fr 200px 100px 90px 1fr;" id="pm-row-${index}">
             <div><strong>${item.name}</strong></div>
             <div>${item.supplier_name || '—'}</div>
-            <div><input class="input" id="pm-img-${index}" value="${item.image || ''}" placeholder="URL" style="font-size:.7rem;width:90px;" /></div>
+            <div><input class="input" id="pm-img-${index}" value="${item.image || ''}" placeholder="Image URL" style="font-size:.7rem;width:100%;" /></div>
             <div>${item.price || '—'}</div>
             <div><span class="status-badge status-${(item.status||'pending').toLowerCase()}">${item.status||'Pending'}</span></div>
             <div style="display:flex;gap:4px;flex-wrap:wrap;">
