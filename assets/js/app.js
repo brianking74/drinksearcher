@@ -2047,45 +2047,77 @@ async function moderateItem(id, status, index) {
   }
 }
 
-async function loadImageManager() {
-  const holder = $('#admin-image-manager');
+async function loadProductManager() {
+  const holder = $('#admin-product-manager');
   if (!holder) return;
+  const filter = queryParam('pm') || 'all';
   try {
-    // Get distinct approved drink names with their current images
-    const { data: items, error } = await sb.from('drinks').select('name, image').eq('status', 'approved').order('name');
+    const { data: items, error } = await sb.from('drinks').select('*').order('name');
     if (error) throw error;
-    // Deduplicate by name
-    const seen = new Set();
-    const unique = [];
-    for (const item of (items || [])) {
-      if (!seen.has(item.name)) { seen.add(item.name); unique.push(item); }
-    }
-    if (!unique.length) {
-      holder.innerHTML = '<div class="notice">No approved drinks yet.</div>';
-      return;
-    }
-    holder.innerHTML = unique.map((item, index) => `
-      <div class="admin-table-row" style="grid-template-columns:2fr 1fr 120px;" id="img-row-${index}">
-        <div><strong>${item.name}</strong></div>
-        <div><input class="input" id="img-url-${index}" placeholder="Image URL" value="${item.image || ''}" style="width:100%;font-size:.78rem;" /></div>
-        <div><button class="btn btn-primary btn-small" type="button" onclick="saveDrinkImage('${item.name.replace(/'/g, "\\'")}',${index})">Save</button></div>
-      </div>`).join('');
+    let filtered = items || [];
+    const counts = { all: filtered.length, approved: 0, pending: 0, rejected: 0 };
+    filtered.forEach(r => { counts[r.status] = (counts[r.status] || 0) + 1; });
+    if (filter !== 'all') filtered = filtered.filter(r => r.status === filter);
+
+    holder.innerHTML = `
+      <div class="admin-toolbar" style="margin-bottom:14px;">
+        <button class="toggle-pill ${filter==='all'?'active':''}" onclick="location.search='?pm=all'">All (${counts.all})</button>
+        <button class="toggle-pill ${filter==='approved'?'active':''}" onclick="location.search='?pm=approved'">Approved (${counts.approved})</button>
+        <button class="toggle-pill ${filter==='pending'?'active':''}" onclick="location.search='?pm=pending'">Pending (${counts.pending})</button>
+        <button class="toggle-pill ${filter==='rejected'?'active':''}" onclick="location.search='?pm=rejected'">Rejected (${counts.rejected})</button>
+      </div>
+      ${!filtered.length ? '<div class="notice">No products match this filter.</div>' : `
+      <div class="admin-table">
+        <div class="admin-table-head" style="grid-template-columns:2.5fr 1fr 100px 120px 100px 1fr;"><div>Product</div><div>Supplier</div><div>Image</div><div>Price</div><div>Status</div><div>Actions</div></div>
+        ${filtered.map((item, index) => `
+          <div class="admin-table-row" style="grid-template-columns:2.5fr 1fr 100px 120px 100px 1fr;" id="pm-row-${index}">
+            <div><strong>${item.name}</strong></div>
+            <div>${item.supplier_name || '—'}</div>
+            <div><input class="input" id="pm-img-${index}" value="${item.image || ''}" placeholder="URL" style="font-size:.7rem;width:90px;" /></div>
+            <div>${item.price || '—'}</div>
+            <div><span class="status-badge status-${(item.status||'pending').toLowerCase()}">${item.status||'Pending'}</span></div>
+            <div style="display:flex;gap:4px;flex-wrap:wrap;">
+              <button class="btn btn-small" style="font-size:.7rem;padding:2px 8px;" type="button" onclick="productManagerAction('${item.id.replace(/'/g,"\\'")}','approve')">Approve</button>
+              <button class="btn btn-small" style="font-size:.7rem;padding:2px 8px;" type="button" onclick="productManagerAction('${item.id.replace(/'/g,"\\'")}','reject')">Reject</button>
+              <button class="btn btn-small" style="font-size:.7rem;padding:2px 8px;" type="button" onclick="productManagerSaveImage('${item.id.replace(/'/g,"\\'")}',${index})">Save img</button>
+              <button class="btn btn-small" style="font-size:.7rem;padding:2px 8px;color:#ff6b9d;" type="button" onclick="productManagerAction('${item.id.replace(/'/g,"\\'")}','delete')">Delete</button>
+            </div>
+          </div>`).join('')}
+      </div>`}
+    `;
   } catch (e) {
-    holder.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Could not load: ${e.message}</div>`;
+    holder.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Could not load products: ${e.message}</div>`;
   }
 }
 
-async function saveDrinkImage(name, index) {
-  const notice = $('#admin-image-notice');
-  const input = document.getElementById(`img-url-${index}`);
-  if (!input) return;
-  const url = input.value.trim();
-  if (!url) { if (notice) notice.innerHTML = '<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Please enter an image URL.</div>'; return; }
+async function productManagerAction(id, action) {
+  const notice = $('#admin-pm-notice');
   try {
-    const { error } = await sb.from('drinks').update({ image: url }).eq('name', name);
+    if (action === 'delete') {
+      if (!confirm('Delete this product permanently?')) return;
+      const { error } = await sb.from('drinks').delete().eq('id', id);
+      if (error) throw error;
+      if (notice) notice.innerHTML = '<div class="notice">Product deleted.</div>';
+    } else if (action === 'approve' || action === 'reject') {
+      const { error } = await sb.from('drinks').update({ status: action === 'approve' ? 'approved' : 'rejected' }).eq('id', id);
+      if (error) throw error;
+      if (notice) notice.innerHTML = '<div class="notice">Status updated.</div>';
+    }
+    loadProductManager();
+  } catch (e) {
+    if (notice) notice.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Failed: ${e.message}</div>`;
+  }
+}
+
+async function productManagerSaveImage(id, index) {
+  const notice = $('#admin-pm-notice');
+  const input = document.getElementById(`pm-img-${index}`);
+  const url = (input?.value || '').trim();
+  if (!url) { if (notice) notice.innerHTML = '<div class="notice">Enter an image URL.</div>'; return; }
+  try {
+    const { error } = await sb.from('drinks').update({ image: url }).eq('id', id);
     if (error) throw error;
-    if (notice) notice.innerHTML = `<div class="notice">Image updated for all "${name}" rows.</div>`;
-    flashNotice('Image saved ✓');
+    if (notice) notice.innerHTML = '<div class="notice">Image saved.</div>';
   } catch (e) {
     if (notice) notice.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Failed: ${e.message}</div>`;
   }
@@ -2200,11 +2232,11 @@ function renderAdminDashboardPage() {
     <section class="section-tight">
       <div class="container">
         <div class="panel">
-          <span class="eyebrow">Image manager</span>
-          <h2 style="margin:14px 0;">Set product images</h2>
-          <p class="muted" style="margin-bottom:16px;">Paste an image URL for each drink. Saving updates all supplier rows for that drink name.</p>
-          <div id="admin-image-manager"><div class="notice">Loading…</div></div>
-          <div id="admin-image-notice"></div>
+          <span class="eyebrow">Product manager</span>
+          <h2 style="margin:14px 0;">Manage all products</h2>
+          <p class="muted" style="margin-bottom:16px;">Approve, reject, update images, or remove products from the database.</p>
+          <div id="admin-product-manager"><div class="notice">Loading…</div></div>
+          <div id="admin-pm-notice"></div>
         </div>
       </div>
     </section>
@@ -2264,9 +2296,9 @@ function renderAdminDashboardPage() {
       </div>
     </section>`;
 
-  // Load pending inventory and image manager
+  // Load pending inventory and product manager
   loadPendingItems();
-  loadImageManager();
+  loadProductManager();
 
 
 
