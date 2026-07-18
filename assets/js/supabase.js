@@ -50,14 +50,35 @@ async function fetchDrinks(filters = {}) {
   }
   if (filters.area && filters.area !== 'all') rows = rows.filter(d => d.area === filters.area);
 
-  // Asynchronously promote admin-uploaded images from Supabase so the
-  // drink image manager shows across the directory without blocking render.
+  // Pull in Supabase-approved drinks: overlay images and add missing products
   try {
-    const { data } = await sb.from('drinks').select('name,image').not('image', 'is', null).limit(1000);
+    const { data } = await sb.from('drinks').select('*').eq('status', 'approved').order('name').limit(2000);
     if (Array.isArray(data) && data.length) {
-      const map = {};
-      data.forEach((r) => { if (r.name && r.image) map[r.name] = r.image; });
-      rows = rows.map((d) => map[d.name] ? { ...d, image: map[d.name] } : d);
+      const imgMap = {};
+      const existingNames = new Set(rows.map(d => d.name));
+      data.forEach((r) => {
+        if (r.name && r.image) imgMap[r.name] = r.image;
+      });
+      // Overlay images on existing local catalogue rows
+      rows = rows.map((d) => imgMap[d.name] ? { ...d, image: imgMap[d.name] } : d);
+      // Append Supabase-only products not in local catalogue
+      const supabaseOnly = data.filter(r => r.name && !existingNames.has(r.name));
+      if (supabaseOnly.length) {
+        const extra = supabaseOnly.map(r => ({
+          name: r.name,
+          supplier: r.supplier_name || '—',
+          type: r.type || '',
+          price: r.price || '—',
+          area: r.area || '',
+          image: r.image || '',
+          buy: r.buy_url || '',
+          origin: r.origin || '',
+          abv: r.abv || '',
+          tier: r.tier || 'standard',
+          description: r.description || ''
+        }));
+        rows = [...rows, ...extra];
+      }
     }
   } catch (e) {
     // keep bundled catalogue if Supabase is unreachable/unauthorized
