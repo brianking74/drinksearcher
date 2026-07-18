@@ -81,6 +81,7 @@ async function fetchDrinks(filters = {}) {
       }
     }
   } catch (e) {
+    console.error('fetchDrinks Supabase error:', e);
     // keep bundled catalogue if Supabase is unreachable/unauthorized
   }
   return rows;
