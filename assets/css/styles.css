@@ -1384,8 +1384,9 @@ hr.sep { border: 0; height: 1px; background: rgba(255,255,255,.06); margin: 18px
 }
 .product-venue-title {
   white-space: nowrap;
-  overflow: hidden;
   text-overflow: ellipsis;
+  line-height: 1.3;
+  padding-bottom: 2px;
 }
 .bottle-hero-info h1 {
   font-size: 2rem;

@@ -926,8 +926,8 @@ async function renderBottleDetail() {
     ${venues.length ? `
     <section class="section bottle-venues">
       <div class="container">
-        <div class="section-head">
-          <span class="eyebrow">Drink it here</span><h2 class="product-venue-title">Where to enjoy ${drink.name} in Hong Kong</h2></div>
+        <div class="section-head" style="margin-bottom:52px;">
+          <div><span class="eyebrow">Drink it here</span><h2 class="product-venue-title">Where to enjoy ${drink.name} in Hong Kong</h2></div>
         </div>
         <div class="grid grid-3">
           ${venues.map(v => `
