@@ -908,10 +908,10 @@ async function renderBottleDetail() {
                       ${s.availability ? `<span class="supplier-row__stock ${s.availability.toLowerCase().includes('stock') ? 'in-stock' : ''}">${s.availability}</span>` : ''}
                     </div>
                     <div class="supplier-row__price">${s.price}</div>
-                    <div class="supplier-row__actions">
+                    ${(i === 0 || s.buy_url) ? `<div class="supplier-row__actions">
                       ${i === 0 ? '<span class="best-price-badge">Best price</span>' : ''}
                       ${s.buy_url ? `<a href="${s.buy_url}" target="_blank" rel="noreferrer" class="btn btn-primary btn-small" onclick="trackClick('${s.id}','${s.name.replace(/'/g, "\\'")}','${(s.supplier_name || '').replace(/'/g, "\\'")}')">Buy →</a>` : ''}
-                    </div>
+                    </div>` : ''}
                   </div>
                 `).join('')}
               </div>

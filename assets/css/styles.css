@@ -1615,7 +1615,6 @@ hr.sep { border: 0; height: 1px; background: rgba(255,255,255,.06); margin: 18px
   align-items: center;
   justify-content: flex-end;
   gap: 8px;
-  min-width: 140px;
   white-space: nowrap;
   margin-left: auto;
 }
