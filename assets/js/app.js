@@ -1563,6 +1563,57 @@ function saveDashboardItems() {
   renderBusinessDashboardPage();
 }
 
+function addDashboardEvent() {
+  var s = storage.getDashboardState();
+  if (!s) return;
+  var c = s[s.activeRole || 'merchant'];
+  if (!c) return;
+  c.events = c.events || [];
+  c.events.push({ id: 'evt_' + Date.now(), name: '', date: '', description: '' });
+  storage.setDashboardState(s);
+  renderBusinessDashboardPage();
+}
+
+function removeDashboardEvent(idx) {
+  var s = storage.getDashboardState();
+  if (!s) return;
+  var c = s[s.activeRole || 'merchant'];
+  if (!c || !c.events) return;
+  c.events.splice(idx, 1);
+  storage.setDashboardState(s);
+  renderBusinessDashboardPage();
+}
+
+function saveDashboardEvents() {
+  var s = storage.getDashboardState();
+  if (!s) return;
+  var c = s[s.activeRole || 'merchant'];
+  if (!c) return;
+  var rows = document.getElementsByClassName('dashboard-event-row');
+  c.events = Array.from(rows).map(function(row, i) {
+    return {
+      id: c.events && c.events[i] ? c.events[i].id : 'evt_' + Date.now() + '_' + i,
+      name: row.querySelector('[data-event-name]') ? row.querySelector('[data-event-name]').value : '',
+      date: row.querySelector('[data-event-date]') ? row.querySelector('[data-event-date]').value : '',
+      description: row.querySelector('[data-event-desc]') ? row.querySelector('[data-event-desc]').value : ''
+    };
+  });
+  storage.setDashboardState(s);
+  renderBusinessDashboardPage();
+}
+
+function saveDashboardProfile() {
+  var s = storage.getDashboardState();
+  if (!s) return;
+  var nameEl = document.getElementById('dash-profile-name');
+  var cityEl = document.getElementById('dash-profile-city');
+  if (nameEl) s.profileName = nameEl.value;
+  if (cityEl) s.profileCity = cityEl.value;
+  storage.setDashboardState(s);
+  var notice = document.getElementById('dash-profile-notice');
+  if (notice) notice.innerHTML = '<div class="notice">Profile updated.</div>';
+}
+
 function fillSampleTemplate() {
   var el = document.getElementById('sheet-import-source');
   if (el) el.value = 'Name,Price,Availability,Image\nChardonnay Reserve,188,In stock,\nSmall Batch Gin,420,Low stock,\nZero-Proof Spritz,98,Pre-order,';
