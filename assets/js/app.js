@@ -457,7 +457,7 @@ function renderCard(item, options = {}) {
   const detailTags = type === 'supplier'
     ? [secondaryMeta, item.specialty].filter(Boolean)
     : type === 'venue'
-      ? [item.specialty, item.booking].filter(Boolean)
+      ? [item.booking].filter(Boolean)
       : [];
   const showBadge = options.showBadge !== false;
   const showDescription = options.showDescription !== false;
@@ -559,11 +559,16 @@ async function renderHomepage() {
       { slug:'hkdrinks', name:'HK Drinks', area:'Central', tierLabel:'Premium Spirits', specialty:'Tequila & Whisky', image:'assets/images/hongkong-view.jpg', description:'Premium spirits and craft tequila available now in Hong Kong.' }
     );
   }
+  const now = new Date();
+  const dd = String(now.getDate()).padStart(2, '0');
+  const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const mn = monthNames[now.getMonth()];
+  const nxtMn = monthNames[(now.getMonth() + 1) % 12];
   const events = [
-    { name:'Burgundy Grand Cru Masterclass', venue:'Mandarin Oriental, Central', date:'Nov 18', type:'Masterclass', image:siteImages.trio },
-    { name:'Japanese Whisky Flight Night', venue:'Quinary, Central', date:'Nov 22', type:'Whisky', image:siteImages.rooftop },
-    { name:'Natural Wine Tasting', venue:'La Cabane, Soho', date:'Nov 25', type:'Wine', image:siteImages.hero },
-    { name:'Zero-Proof Cocktail Lab', venue:'PMQ, Central', date:'Dec 02', type:'Non-Alcoholic', image:siteImages.trio }
+    { name:'Wine & Spirit Tasting Evening', venue:'Landmark Mandarin Oriental, Central', date:`${mn} ${dd+1}`, type:'Tasting', image:siteImages.trio },
+    { name:`${mn} Cocktail Masterclass`, venue:'Quinary, Central', date:`${mn} ${parseInt(dd)+7 <= 31 ? parseInt(dd)+7 : 7}`, type:'Masterclass', image:siteImages.rooftop },
+    { name:`${nxtMn} Natural Wine Social`, venue:'La Cabane, Soho', date:`${nxtMn} 05`, type:'Wine', image:siteImages.hero },
+    { name:'Zero-Proof Cocktail Lab', venue:'PMQ, Central', date:`${nxtMn} 12`, type:'Non-Alcoholic', image:siteImages.trio }
   ];
 
   app.innerHTML = `
@@ -591,9 +596,9 @@ async function renderHomepage() {
           </div>
         </div>
         <div class="stats-row homepage-stats">
-          <div class="stat"><strong>12,000+</strong><span class="muted">Bottles indexed</span></div>
-          <div class="stat"><strong>220</strong><span class="muted">HK suppliers</span></div>
-          <div class="stat"><strong>180</strong><span class="muted">Bars & restaurants</span></div>
+          <div class="stat"><strong>${allDrinks.length >= 50 ? Math.round(allDrinks.length / 10) * 10 + '+' : allDrinks.length}</strong><span class="muted">Bottles indexed</span></div>
+          <div class="stat"><strong>${sData.enhanced.length + sData.featured.length + sData.standard.length}</strong><span class="muted">HK suppliers</span></div>
+          <div class="stat"><strong>${vData.enhanced.length + vData.featured.length + vData.standard.length}</strong><span class="muted">Bars & restaurants</span></div>
         </div>
       </div>
     </section>
