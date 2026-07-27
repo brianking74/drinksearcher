@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "node tests/site-check.mjs && node tests/performance-ui-check.mjs",
+    "test": "node tests/site-check.mjs && node tests/performance-ui-check.mjs && node tests/comprehensive-site-check.mjs && npx impeccable detect",
     "serve": "python3 -m http.server 4173"
   },
   "repository": {
@@ -19,6 +19,7 @@
   },
   "homepage": "https://github.com/brianking74/drinksearcher#readme",
   "devDependencies": {
+    "impeccable": "^3.3.1",
     "supabase": "^2.109.1",
     "vercel": "^54.11.1"
   }

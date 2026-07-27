@@ -1,0 +1,23 @@
+{
+  "detector": {
+    "ignoreRules": ["overused-font"],
+    "ignoreFiles": [
+      "node_modules/**",
+      ".git/**",
+      "assets/images/**",
+      "supabase/functions/**"
+    ],
+    "ignoreValues": {
+      "side-tab": [
+        "border-left: 3px solid var(--gold, #bda16f)",
+        "border-left:3px solid #bda16f"
+      ]
+    },
+    "designSystem": {
+      "enabled": true
+    }
+  },
+  "hook": {
+    "enabled": true
+  }
+}
