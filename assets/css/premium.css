@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap');
+/* Google Fonts loaded via <link> in HTML head */
 
 :root{--bg:#090a0b;--bg-soft:#0d0f10;--surface:#111315;--surface-2:#16191b;--surface-3:#1b1e20;--card:#111315;--border:#292d2f;--border-strong:#414648;--text:#f4f0e7;--muted:#a6a39c;--gold:#c8aa6e;--gold-soft:rgba(200,170,110,.1);--jade:#87a894;--jade-soft:rgba(135,168,148,.11);--shadow:none;--radius:10px;--radius-sm:6px;--max:1440px;--sans:'DM Sans',sans-serif;--serif:'Instrument Serif',Georgia,serif}
 *{box-sizing:border-box}body{background:var(--bg);font-family:var(--sans);line-height:1.55;color:var(--text)}body:before{display:none}.page{padding-top:72px}.container{width:min(var(--max),calc(100% - clamp(32px,6vw,96px)))}
