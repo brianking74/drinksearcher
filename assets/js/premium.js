@@ -86,12 +86,10 @@ else{const msg=result.message||'Please check your details.';notice.innerHTML=/no
 function navUpgrade(){const nav=$('.nav-links');if(nav&&!nav.querySelector('a[href="suppliers.html"]'))nav.querySelector('a[href="drinks.html"]')?.insertAdjacentHTML('afterend','<a href="suppliers.html">Suppliers</a>')}
 function bootPremium(){document.documentElement.dataset.premiumBoot='started';navUpgrade();const p=document.body.dataset.page;try{if(p==='home')patchHome();if(p==='drinks')patchDrinks();if(p==='suppliers')patchSuppliers();if(p==='venues')patchVenues();if(p==='events')patchEvents();if(p==='product')patchProduct();if(p==='pricing')patchPricing();if(p==='lead')patchWizard();if(p==='account')patchAccount();if(p==='dashboard')patchDashboard();if(p==='signin'||p==='signup')patchAuth();if(p==='supplier-profile'||p==='venue-profile')patchProfiles();bindPremiumSaves()}catch(e){console.error('Premium experience error',e)}}
 window.DrinkSearcherPremium={renderMain(page){if(document.documentElement.dataset.premiumRendered==='true')return;document.documentElement.dataset.premiumRendered='true';navUpgrade();if(page==='home'){renderHomepage().then(()=>patchHome());return}if(page==='drinks')patchDrinks();if(page==='suppliers')patchSuppliers();if(page==='venues')patchVenues();if(page==='events')patchEvents()}};
-/* app.js renders asynchronously from Supabase; enhance only after its route renderer has populated #app. */
+/* app.js renders the page content and calls renderMain. bootPremium enhances after render.
+   Keep a short safety net in case renderMain is called before premium.js boots. */
 let premiumAttempts=0;
-const premiumReadyTimer=setInterval(()=>{
-  premiumAttempts+=1;
-  const page=document.body.dataset.page;
-  const ready=page==='home'?document.querySelector('.homepage-hero'):document.querySelector('#app')?.children.length;
-  if(ready||premiumAttempts>80){clearInterval(premiumReadyTimer);if(document.documentElement.dataset.premiumRendered!=='true')bootPremium()}
-},125);
+const premiumReadyTimer=setTimeout(()=>{
+  if(document.documentElement.dataset.premiumRendered!=='true') bootPremium()
+},2000);
 })();

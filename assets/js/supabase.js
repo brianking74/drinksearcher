@@ -41,8 +41,10 @@ function slugify(text) {
 // ============================================================
 
 // --- Drinks ---
+let supabaseDrinksPromise = null;
+
 async function fetchDrinks(filters = {}) {
-  // Render local catalogue immediately so first paint stays fast.
+  // Return local catalogue immediately — no Supabase wait.
   let rows = typeof drinksInventory !== 'undefined' ? drinksInventory.slice() : [];
   if (filters.search) {
     const q = String(filters.search).toLowerCase();
@@ -50,40 +52,38 @@ async function fetchDrinks(filters = {}) {
   }
   if (filters.area && filters.area !== 'all') rows = rows.filter(d => d.area === filters.area);
 
-  // Pull in Supabase-approved drinks: overlay images and add missing products
-  try {
-    const { data } = await sb.from('drinks').select('*').eq('status', 'approved').order('name').limit(2000);
-    if (Array.isArray(data) && data.length) {
-      const imgMap = {};
-      const existingNames = new Set(rows.map(d => d.name));
-      data.forEach((r) => {
-        if (r.name && r.image) imgMap[r.name] = r.image;
-      });
-      // Overlay images on existing local catalogue rows
-      rows = rows.map((d) => imgMap[d.name] ? { ...d, image: imgMap[d.name] } : d);
-      // Append Supabase-only products not in local catalogue
-      const supabaseOnly = data.filter(r => r.name && !existingNames.has(r.name));
-      if (supabaseOnly.length) {
-        const extra = supabaseOnly.map(r => ({
-          name: r.name,
-          supplier: r.supplier_name || '—',
-          type: r.type || '',
-          price: r.price || '—',
-          area: r.area || '',
-          image: r.image || '',
-          buy: r.buy_url || '',
-          origin: r.origin || '',
-          abv: r.abv || '',
-          tier: r.tier || 'standard',
-          description: r.description || ''
-        }));
-        rows = [...rows, ...extra];
+  // Kick off the Supabase refresh once and fire-and-forget the overlay.
+  if (!supabaseDrinksPromise) {
+    supabaseDrinksPromise = (async () => {
+      try {
+        const { data } = await sb.from('drinks').select('*').eq('status', 'approved').order('name').limit(2000);
+        if (!Array.isArray(data) || !data.length) return [];
+        const imgMap = {};
+        data.forEach(r => { if (r.name && r.image) imgMap[r.name] = r.image; });
+        return { imgMap, supabaseOnly: data.filter(r => r.name && !rows.some(d => d.name === r.name)) };
+      } catch { return []; }
+    })();
+  }
+  // Don't await — return rows immediately. The overlay fires after.
+  supabaseDrinksPromise.then(result => {
+    if (!result || !result.imgMap) return;
+    const { imgMap, supabaseOnly } = result;
+    if (typeof drinksInventory !== 'undefined') {
+      drinksInventory = drinksInventory.map(d => imgMap[d.name] ? { ...d, image: imgMap[d.name] } : d);
+    }
+    if (supabaseOnly.length) {
+      const extras = supabaseOnly.map(r => ({
+        name: r.name, supplier: r.supplier_name || '—', type: r.type || '',
+        price: r.price || '—', area: r.area || '', image: r.image || '',
+        buy: r.buy_url || '', origin: r.origin || '', abv: r.abv || '',
+        tier: r.tier || 'standard', description: r.description || ''
+      }));
+      if (typeof drinksInventory !== 'undefined') {
+        // Prepend so next call picks them up
+        drinksInventory.unshift(...extras);
       }
     }
-  } catch (e) {
-    console.error('fetchDrinks Supabase error:', e);
-    // keep bundled catalogue if Supabase is unreachable/unauthorized
-  }
+  }).catch(() => {});
   return rows;
 }
 

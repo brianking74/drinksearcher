@@ -519,10 +519,13 @@ function bindCarouselButtons(scope = document) {
 
 async function renderHomepage() {
   const app = $('#app');
-  // Fetch live data from Supabase
-  const allDrinks = await fetchDrinks();
+  // Fetch live data from Supabase — parallelized for speed
+  const [allDrinks, sData, vData] = await Promise.all([
+    fetchDrinks(),
+    fetchSuppliers(),
+    fetchVenues()
+  ]);
   const featuredDrinks = allDrinks.filter(d => d.tier === 'featured' || d.tier === 'enhanced').slice(0, 6);
-  const sData = await fetchSuppliers();
   const featuredSuppliers = sData.enhanced.concat(sData.featured).slice(0, 4).map(s => ({
     slug: s.slug || '',
     name: s.name,
@@ -532,7 +535,6 @@ async function renderHomepage() {
     image: s.image || '',
     description: s.summary || ''
   }));
-  const vData = await fetchVenues();
   const featuredVenues = vData.enhanced.concat(vData.featured).slice(0, 4).map(v => ({
     slug: v.slug || '',
     name: v.name,
