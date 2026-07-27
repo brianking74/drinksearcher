@@ -1346,7 +1346,23 @@ async function renderVenueProfile() {
   app.innerHTML = `
     <section class="profile-hero"><div class="hero-media" style="background-image:url('${image}')"></div><div class="container profile-content"><div><span class="kicker">${v.tier === 'enhanced' ? 'Featured venue' : 'Venue'}</span><h1>${v.name}</h1><p class="lead" style="margin-top:16px;">${v.specialty || v.cuisine || ''} in ${v.area || 'Hong Kong'}</p><div class="info-strip"><div class="info-chip"><div class="muted">Area</div><strong>${v.area || 'Hong Kong'}</strong></div><div class="info-chip"><div class="muted">Category</div><strong>${v.cuisine || 'Bar'}</strong></div>${v.rating ? `<div class="info-chip"><div class="muted">Rating</div><strong>★ ${v.rating}</strong></div>` : ''}<div class="info-chip"><div class="muted">Price</div><strong>${v.price || 'N/A'}</strong></div></div></div><div class="panel"><span class="eyebrow">Quick actions</span><div class="inline-actions" style="margin-top:16px;"><a class="btn btn-secondary" href="${website}">${v.booking ? 'Book via ' + v.booking : 'Visit website'}</a>${saveButton({id:`venue:${slug}`, name:v.name, kind:'venue', href:`venue-template.html?slug=${slug}`, meta:v.area})}</div><hr class="sep"><div class="muted" style="display:grid; gap:8px;"><span>${v.phone || ''}</span><span>${v.price || ''} · ${v.cuisine || ''}</span></div></div></div></section>
     <section class="section"><div class="container"><div class="section-head"><div><span class="eyebrow">About</span><h2>${v.name}</h2><p class="lead" style="margin-top:14px;">${v.specialty ? 'Known for ' + v.specialty.toLowerCase() + '.' : ''} A ${v.cuisine || 'bar'} in ${v.area || 'Hong Kong'}${v.price ? ' with ' + v.price.toLowerCase() + ' pricing' : ''}.</p></div></div></div></section>
-    <section class="section-tight"><div class="container grid grid-2"><div class="panel"><span class="eyebrow">Contact & details</span><h3 style="margin:14px 0;">Plan your visit.</h3><div class="muted" style="display:grid; gap:10px;">${v.phone ? '<span>📞 ' + v.phone + '</span>' : ''}<span>📍 ${v.area || 'Hong Kong'}</span>${v.booking ? '<span>📅 Book via ' + v.booking + '</span>' : ''}</div></div><div class="panel"><span class="eyebrow">Claim your venue</span><h3 style="margin:14px 0;">Own this venue?</h3><p class="muted">Add direct booking links, imagery, and promoted placement so guests find you first.</p><div class="inline-actions" style="margin-top:18px;"><a class="btn btn-primary" href="list-your-business.html?type=venue">Claim your venue</a></div></div></div></section>`;
+    <section class="section-tight"><div class="container grid grid-2"><div class="panel"><span class="eyebrow">Contact & details</span><h3 style="margin:14px 0;">Plan your visit.</h3><div class="muted" style="display:grid; gap:10px;">${v.phone ? '<span>📞 ' + v.phone + '</span>' : ''}<span>📍 ${v.area || 'Hong Kong'}</span>${v.booking ? '<span>📅 Book via ' + v.booking + '</span>' : ''}</div></div><div class="panel"><span class="eyebrow">Claim your venue</span><h3 style="margin:14px 0;">Own this venue?</h3><p class="muted">Add direct booking links, imagery, and promoted placement so guests find you first.</p><div class="inline-actions" style="margin-top:18px;"><a class="btn btn-primary" href="list-your-business.html?type=venue">Claim your venue</a></div></div></div></section>
+    ${v.tier === 'enhanced' && v.instagram_handle ? `
+    <section class="section instagram-section">
+      <div class="container">
+        <div class="section-head"><div><span class="eyebrow">Instagram</span><h2>Follow <span class="text-pink headline-script">@${v.instagram_handle.replace('@','')}</span></h2><p class="lead" style="margin-top:14px;">See what's happening at ${v.name} — real-time posts, events, and guest moments.</p></div><a class="btn btn-primary" href="https://instagram.com/${v.instagram_handle.replace('@','')}" target="_blank" rel="noreferrer">Follow on Instagram</a></div>
+        <div class="instagram-feed-grid">
+          ${['','','','','',''].map((_,i) => `
+          <div class="instagram-card">
+            <a href="https://instagram.com/${v.instagram_handle.replace('@','')}" target="_blank" rel="noreferrer">
+              <div class="instagram-post-placeholder" style="background:linear-gradient(135deg, rgba(255,255,255,.04) 0%, rgba(255,255,255,.01) 100%);border:1px solid rgba(255,255,255,.06);border-radius:10px;aspect-ratio:1;display:flex;align-items:center;justify-content:center;">
+                <span style="font-size:2.2rem;opacity:.6;">📸</span>
+              </div>
+            </a>
+          </div>`).join('')}
+        </div>
+      </div>
+    </section>` : ''}`;
   bindSaveButtons(app);
 }
 
@@ -1722,6 +1738,7 @@ function renderBusinessDashboardPage() {
                 <input class="input" name="contactEmail" value="${config.contactEmail}" placeholder="Contact email" />
                 <input class="input" name="phone" value="${config.phone}" placeholder="Phone" />
                 <input class="input" name="district" value="${config.district}" placeholder="District" />
+                ${role === 'venue' ? `<input class="input" name="instagram" value="${config.instagram || ''}" placeholder="Instagram handle (e.g. @quinaryhk)" />` : ''}
                 <textarea class="input full" name="notes" rows="4" placeholder="Tell us about your business (max 50 words)">${config.notes}</textarea>
                 <button class="btn btn-primary full" type="submit">Save listing settings</button>
               </form>
@@ -1833,8 +1850,15 @@ function renderBusinessDashboardPage() {
       config.contactEmail = form.get('contactEmail');
       config.phone = form.get('phone');
       config.district = form.get('district');
+      config.instagram = form.get('instagram') || '';
       config.notes = form.get('notes');
       persist();
+      // Push instagram_handle to Supabase venues table for public profile visibility
+      if (role === 'venue' && config.instagram && typeof sb !== 'undefined') {
+        sb.from('venues').update({ instagram_handle: config.instagram }).eq('slug', slugify(config.listingName)).then(r => {
+          if (r.error) console.warn('Instagram save to Supabase:', r.error.message);
+        });
+      }
       notice.innerHTML = '<div class="notice">Listing settings saved.</div>';
     });
     planForm.addEventListener('submit', (e) => {

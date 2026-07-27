@@ -1657,3 +1657,34 @@ hr.sep { border: 0; height: 1px; background: rgba(255,255,255,.06); margin: 18px
     filter: none;
   }
 }
+
+/* Instagram feed carousel for enhanced venue profiles */
+.instagram-section {
+  padding-top: 40px;
+  padding-bottom: 60px;
+}
+.instagram-feed-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 12px;
+  margin-top: 28px;
+}
+.instagram-feed-grid .instagram-card {
+  transition: transform .2s ease, opacity .2s ease;
+  cursor: pointer;
+}
+.instagram-feed-grid .instagram-card:hover {
+  transform: translateY(-2px);
+  opacity: .85;
+}
+@media (max-width: 768px) {
+  .instagram-feed-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+@media (max-width: 480px) {
+  .instagram-feed-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
