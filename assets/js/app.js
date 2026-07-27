@@ -1382,10 +1382,7 @@ async function renderSignInPage() {
     const form = new FormData(e.currentTarget);
     // Try Supabase first, fall back to localStorage
     let result = await dsAuth.signIn(form.get('email'), form.get('password'));
-    if (!result.ok) {
-      // Fall back to localStorage for legacy accounts
-      result = storage.signIn(form.get('email'), form.get('password'));
-    } else {
+    if (result.ok) {
       // Bridge: save Supabase user to localStorage
       const users = storage.getUsers();
       if (!users.find(u => u.email === result.user.email)) {
@@ -1393,6 +1390,17 @@ async function renderSignInPage() {
         storage.setUsers(users);
       }
       storage.setCurrentUser(result.user.email);
+    } else if (result.emailNotConfirmed) {
+      const notice = $('#signin-notice');
+      notice.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Email not confirmed. <button class="btn btn-ghost btn-small" style="margin-top:8px;" type="button" id="resend-confirm-signin">Resend confirmation email</button></div><div id="resend-signin-notice"></div>`;
+      $('#resend-confirm-signin')?.addEventListener('click', async () => {
+        const { error } = await sb.auth.resend({ type: 'signup', email: form.get('email').trim().toLowerCase() });
+        $('#resend-signin-notice').innerHTML = error ? `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">${error.message}</div>` : '<div class="notice">Confirmation email resent.</div>';
+      });
+      return;
+    } else {
+      // Fall back to localStorage for legacy accounts
+      result = storage.signIn(form.get('email'), form.get('password'));
     }
     $('#signin-notice').innerHTML = result.ok ? '<div class="notice">Signed in successfully. Taking you to your account…</div>' : `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">${result.message}</div>`;
     if (result.ok) setTimeout(() => finishAuthFlow('account.html'), 300);
@@ -1425,6 +1433,18 @@ async function renderSignUpPage() {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
     const result = await dsAuth.signUp({ name: form.get('name'), city: form.get('city'), email: form.get('email'), password: form.get('password'), role: 'searcher' });
+    if (result.ok && result.needsConfirmation) {
+      $('#signup-form', app).style.display = 'none';
+      const searchShell = $('.search-shell', app);
+      if (searchShell) {
+        searchShell.innerHTML = `<div class="auth-card"><span class="eyebrow" style="margin-top:24px">Check your inbox</span><h2>Confirm your email to finish.</h2><p class="muted">We sent a confirmation link to <strong>${safe(form.get('email'))}</strong>. Click it, then sign in to start your shortlist.</p><div class="inline-actions" style="margin-top:22px"><a class="btn btn-primary" href="signin.html">Go to sign in</a><button class="btn btn-ghost" id="resend-confirm">Resend email</button></div><div id="signup-notice"></div></div>`;
+        $('#resend-confirm')?.addEventListener('click', async () => {
+          const { error } = await sb.auth.resend({ type: 'signup', email: form.get('email').trim().toLowerCase() });
+          $('#signup-notice').innerHTML = error ? `<div class="notice">${error.message}</div>` : '<div class="notice">Confirmation email resent.</div>';
+        });
+      }
+      return;
+    }
     if (result.ok) {
       // Bridge to localStorage for backward compat
       const users = storage.getUsers();
