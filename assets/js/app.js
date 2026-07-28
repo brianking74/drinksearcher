@@ -2715,7 +2715,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
   if (page === 'product') await renderBottleDetail();
   if (page === 'pricing') renderPricingPage();
-  if (page === 'lead') renderLeadCapturePage();
+  if (page === 'lead' && window.DrinkSearcherPremium) {
+    // premium.js handles lead page via bootPremium()
+  } else { if (page === 'lead') renderLeadCapturePage(); }
   if (page === 'dashboard') renderBusinessDashboardPage();
   if (page === 'admin') renderAdminDashboardPage();
   if (page === 'venue-profile') await renderVenueProfile();
