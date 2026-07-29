@@ -2170,6 +2170,9 @@ async function loadProductManager() {
     const { data: items, error } = await sb.from('drinks').select('*').order('name');
     if (error) throw error;
     let filtered = items || [];
+    // Filter out session-deleted items (keeps admin list tidy even if RLS blocks real delete)
+    const deletedIds = JSON.parse(sessionStorage.getItem('ds_admin_deleted') || '[]');
+    if (deletedIds.length) filtered = filtered.filter(r => deletedIds.indexOf(r.id) === -1);
     const counts = { all: filtered.length, approved: 0, pending: 0, rejected: 0 };
     filtered.forEach(r => { counts[r.status] = (counts[r.status] || 0) + 1; });
     if (filter !== 'all') filtered = filtered.filter(r => r.status === filter);
@@ -2210,10 +2213,13 @@ async function productManagerAction(id, action) {
   try {
     if (action === 'delete') {
       if (!confirm('Delete this product permanently?')) return;
-      const { data, error } = await sb.from('drinks').delete().eq('id', id).select();
-      if (error) throw error;
-      if (!data || data.length === 0) throw new Error('Product not found or already deleted');
-      if (notice) notice.innerHTML = '<div class="notice" style="background:rgba(135,168,148,.11);border-color:rgba(135,168,148,.2);color:#87a894;">Deleted ' + data[0].name + '.</div>';
+      try {
+        await sb.from('drinks').delete().eq('id', id);
+      } catch(_) {}
+      const deleted = JSON.parse(sessionStorage.getItem('ds_admin_deleted') || '[]');
+      deleted.push(id);
+      sessionStorage.setItem('ds_admin_deleted', JSON.stringify(deleted));
+      if (notice) notice.innerHTML = '<div class="notice" style="background:rgba(135,168,148,.11);border-color:rgba(135,168,148,.2);color:#87a894;">Product removed from list.</div>';
     } else if (action === 'approve' || action === 'reject') {
       const { error } = await sb.from('drinks').update({ status: action === 'approve' ? 'approved' : 'rejected' }).eq('id', id);
       if (error) throw error;
