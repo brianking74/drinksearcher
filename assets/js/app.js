@@ -2203,9 +2203,10 @@ async function productManagerAction(id, action) {
   try {
     if (action === 'delete') {
       if (!confirm('Delete this product permanently?')) return;
-      const { error } = await sb.from('drinks').delete().eq('id', id);
+      const { data, error } = await sb.from('drinks').delete().eq('id', id).select();
       if (error) throw error;
-      if (notice) notice.innerHTML = '<div class="notice">Product deleted.</div>';
+      if (!data || data.length === 0) throw new Error('Product not found or already deleted');
+      if (notice) notice.innerHTML = '<div class="notice" style="background:rgba(135,168,148,.11);border-color:rgba(135,168,148,.2);color:#87a894;">Deleted ' + data[0].name + '.</div>';
     } else if (action === 'approve' || action === 'reject') {
       const { error } = await sb.from('drinks').update({ status: action === 'approve' ? 'approved' : 'rejected' }).eq('id', id);
       if (error) throw error;
