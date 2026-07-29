@@ -27,7 +27,7 @@ h1,h2,h3,h4{font-family:var(--serif);font-weight:400;letter-spacing:-.025em;colo
 .hero-video-wrap{position:absolute;inset:0;overflow:hidden}
 .hero-video{position:absolute;inset:0;width:100%;height:100%;border:0;object-fit:cover;object-position:center;z-index:0;pointer-events:none}
 .hero-media:has(.hero-video){background-image:url(https://res.cloudinary.com/rqokncht/image/upload/v1785202989/HK_Timelapse_2_hklr2m.png)!important}
-.card-media.portrait,.card-media.portrait-bottle,.homepage-bottle-card .card-media,.bottle-hero-media,.product-hero-image{background:#efefef!important}
+.card-media.portrait,.card-media.portrait-bottle,.homepage-bottle-card .card-media,.bottle-hero-media,.product-hero-image,.result-image{background:#fff!important}
 .card-media.portrait img,.card-media.portrait-bottle img,.homepage-bottle-card .card-media img,.bottle-hero-media img,.product-hero-image img,.supplier-result .result-image img,.venue-result .result-image img{background:#efefef!important;mix-blend-mode:multiply}
 .result-main h3,.card h3,.event-result h3,.venue-result h3,.supplier-result h3{letter-spacing:.006em;line-height:1.16;text-wrap:balance;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 .result-card .service-tags .service-tag{white-space:nowrap}
