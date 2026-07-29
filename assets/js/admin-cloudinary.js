@@ -1,6 +1,6 @@
 /**
  * admin-cloudinary.js
- * Adds Cloudinary upload widget buttons to the admin image URL fields.
+ * Adds Cloudinary upload widget buttons and origin tagging to the admin.
  * Loaded only on the admin page. Uses unsigned upload preset.
  */
 (function() {
@@ -26,7 +26,7 @@ function initWidget() {
       multiple: false,
       maxFiles: 1,
       clientAllowedFormats: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
-      maxFileSize: 10000000, // 10MB
+      maxFileSize: 10000000,
       styles: {
         palette: {
           window: '#090a0b',
@@ -50,14 +50,12 @@ function initWidget() {
       if (error) return;
       if (result.event === 'success') {
         const url = result.info.secure_url;
-        // Find the currently focused input or the nearest empty image URL field
         const active = document.activeElement;
         let field = null;
         if (active && active.id && (active.id.includes('-img-') || active.placeholder === 'Image URL')) {
           field = active;
         }
         if (!field) {
-          // Pick the first empty image URL field
           field = document.querySelector('input[placeholder="Image URL"]:not([value])') ||
                   document.querySelector('input[id$="-img-"]:not([value])');
         }
@@ -92,9 +90,62 @@ function addButtons() {
   });
 }
 
+// Add origin button to each product manager row
+function addOriginButtons() {
+  document.querySelectorAll('#admin-product-manager .admin-table-row').forEach(function(row) {
+    if (row.querySelector('.origin-btn')) return;
+    var approveBtn = row.querySelector('button[onclick*="productManagerAction"]');
+    if (!approveBtn) return;
+    var match = approveBtn.getAttribute('onclick').match(/productManagerAction\('([^']+)'/);
+    if (!match) return;
+    var id = match[1];
+    var actions = row.querySelector('div:last-child');
+    if (!actions) return;
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn btn-small origin-btn';
+    btn.textContent = 'Origin';
+    btn.style.cssText = 'font-size:.7rem;padding:2px 8px;color:#87a894;';
+    btn.onclick = async function() {
+      if (typeof sb === 'undefined') { alert('Supabase not available'); return; }
+      var origin = prompt('Enter country/region of origin (e.g. Japan, Mexico, Scotland):');
+      if (!origin) return;
+      try {
+        var result = await sb.from('drinks').update({ origin: origin }).eq('id', id);
+        if (result.error) throw result.error;
+        alert('Origin saved: ' + origin);
+      } catch (e) {
+        alert('Failed: ' + e.message);
+      }
+    };
+    var deleteBtn = actions.querySelector('button:last-child');
+    if (deleteBtn) {
+      actions.insertBefore(btn, deleteBtn);
+    } else {
+      actions.appendChild(btn);
+    }
+  });
+}
+
+// Add origin input fields next to image URL inputs
+function addOriginFields() {
+  document.querySelectorAll('input[placeholder="Image URL"]').forEach(function(input) {
+    if (input.parentElement.querySelector('.origin-field')) return;
+    var row = input.closest('.admin-table-row');
+    if (!row) return;
+    var originInput = document.createElement('input');
+    originInput.type = 'text';
+    originInput.className = 'input origin-field';
+    originInput.placeholder = 'Origin';
+    originInput.style.cssText = 'font-size:.7rem;width:80px;margin-left:4px;flex-shrink:0;';
+    input.parentElement.insertBefore(originInput, input.nextSibling);
+  });
+}
+
 // Run on load and re-run when admin re-renders
 addButtons();
-const observer = new MutationObserver(() => addButtons());
+addOriginButtons();
+var observer = new MutationObserver(function() { addButtons(); addOriginButtons(); });
 observer.observe(document.getElementById('app') || document.body, { childList: true, subtree: true });
 
 })();
