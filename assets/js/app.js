@@ -2233,6 +2233,9 @@ async function productManagerSaveImage(id, index) {
   try {
     const { error } = await sb.from('drinks').update({ image: url }).eq('id', id);
     if (error) throw error;
+    // Clear image sync cache so the next page load picks up the new URL
+    sessionStorage.removeItem('ds_supabase_drink_image_sync_v1');
+    delete document.documentElement.dataset.drinkImagesSynced;
     if (notice) notice.innerHTML = '<div class="notice">Image saved.</div>';
   } catch (e) {
     if (notice) notice.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Failed: ${e.message}</div>`;

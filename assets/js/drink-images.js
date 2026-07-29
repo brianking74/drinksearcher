@@ -9,7 +9,7 @@
  * for late-rendered cards.
  */
 const SUPABASE_DRINK_SYNC_KEY = 'ds_supabase_drink_image_sync_v1';
-const SUPABASE_DRINK_SYNC_TTL = 1000 * 60 * 5;
+const SUPABASE_DRINK_SYNC_TTL = 1000 * 60 * 1;
 
 async function fetchDrinkImageMapFromSupabase() {
   if (!window.sb) return {};
