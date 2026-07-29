@@ -2134,7 +2134,14 @@ async function moderateItem(id, status, index) {
 
     const updates = { status };
     if (imageUrl) updates.image = imageUrl;
-    
+    // Check for existing approved product with same name before approving
+    if (status === 'approved') {
+      const { data: existing } = await sb.from('drinks').select('id,name,supplier_name').eq('status','approved').eq('name', (updates.name||'')).limit(1);
+      if (existing && existing.length > 0) {
+        if (notice) notice.innerHTML = '<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Warning: "' + existing[0].name + '" already exists (supplier: ' + existing[0].supplier_name + '). Approve anyway or reject.</div>';
+        return;
+      }
+    }
     const { error } = await sb.from('drinks').update(updates).eq('id', id);
     if (error) throw error;
 

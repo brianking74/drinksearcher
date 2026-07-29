@@ -117,6 +117,11 @@ async function fetchMyDrinks() {
 async function submitDrink(drink) {
   const user = await getCurrentUser();
   if (!user) throw new Error('Not signed in');
+  // Prevent duplicate by checking existing name
+  const { data: existing } = await sb.from('drinks').select('id,name,supplier_name').eq('name', drink.name).limit(1);
+  if (existing && existing.length > 0) {
+    throw new Error('A product with this name already exists (submitted by ' + existing[0].supplier_name + '). Use the existing listing and add your supplier to it.');
+  }
   const { data, error } = await sb.from('drinks').insert({ ...drink, submitted_by: user.id, status: 'pending' }).select().single();
   if (error) throw error;
   return data;
