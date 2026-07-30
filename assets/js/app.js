@@ -1338,7 +1338,13 @@ async function renderVenueProfile() {
   
   // Fetch venue from Supabase
   const { data: venues } = await sb.from('venues').select('*').eq('slug', slug).limit(1);
-  const v = (venues && venues.length) ? venues[0] : null;
+  let v = (venues && venues.length) ? venues[0] : null;
+  
+  // Fallback: look up in local venueListings.enhanced
+  if (!v && typeof venueListings !== 'undefined') {
+    const local = venueListings.enhanced.find(x => x.slug === slug);
+    if (local) v = local;
+  }
   
   if (!v) {
     app.innerHTML = '<section class="section"><div class="container"><div class="empty-state">Venue not found.</div></div></section>';
