@@ -1,0 +1,104 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Guide — drinksearcher.hk</title>
+<meta name="description" content="DrinkSearcher.HK guide.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/styles.css?v=104"><link rel="stylesheet" href="assets/css/premium.css?v=14"><link rel="icon" type="image/png" href="assets/brand/favicon.png">
+<style>
+.guide-shell{display:grid;grid-template-columns:220px minmax(0,1fr);gap:40px;padding:clamp(36px,5vw,64px) 0}.guide-sidebar{position:sticky;top:94px;align-self:start;border:1px solid var(--border);border-radius:8px;padding:20px;background:#0d0f10}.guide-sidebar h4{font-family:var(--sans);font-size:.73rem;letter-spacing:.1em;text-transform:uppercase;margin-bottom:16px;color:var(--gold)}.guide-sidebar ul{list-style:none;padding:0;margin:0;display:grid;gap:4px}.guide-sidebar li a{display:block;padding:8px 10px;border-radius:4px;color:var(--muted);font-size:.82rem;text-decoration:none}.guide-sidebar li a:hover{background:var(--gold-soft);color:var(--text)}.guide-sidebar li a.active{background:var(--gold-soft);color:var(--text);border-left:2px solid var(--gold)}.guide-sidebar .topic-label{font-family:var(--sans);font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;color:var(--gold);margin-top:16px;padding:6px 10px;border-top:1px solid var(--border)}.guide-sidebar .topic-label:first-of-type{margin-top:0;border-top:0}.guide-main{min-width:0}.guide-main .kicker{font-size:.7rem;letter-spacing:.16em;font-weight:700;text-transform:uppercase;color:var(--gold);display:block;margin-bottom:14px}.guide-main h1{font-size:clamp(2.6rem,5.5vw,5.6rem);max-width:14ch;margin:0 0 18px}.guide-main .lead{font-size:clamp(.95rem,1.3vw,1.1rem);line-height:1.65;color:var(--muted);max-width:72ch}.guide-badge{display:inline-flex;align-items:center;gap:8px;background:var(--gold-soft);color:var(--text);padding:6px 14px;border-radius:3px;font-size:.72rem;font-weight:600;margin:20px 0 0}.guide-intro{border-bottom:1px solid var(--border);padding-bottom:28px;margin-bottom:36px}.guide-intro p{font-size:1rem;line-height:1.7;color:var(--muted);margin-bottom:18px}.guide-intro p:last-child{margin-bottom:0}.rooftop-card{border:1px solid var(--border);border-radius:8px;margin-bottom:28px;overflow:hidden;background:var(--surface)}.rooftop-card:last-child{margin-bottom:0}.rooftop-card__media{height:280px;position:relative;overflow:hidden;background:#0c0e0f}.rooftop-card__media img{width:100%;height:100%;object-fit:cover}.rooftop-card__body{padding:24px}.rooftop-card__body h3{font-size:1.85rem;margin:0 0 2px}.rooftop-card__body .location{color:var(--gold);font-size:.75rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px;display:block}.rooftop-card__body p{font-size:.9rem;line-height:1.6;color:var(--muted);margin-bottom:10px}.rooftop-card__actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.rooftop-card__meta{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;font-size:.75rem;color:var(--muted)}.guide-outro{border-top:1px solid var(--border);padding-top:36px;margin-top:36px;text-align:center}.guide-outro h3{font-size:clamp(2rem,4vw,3.4rem);margin:0 0 14px}.guide-outro p{color:var(--muted);margin-bottom:22px;max-width:56ch;margin-inline:auto}.guide-home-link{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:.8rem;margin-bottom:28px;text-decoration:none}.guide-home-link:hover{color:var(--text)}.section-intro{border-bottom:1px solid var(--border);padding:clamp(36px,5vw,56px) 0 0;margin-bottom:0}.count-badge{display:inline-flex;align-items:center;justify-content:center;background:var(--gold);color:#111;width:24px;height:24px;border-radius:50%;font-size:.72rem;font-weight:700;flex-shrink:0}.rooftop-card__header{display:flex;align-items:center;gap:12px;margin-bottom:6px}.rooftop-card__header h3{margin:0}@media(max-width:860px){.guide-shell{grid-template-columns:1fr}.guide-sidebar{display:none}.rooftop-card__media{height:200px}}
+</style>
+</head><body data-page="guide"><main id="app" class="page"><div class="container" style="padding:40px 0;text-align:center;"><p class="muted">Loading guide...</p></div></main>
+<script src="assets/js/data.js?v=107"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/js/supabase.js?v=104"></script>
+<script src="assets/js/premium.js?v=14"></script>
+<script src="assets/js/app.js?v=105"></script>
+<script>
+// Guide renderer — fetches from Supabase by slug
+(async function() {
+  const slug = new URLSearchParams(location.search).get('slug');
+  if (!slug) { document.querySelector('#app').innerHTML = '<div class="container" style="padding:40px 0;"><p class="muted">Guide not found.</p></div>'; return; }
+
+  try {
+    const { data, error } = await sb.from('guides').select('*').eq('slug', slug).limit(1);
+    if (error || !data || !data.length) throw new Error('Guide not found');
+    const guide = data[0];
+
+    // Update meta
+    document.title = guide.title + ' — drinksearcher.hk';
+    document.querySelector('meta[name="description"]').content = guide.excerpt || 'DrinkSearcher.HK guide.';
+
+    // Fetch all guides for sidebar
+    const { data: allGuides } = await sb.from('guides').select('title,slug,topic').eq('published', true).order('created_at', { ascending: false });
+    const sidebarTopics = {};
+    (allGuides || []).forEach(function(g) {
+      if (!sidebarTopics[g.topic]) sidebarTopics[g.topic] = [];
+      sidebarTopics[g.topic].push(g);
+    });
+
+    const entries = guide.entries || [];
+    var html = '<section class="section-intro"><div class="container">';
+    html += '<a class="guide-home-link" href="index.html">← Back to DrinkSearcher</a>';
+    html += '<span class="kicker">' + (guide.topic || 'Guide') + '</span>';
+    html += '<h1>' + esc(guide.title) + '</h1>';
+    html += '<p class="lead">' + esc(guide.excerpt || '') + '</p></div></section>';
+    html += '<div class="container guide-shell">';
+
+    // Sidebar
+    html += '<aside class="guide-sidebar"><h4>DrinkSearcher guides</h4>';
+    var topicKeys = Object.keys(sidebarTopics);
+    topicKeys.forEach(function(topic) {
+      html += '<div class="topic-label">' + esc(topic) + '</div><ul>';
+      sidebarTopics[topic].forEach(function(g) {
+        var active = g.slug === slug ? ' class="active"' : '';
+        html += '<li><a href="guide.html?slug=' + encodeURIComponent(g.slug) + '"' + active + '>' + esc(g.title) + '</a></li>';
+      });
+      html += '</ul>';
+    });
+    html += '</aside>';
+
+    // Main content
+    html += '<div class="guide-main">';
+    html += '<div class="guide-intro"><p>' + esc(guide.excerpt) + '</p></div>';
+
+    entries.forEach(function(e, i) {
+      var img = e.image ? '<div class="rooftop-card__media"><img src="' + esc(e.image) + '" alt="' + esc(e.name) + '" loading="lazy" onerror="this.style.display=\'none\'"></div>' : '';
+      var meta = '';
+      if (e.rating || e.price) meta += '<span>';
+      if (e.rating) meta += '\u2605 ' + e.rating;
+      if (e.rating && e.price) meta += ' \u00b7 ';
+      if (e.price) meta += e.price;
+      if (e.rating || e.price) meta += '</span>';
+      if (e.cuisine) meta += '<span>' + esc(e.cuisine) + '</span>';
+
+      var actions = '';
+      if (e.venue_slug) actions += '<a class="btn btn-primary" href="venue-template.html?slug=' + encodeURIComponent(e.venue_slug) + '">View venue</a>';
+      if (e.name) actions += '<a class="btn btn-ghost" href="https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(e.name + ' ' + e.area + ' Hong Kong') + '" target="_blank">Directions</a>';
+
+      html += '<article class="rooftop-card">';
+      html += img;
+      html += '<div class="rooftop-card__body">';
+      if (e.area) html += '<span class="location">' + esc(e.area) + '</span>';
+      html += '<div class="rooftop-card__header"><span class="count-badge">' + (i + 1) + '</span><h3>' + esc(e.name) + '</h3></div>';
+      if (meta) html += '<div class="rooftop-card__meta">' + meta + '</div>';
+      if (e.description) html += '<p>' + esc(e.description) + '</p>';
+      if (actions) html += '<div class="rooftop-card__actions">' + actions + '</div>';
+      html += '</div></article>';
+    });
+
+    html += '<div class="guide-outro"><h3>See you up there</h3><p>Hong Kong\'s scene is always evolving. Bookmark this guide and check back as we update it throughout the season.</p>';
+    html += '<a class="btn btn-primary" href="bars-restaurants.html">Browse all venues \u2192</a>';
+    html += '<a class="btn btn-ghost" href="index.html">Back to homepage</a></div>';
+
+    html += '</div></div>';
+    document.querySelector('#app').innerHTML = html;
+  } catch (e) {
+    document.querySelector('#app').innerHTML = '<div class="container" style="padding:40px 0;"><p class="muted">' + esc(e.message) + '</p></div>';
+  }
+
+  function esc(s) { return String(s || '').replace(/[&<>"']/g, function(c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  }); }
+})();
+</script>
+</body></html>

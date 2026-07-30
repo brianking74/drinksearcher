@@ -2405,7 +2405,52 @@ function renderAdminDashboardPage() {
                 <button class="btn btn-primary btn-small" type="button" data-import-save="${index}">Save</button>
               </div>
             </div>`).join('') || '<div class="notice">No import jobs.</div>'}</div>
+
           <div id="admin-imports-notice"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section-tight">
+      <div class="container">
+        <div class="panel">
+          <span class="eyebrow">Content</span>
+          <h2 style="margin:14px 0;">Guides</h2>
+          <p class="muted" style="margin-bottom:16px;">Create and manage editorial guides (rooftop bars, whisky collections, etc.). Each guide is a list of venues with descriptions and images.</p>
+          <div id="admin-guides-notice"></div>
+          <div id="admin-guides">
+            <div style="display:flex;gap:8px;margin-bottom:14px;">
+              <button class="btn btn-primary btn-small" onclick="adminGuides.showGuideForm()">+ New guide</button>
+              <button class="btn btn-ghost btn-small" onclick="adminGuides.loadGuidesList()">Refresh</button>
+            </div>
+            <div id="admin-guides-list"><div class="notice">Loading guides...</div></div>
+            <div id="admin-guides-form" style="display:none;">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
+                <label class="dashboard-field"><span>Title</span><input class="input" id="guide-form-title" placeholder="e.g. 10 rooftop bars worth crossing the harbour for" /></label>
+                <label class="dashboard-field"><span>Slug (URL)</span><input class="input" id="guide-form-slug" placeholder="rooftop-bars-hong-kong" /></label>
+                <label class="dashboard-field" style="grid-column:1/-1;"><span>Excerpt</span><textarea class="input" id="guide-form-excerpt" rows="2" placeholder="Short description for the guide card"></textarea></label>
+                <label class="dashboard-field"><span>Topic</span><select class="select" id="guide-form-topic"><option>Night out</option><option>Collectors</option><option>Neighbourhood</option><option>General</option></select></label>
+                <label class="dashboard-field"><span>Cover image URL</span><input class="input" id="guide-form-cover" placeholder="https://res.cloudinary.com/..." /></label>
+              </div>
+              <h3 style="margin-bottom:10px;">Venues in this guide</h3>
+              <div id="guide-entries-list"></div>
+              <div style="display:flex;gap:8px;margin-top:10px;">
+                <button class="btn btn-ghost btn-small" onclick="adminGuides.addEntry()">+ Add venue</button>
+              </div>
+              <div style="display:flex;gap:8px;margin-top:16px;border-top:1px solid var(--border);padding-top:16px;">
+                <button class="btn btn-primary" onclick="adminGuides.saveGuide()">Save guide</button>
+                <button class="btn btn-ghost" onclick="adminGuides.cancelForm()">Cancel</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section-tight">
+      <div class="container">
+        <div class="panel">
+          <span class="eyebrow">Featured placements</span>
         </div>
       </div>
     </section>
