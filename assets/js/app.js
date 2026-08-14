@@ -2,44 +2,18 @@ function $(sel, root = document) { return root.querySelector(sel); }
 function $$(sel, root = document) { return Array.from(root.querySelectorAll(sel)); }
 
 const storage = {
-  getUsers() {
-    try { return JSON.parse(localStorage.getItem('ds_users') || '[]'); } catch { return []; }
-  },
-  setUsers(users) { localStorage.setItem('ds_users', JSON.stringify(users)); },
-  getCurrentUserEmail() { return localStorage.getItem('ds_current_user') || ''; },
-  getCurrentUser() {
-    const email = this.getCurrentUserEmail();
-    if (!email) return null;
-    return this.getUsers().find(user => user.email === email) || null;
-  },
-  setCurrentUser(email) {
-    if (!email) localStorage.removeItem('ds_current_user');
-    else localStorage.setItem('ds_current_user', email);
-  },
-  signUp(data) {
-    const users = this.getUsers();
-    const email = String(data.email || '').trim().toLowerCase();
-    if (users.some(user => user.email === email)) return { ok: false, message: 'An account with this email already exists.' };
-    const user = {
-      name: String(data.name || '').trim(),
-      email,
-      password: String(data.password || ''),
-      city: String(data.city || '').trim(),
-      createdAt: new Date().toISOString()
-    };
-    users.push(user);
-    this.setUsers(users);
-    this.setCurrentUser(email);
-    return { ok: true, user };
-  },
-  signIn(email, password) {
-    const user = this.getUsers().find(entry => entry.email === String(email || '').trim().toLowerCase() && entry.password === String(password || ''));
-    if (!user) return { ok: false, message: 'Email or password not recognised.' };
-    this.setCurrentUser(user.email);
-    return { ok: true, user };
-  },
-  signOut() {
-    this.setCurrentUser('');
+  // Auth: use Supabase only. localStorage user store removed.
+  getCurrentUserEmail() { return ''; },
+  getCurrentUser() { return null; },
+  setCurrentUser() {},
+  signUp() { return { ok: false, message: 'Use the signup form.' }; },
+  signIn() { return { ok: false, message: 'Use the signin form.' }; },
+  signOut() {},
+
+  // Saved items / onboarding / UI state — these stay in localStorage
+  getSavedKey() {
+    // saved items are keyed by Supabase user id when available
+    return `ds_saved_anon`;
   },
   updateCurrentUserProfile(data) {
     const current = this.getCurrentUser();
@@ -314,7 +288,7 @@ function buildSearchHref(base, query = '', area = '') {
   return `${base}${params.toString() ? `?${params.toString()}` : ''}`;
 }
 
-function navHTML(active = '') {
+function navHTML(active = '', user) {
   const links = [
     ['index.html','Home'],
     ['drinks.html','Drinks'],
@@ -322,7 +296,6 @@ function navHTML(active = '') {
     ['blog.html','Blog'],
     ['bars-restaurants.html','Bars & Restaurants'],
     ];
-  const user = storage.getCurrentUser();
   const authActions = user
     ? `<a class="btn btn-ghost btn-small" href="account.html">My Account</a>`
     : `<a class="btn btn-ghost btn-small" href="signin.html">Sign In / Create Account</a>`;
@@ -375,10 +348,10 @@ function footerHTML() {
     </footer>`;
 }
 
-function setupChrome(activeLabel) {
+async function setupChrome(activeLabel) {
   const nav = document.createElement('header');
-  nav.className = 'nav';
-  nav.innerHTML = navHTML(activeLabel);
+  const user = await dsAuth.getCurrentUser();
+  nav.innerHTML = navHTML(activeLabel, user);
   document.body.prepend(nav);
   const footerWrap = document.createElement('div');
   footerWrap.innerHTML = footerHTML();
@@ -387,8 +360,8 @@ function setupChrome(activeLabel) {
   const links = $('.nav-links');
   if (toggle && links) toggle.addEventListener('click', () => links.classList.toggle('open'));
   const signOutBtn = $('#signout-btn');
-  if (signOutBtn) signOutBtn.addEventListener('click', () => {
-    storage.signOut();
+  if (signOutBtn) signOutBtn.addEventListener('click', async () => {
+    await dsAuth.signOut();
     window.location.href = 'index.html';
   });
   window.addEventListener('scroll', () => nav.classList.toggle('scrolled', window.scrollY > 8));
