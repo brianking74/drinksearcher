@@ -1469,7 +1469,8 @@ async function renderSignInPage() {
 
 async function renderSignUpPage() {
   const app = $('#app');
-  // Bridge Supabase session to localStorage
+  // If someone lands on signup, clear any stale Supabase session so the form is usable
+  try { await dsAuth.signOut(); } catch {}
   let localUser = storage.getCurrentUser();
   if (!localUser) {
     const dsUser = await dsAuth.getCurrentUser();
