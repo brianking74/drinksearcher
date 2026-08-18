@@ -1403,12 +1403,11 @@ async function renderSignInPage() {
         }
         notice.innerHTML = '<div class="notice">Updating password...</div>';
         try {
-          const recovered = window.supabase.createClient('https://kktlbznmhxaortogqspy.supabase.co', 'eyJhbG...gOFM');
-          const { error } = await recovered.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+          const { error } = await sb.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
           if (error) throw error;
-          const { error: updateError } = await recovered.auth.updateUser({ password });
+          const { error: updateError } = await sb.auth.updateUser({ password });
           if (updateError) throw updateError;
-          await recovered.auth.signOut();
+          await sb.auth.signOut();
           window.history.replaceState({}, document.title, location.pathname + location.search);
           notice.innerHTML = '<div class="notice">Password updated. Redirecting to sign in…</div>';
           setTimeout(() => { window.location.href = 'signin.html'; }, 900);
