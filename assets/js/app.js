@@ -1411,7 +1411,7 @@ async function renderSignInPage() {
     const notice = $('#signin-notice');
     if (!notice) return;
     notice.innerHTML = '<div class="notice">Sending reset link...</div>';
-    const { error } = await sb.auth.resetPasswordForEmail(email.trim().toLowerCase(), { redirectTo: `${location.origin}/signin.html` });
+    const { error } = await sb.auth.resetPasswordForEmail(email.trim().toLowerCase(), { redirectTo: 'https://drinksearcher.net/reset-password.html' });
     notice.innerHTML = error
       ? `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">${error.message}</div>`
       : '<div class="notice">Reset link sent. Check your inbox and spam folder.</div>';
