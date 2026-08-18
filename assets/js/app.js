@@ -1378,7 +1378,11 @@ async function renderSignInPage() {
 
   const hash = window.location.hash || '';
   const hashParams = new URLSearchParams(hash.replace('#', ''));
-  if (hashParams.get('type') === 'recovery' && hashParams.get('access_token') && hashParams.get('refresh_token')) {
+  const queryParams = new URLSearchParams(window.location.search || '');
+  const accessToken = hashParams.get('access_token') || queryParams.get('access_token');
+  const refreshToken = hashParams.get('refresh_token') || queryParams.get('refresh_token');
+  const recoveryType = hashParams.get('type') || queryParams.get('type');
+  if ((recoveryType === 'recovery' || recoveryType === 'magiclink' || accessToken) && accessToken && refreshToken) {
     app.innerHTML = `
       <section class="hero" style="min-height:52vh;"><div class="hero-media" style="background-image:url('${siteImages.hero}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Account</span><h1>Choose a new password.</h1><p class="lead">Enter a new password for your account.</p></div><div class="search-shell"><span class="eyebrow">Reset password</span><form id="recovery-form" class="form-grid" style="margin-top:14px;"><input class="input full" name="password" type="password" placeholder="New password" required minlength="6" /><input class="input full" name="confirm" type="password" placeholder="Confirm new password" required minlength="6" /><button class="btn btn-primary full" type="submit">Update password</button></form><div id="recovery-notice"></div><p class="muted" style="margin-top:16px;"><a class="text-jade" href="signin.html">Back to sign in</a></p></div></div></section>`;
     const form = document.getElementById('recovery-form');
@@ -1400,7 +1404,7 @@ async function renderSignInPage() {
         notice.innerHTML = '<div class="notice">Updating password...</div>';
         try {
           const recovered = window.supabase.createClient('https://kktlbznmhxaortogqspy.supabase.co', 'eyJhbG...gOFM');
-          const { error } = await recovered.auth.setSession({ access_token: hashParams.get('access_token'), refresh_token: hashParams.get('refresh_token') });
+          const { error } = await recovered.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
           if (error) throw error;
           const { error: updateError } = await recovered.auth.updateUser({ password });
           if (updateError) throw updateError;
