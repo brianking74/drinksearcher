@@ -2227,15 +2227,15 @@ async function productManagerSaveImage(id, index) {
   }
 }
 
-function renderAdminDashboardPage() {
+async function renderAdminDashboardPage() {
   const app = $('#app');
-  const user = storage.getCurrentUser();
+  const user = await dsAuth.getCurrentUser();
   if (!user) {
     storage.setPostAuthRedirect('admin.html');
     window.location.href = 'signin.html';
     return;
   }
-  const state = storage.getAdminState();
+    const state = storage.getAdminState();
   const appFilter = queryParam('filter') || 'all';
   const filteredApplications = state.applications.filter(entry => appFilter === 'all' || entry.listingType === appFilter);
   const counts = {

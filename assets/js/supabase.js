@@ -277,9 +277,22 @@ const dsAuth = {
     if (!session) return null;
     try {
       const { data: profile } = await sb.from('profiles').select('*').eq('id', session.user.id).single();
-      return profile ? { name: profile.name || '', email: session.user.email, role: profile.role || 'searcher', id: profile.id, createdAt: profile.created_at } : null;
+      return {
+        name: (profile && profile.name) || '',
+        email: session.user.email,
+        role: (profile && profile.role) || 'searcher',
+        id: session.user.id,
+        createdAt: (profile && profile.created_at) || null
+      };
     } catch (e) {
-      return null;
+      // Auth user exists but no profile yet — still return usable user object
+      return {
+        name: '',
+        email: session.user.email,
+        role: 'searcher',
+        id: session.user.id,
+        createdAt: null
+      };
     }
   },
 
