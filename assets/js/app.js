@@ -1375,6 +1375,46 @@ async function renderSignInPage() {
     $('#inline-signout').addEventListener('click', () => { storage.signOut(); window.location.reload(); });
     return;
   }
+
+  const hash = window.location.hash || '';
+  const hashParams = new URLSearchParams(hash.replace('#', ''));
+  if (hashParams.get('type') === 'recovery' && hashParams.get('access_token') && hashParams.get('refresh_token')) {
+    app.innerHTML = `
+      <section class="hero" style="min-height:52vh;"><div class="hero-media" style="background-image:url('${siteImages.hero}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Account</span><h1>Choose a new password.</h1><p class="lead">Enter a new password for your account.</p></div><div class="search-shell"><span class="eyebrow">Reset password</span><form id="recovery-form" class="form-grid" style="margin-top:14px;"><input class="input full" name="password" type="password" placeholder="New password" required minlength="6" /><input class="input full" name="confirm" type="password" placeholder="Confirm new password" required minlength="6" /><button class="btn btn-primary full" type="submit">Update password</button></form><div id="recovery-notice"></div><p class="muted" style="margin-top:16px;"><a class="text-jade" href="signin.html">Back to sign in</a></p></div></div></section>`;
+    const form = document.getElementById('recovery-form');
+    if (form) {
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const password = form.password.value.trim();
+        const confirm = form.confirm.value.trim();
+        const notice = document.getElementById('recovery-notice');
+        if (!notice) return;
+        if (!password || password.length < 6) {
+          notice.innerHTML = '<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Password must be at least 6 characters.</div>';
+          return;
+        }
+        if (password !== confirm) {
+          notice.innerHTML = '<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Passwords do not match.</div>';
+          return;
+        }
+        notice.innerHTML = '<div class="notice">Updating password...</div>';
+        try {
+          const recovered = window.supabase.createClient('https://kktlbznmhxaortogqspy.supabase.co', 'eyJhbG...gOFM');
+          const { error } = await recovered.auth.setSession({ access_token: hashParams.get('access_token'), refresh_token: hashParams.get('refresh_token') });
+          if (error) throw error;
+          const { error: updateError } = await recovered.auth.updateUser({ password });
+          if (updateError) throw updateError;
+          await recovered.auth.signOut();
+          window.history.replaceState({}, document.title, location.pathname + location.search);
+          notice.innerHTML = '<div class="notice">Password updated. Redirecting to sign in…</div>';
+          setTimeout(() => { window.location.href = 'signin.html'; }, 900);
+        } catch (err) {
+          notice.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">${err.message || 'Reset failed'}</div>`;
+        }
+      });
+    }
+    return;
+  }
   app.innerHTML = `
     <section class="hero" style="min-height:56vh;"><div class="hero-media" style="background-image:url('${siteImages.hero}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Sign in</span><h1>Access your profile and saved nightlife shortlist.</h1><p class="lead">Sign in to save drinks, events, and bars to your account, manage enquiries, and access your business dashboard.</p></div><div class="search-shell"><span class="eyebrow">Account sign in</span>${hasPending ? '<div class="notice">Sign in to finish saving the item you just selected.</div>' : ''}<form id="signin-form" class="form-grid" style="margin-top:14px;"><input class="input full" name="email" type="email" placeholder="Email" required /><input class="input full" name="password" type="password" placeholder="Password" required /><button class="btn btn-primary full" type="submit">Sign In</button></form><div id="signin-notice"></div><p class="muted" style="margin-top:16px;"><button class="btn btn-ghost btn-small" id="forgot-password-btn" type="button">Forgot password?</button></p><p class="muted">New here? <a class="text-jade" href="signup.html">Create an account</a></p></div></div></section>`;
   $('#signin-form').addEventListener('submit', async e => {
@@ -1411,7 +1451,7 @@ async function renderSignInPage() {
     const notice = $('#signin-notice');
     if (!notice) return;
     notice.innerHTML = '<div class="notice">Sending reset link...</div>';
-    const { error } = await sb.auth.resetPasswordForEmail(email.trim().toLowerCase(), { redirectTo: `${location.origin}/reset-password.html` });
+    const { error } = await sb.auth.resetPasswordForEmail(email.trim().toLowerCase(), { redirectTo: `${location.origin}/signin.html` });
     notice.innerHTML = error
       ? `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">${error.message}</div>`
       : '<div class="notice">Reset link sent. Check your inbox and spam folder.</div>';
