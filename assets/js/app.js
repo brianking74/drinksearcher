@@ -1403,10 +1403,10 @@ async function renderSignInPage() {
         }
         notice.innerHTML = '<div class="notice">Updating password...</div>';
         try {
-          const { error } = await sb.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
-          if (error) throw error;
+          const { error: sessionError } = await sb.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+          if (sessionError) throw new Error('Session error: ' + sessionError.message);
           const { error: updateError } = await sb.auth.updateUser({ password });
-          if (updateError) throw updateError;
+          if (updateError) throw new Error('Update error: ' + updateError.message);
           await sb.auth.signOut();
           window.history.replaceState({}, document.title, location.pathname + location.search);
           notice.innerHTML = '<div class="notice">Password updated. Redirecting to sign in…</div>';
