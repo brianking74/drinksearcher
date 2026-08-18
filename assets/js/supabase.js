@@ -298,13 +298,15 @@ const dsAuth = {
 
   async signUp(data) {
     try {
+      const email = String(data.email || '').trim().toLowerCase();
       const { data: authData, error } = await sb.auth.signUp({
-        email: String(data.email || '').trim().toLowerCase(),
+        email,
         password: String(data.password || ''),
         options: { data: { name: String(data.name || '').trim(), role: data.role || 'searcher', city: String(data.city || '').trim() } }
       });
       if (error) return { ok: false, message: error.message };
-      return { ok: true, user: { email: authData.user.email, role: data.role || 'searcher', name: String(data.name || '').trim() } };
+      const confirmed = !!(authData.user && (authData.user.email_confirmed_at || authData.user.confirmed_at));
+      return { ok: true, needsConfirmation: !confirmed, user: { email: authData.user.email, role: data.role || 'searcher', name: String(data.name || '').trim() } };
     } catch (e) {
       return { ok: false, message: e.message || 'Sign up failed.' };
     }
@@ -313,14 +315,16 @@ const dsAuth = {
   async signIn(email, password) {
     try {
       const { data, error } = await sb.auth.signInWithPassword({ email: String(email || '').trim().toLowerCase(), password: String(password || '') });
-      if (error) return { ok: false, message: error.message || 'Email or password not recognised.' };
+      if (error) {
+        const emailNotConfirmed = /email not confirmed|confirm your email|email confirmation/i.test(error.message || '');
+        return { ok: false, message: error.message || 'Email or password not recognised.', emailNotConfirmed };
+      }
       let profile = null;
       try {
         const { data: p } = await sb.from('profiles').select('*').eq('id', data.user.id).single();
         profile = p;
       } catch (profileErr) {
         console.warn('Profile lookup failed for', data.user.email, profileErr.message);
-        // continue without a profile — user still authenticated
       }
       return { ok: true, user: { email: data.user.email, name: (profile && profile.name) || '', role: (profile && profile.role) || 'searcher', id: data.user.id } };
     } catch (e) {
