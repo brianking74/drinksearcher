@@ -9,6 +9,9 @@ const storage = {
   signUp() { return { ok: false, message: 'Use the signup form.' }; },
   signIn() { return { ok: false, message: 'Use the signin form.' }; },
   signOut() {},
+  isAdmin() { try { return JSON.parse(localStorage.getItem('ds_admin_role') || 'false'); } catch { return false; } },
+  setAdminRole(value) { localStorage.setItem('ds_admin_role', String(!!value)); },
+  clearAdminRole() { localStorage.removeItem('ds_admin_role'); },
 
   // Saved items / onboarding / UI state — these stay in localStorage
   getSavedKey() {
@@ -1433,6 +1436,9 @@ async function renderSignInPage() {
         storage.setUsers(users);
       }
       storage.setCurrentUser(result.user.email);
+      if (result.user.email === 'brianking@sky.com' || result.user.role === 'admin') {
+        storage.setAdminRole(true);
+      }
     } else if (result.emailNotConfirmed) {
       const notice = $('#signin-notice');
       notice.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Email not confirmed. <button class="btn btn-ghost btn-small" style="margin-top:8px;" type="button" id="resend-confirm-signin">Resend confirmation email</button></div><div id="resend-signin-notice"></div>`;
@@ -2242,6 +2248,11 @@ async function loadProductManager() {
 }
 
 async function productManagerAction(id, action) {
+  if (!storage.isAdmin()) {
+    const notice = $('#admin-pm-notice');
+    if (notice) notice.innerHTML = '<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Admin access required.</div>';
+    return;
+  }
   const notice = $('#admin-pm-notice');
   try {
     if (action === 'delete') {
@@ -2284,7 +2295,7 @@ async function productManagerSaveImage(id, index) {
 async function renderAdminDashboardPage() {
   const app = $('#app');
   const user = await dsAuth.getCurrentUser();
-  if (!user) {
+  if (!user || user.role !== 'admin') {
     storage.setPostAuthRedirect('admin.html');
     window.location.href = 'signin.html';
     return;
