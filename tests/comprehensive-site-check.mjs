@@ -333,7 +333,7 @@ check(dataJS.includes('eventsData') || dataJS.includes('events'), 'data.js missi
 // ============================================================
 
 const PAGE_TITLES = {
-  'index.html':             'drinksearcher.hk',
+  'index.html':             'drinksearcher.net',
   'drinks.html':            'Drinks',
   'suppliers.html':         'Suppliers',
   'bars-restaurants.html':  'Bars & Restaurants',

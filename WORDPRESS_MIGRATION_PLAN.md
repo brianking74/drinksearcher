@@ -9,7 +9,7 @@
 > - **Directory UX:** WordPress built-in archive/search filtering to start; add FacetWP later only if conversion data says the filters need to be richer.
 > - **Monetisation:** Suppliers WILL pay for premium listings + featured placements → include **WooCommerce** (or WP Simple Pay) in the stack from day one. See §2 plugin stack.
 > - **Editing experience:** Theme is built **Elementor-compatible** — every page template, card, and section is editable visually. ACF fields exposed as Elementor dynamic tags. See §2 theme section.
-> - **Email/domain:** Not yet registered → set up hello@drinksearcher.hk (Google Workspace or Zoho) *before* launch so signup/moderation notifications have a proper sender.
+> - **Email/domain:** Not yet registered → set up hello@drinksearcher.net (Google Workspace or Zoho) *before* launch so signup/moderation notifications have a proper sender.
 
 ---
 
@@ -155,7 +155,7 @@ Hostinger is fine for this — the key is picking the right tier and compensatin
 ## 6. Phased migration plan
 
 ### Phase 0 — Setup (week 1)
-- Register drinksearcher.hk (if not already) + set up hello@drinksearcher.hk (Google Workspace or Zoho)
+- Register drinksearcher.net (if not already) + set up hello@drinksearcher.net (Google Workspace or Zoho)
 - Hostinger Cloud Startup plan → create site + staging; fresh WordPress install
 - Install day-one plugins: Elementor Pro, ACF Pro, CPT UI, WooCommerce, WPForms, Rank Math, Wordfence, LiteSpeed Cache, UpdraftPlus
 - Configure Elementor Site Settings with the dark/gold design system
@@ -179,7 +179,7 @@ Hostinger is fine for this — the key is picking the right tier and compensatin
 - 301 redirect map live on the old Vercel site
 
 ### Phase 4 — Cutover (week 5)
-- Point `drinksearcher.hk` DNS at WordPress host (verify 301s first)
+- Point `drinksearcher.net` DNS at WordPress host (verify 301s first)
 - Keep Vercel deployment live for 2 weeks as rollback
 - Decommission Supabase tables only after 30 days clean
 
@@ -204,10 +204,10 @@ Hostinger is fine for this — the key is picking the right tier and compensatin
 | Directory filtering | WP built-in to start; FacetWP only if needed later |
 | Monetisation | WooCommerce for premium listings + featured placements |
 | Editing experience | Elementor Pro Theme Builder — everything visually editable |
-| Email/domain | Not registered — set up hello@drinksearcher.hk before launch |
+| Email/domain | Not registered — set up hello@drinksearcher.net before launch |
 
 **Estimated recurring cost:** Hostinger Cloud Startup (~US$8–10/mo) + Elementor Pro (~US$59/yr) + ACF Pro (~US$59/yr) + WPForms (~US$50/yr) ≈ **US$18–25/mo all-in**, well under the earlier US$40–60 estimate.
 
 ---
 
-*Next step: Phase 0 — register drinksearcher.hk, purchase Hostinger plan, spin up staging, fresh WordPress install. Say the word and I'll produce the Phase 0 step-by-step checklist.*
+*Next step: Phase 0 — register drinksearcher.net, purchase Hostinger plan, spin up staging, fresh WordPress install. Say the word and I'll produce the Phase 0 step-by-step checklist.*

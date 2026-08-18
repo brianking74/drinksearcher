@@ -7,13 +7,13 @@ repo = sys.argv[1] if len(sys.argv) > 1 else '/Users/brianking/drinksearcher-rep
 PAGE_META = {
     'index.html': {
         'desc': 'Compare drinks in stock across Hong Kong. Verified local availability, honest HK pricing, direct to supplier or venue.',
-        'og_title': 'drinksearcher.hk — Compare drinks in stock across Hong Kong',
+        'og_title': 'drinksearcher.net — Compare drinks in stock across Hong Kong',
         'og_desc': 'Verified local stock, honest HK pricing, direct access to suppliers, bars and venues in Hong Kong.',
         'og_type': 'website',
     },
     'drinks.html': {
         'desc': 'Search and compare drinks in stock across Hong Kong. Find verified local bottles, compare pricing, and buy from trusted suppliers.',
-        'og_title': 'Drinks Marketplace — drinksearcher.hk',
+        'og_title': 'Drinks Marketplace — drinksearcher.net',
         'og_desc': 'Compare local bottles in Hong Kong, seller by seller. Verified stock, honest pricing, direct to supplier.',
         'og_type': 'website',
     },
@@ -22,13 +22,13 @@ PAGE_META = {
     },
     'bars-restaurants.html': {
         'desc': 'Discover Hong Kong best bars, restaurants and nightlife venues. Compare by atmosphere, location and signature drinks.',
-        'og_title': 'Bars & Restaurants — drinksearcher.hk',
+        'og_title': 'Bars & Restaurants — drinksearcher.net',
         'og_desc': 'Find somewhere worth going tonight. Browse cocktail bars, rooftops, wine bars and speakeasies across Hong Kong.',
         'og_type': 'website',
     },
     'events.html': {
         'desc': 'Find upcoming drinks events in Hong Kong — tastings, guest shifts, pairings and launches. Book or RSVP directly.',
-        'og_title': 'Events — drinksearcher.hk',
+        'og_title': 'Events — drinksearcher.net',
         'og_desc': 'Make your next drink a date in the diary. Tastings, guest shifts, pairings and launches across Hong Kong.',
         'og_type': 'website',
     },
