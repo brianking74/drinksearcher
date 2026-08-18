@@ -1426,10 +1426,10 @@ async function renderSignInPage() {
   $('#signin-form').addEventListener('submit', async e => {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
-    // Try Supabase first, fall back to localStorage
+    const notice = $('#signin-notice');
+    notice.innerHTML = '<div class="notice">Signing in…</div>';
     let result = await dsAuth.signIn(form.get('email'), form.get('password'));
     if (result.ok) {
-      // Bridge: save Supabase user to localStorage
       const users = storage.getUsers();
       if (!users.find(u => u.email === result.user.email)) {
         users.push({ name: result.user.name || '', email: result.user.email, password: '', city: '', role: result.user.role || 'searcher', createdAt: new Date().toISOString() });
@@ -1439,19 +1439,21 @@ async function renderSignInPage() {
       if (result.user.email === 'brianking@sky.com' || result.user.role === 'admin') {
         storage.setAdminRole(true);
       }
-    } else if (result.emailNotConfirmed) {
-      const notice = $('#signin-notice');
+      notice.innerHTML = '<div class="notice">Signed in successfully. Taking you to your account…</div>';
+      setTimeout(() => finishAuthFlow('account.html'), 300);
+      return;
+    }
+    if (result.emailNotConfirmed) {
       notice.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Email not confirmed. <button class="btn btn-ghost btn-small" style="margin-top:8px;" type="button" id="resend-confirm-signin">Resend confirmation email</button></div><div id="resend-signin-notice"></div>`;
       $('#resend-confirm-signin')?.addEventListener('click', async () => {
         const { error } = await sb.auth.resend({ type: 'signup', email: form.get('email').trim().toLowerCase() });
-        $('#resend-signin-notice').innerHTML = error ? `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">${error.message}</div>` : '<div class="notice">Confirmation email resent.</div>';
+        const n = $('#resend-signin-notice');
+        if (n) n.innerHTML = error ? `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">${error.message}</div>` : '<div class="notice">Confirmation email resent.</div>';
       });
       return;
-    } else {
-      // Fall back to localStorage for legacy accounts
-      result = storage.signIn(form.get('email'), form.get('password'));
     }
-    $('#signin-notice').innerHTML = result.ok ? '<div class="notice">Signed in successfully. Taking you to your account…</div>' : `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">${safe(result.message || 'Email or password not recognised.')}</div>`;
+    result = storage.signIn(form.get('email'), form.get('password'));
+    notice.innerHTML = result.ok ? '<div class="notice">Signed in successfully. Taking you to your account…</div>' : `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">${safe(result.message || 'Email or password not recognised.')}</div>`;
     if (result.ok) setTimeout(() => finishAuthFlow('account.html'), 300);
   });
   $('#forgot-password-btn')?.addEventListener('click', async () => {
@@ -1494,36 +1496,37 @@ async function renderSignUpPage() {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
     const result = await dsAuth.signUp({ name: form.get('name'), city: form.get('city'), email: form.get('email'), password: form.get('password'), role: 'searcher' });
-    if (result.ok && result.needsConfirmation) {
+    if (!result.ok) {
+      $('#signup-notice').innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">${safe(result.message || 'Sign up failed. Please try again.')}</div>`;
+      return;
+    }
+    if (result.needsConfirmation) {
       $('#signup-form', app).style.display = 'none';
       const searchShell = $('.search-shell', app);
       if (searchShell) {
         searchShell.innerHTML = `<div class="auth-card"><span class="eyebrow" style="margin-top:24px">Check your inbox</span><h2>Confirm your email to finish.</h2><p class="muted">We sent a confirmation link to <strong>${safe(form.get('email'))}</strong>. Click it, then sign in to start your shortlist.</p><div class="inline-actions" style="margin-top:22px"><a class="btn btn-primary" href="signin.html">Go to sign in</a><button class="btn btn-ghost" id="resend-confirm">Resend email</button></div><div id="signup-notice"></div></div>`;
         $('#resend-confirm')?.addEventListener('click', async () => {
           const { error } = await sb.auth.resend({ type: 'signup', email: form.get('email').trim().toLowerCase() });
-          $('#signup-notice').innerHTML = error ? `<div class="notice">${error.message}</div>` : '<div class="notice">Confirmation email resent.</div>';
+          $('#signup-notice').innerHTML = error ? `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">${error.message}</div>` : '<div class="notice">Confirmation email resent.</div>';
         });
       }
       return;
     }
-    if (result.ok) {
-      // Bridge to localStorage for backward compat
-      const users = storage.getUsers();
-      if (!users.find(u => u.email === result.user.email)) {
-        users.push({ name: result.user.name || '', email: result.user.email, password: '', city: form.get('city') || '', role: result.user.role || 'searcher', createdAt: new Date().toISOString() });
-        storage.setUsers(users);
-      }
-      storage.setCurrentUser(result.user.email);
-      // Send welcome email (non-critical, fire-and-forget)
-      fetch('https://kktlbznmhxaortogqspy.supabase.co/functions/v1/send-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to: result.user.email, template: 'welcome_consumer', data: { name: result.user.name || '' } })
-      }).catch(() => {});
-      window.location.href = 'account.html';
-    } else {
-      $('#signup-notice').innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">${result.message}</div>`;
+    // Bridge to localStorage for backward compat
+    const users = storage.getUsers();
+    if (!users.find(u => u.email === result.user.email)) {
+      users.push({ name: result.user.name || '', email: result.user.email, password: '', city: form.get('city') || '', role: result.user.role || 'searcher', createdAt: new Date().toISOString() });
+      storage.setUsers(users);
     }
+    storage.setCurrentUser(result.user.email);
+    // Send welcome email (non-critical, fire-and-forget)
+    fetch('https://kktlbznmhxaortogqspy.supabase.co/functions/v1/send-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ to: result.user.email, template: 'welcome_consumer', data: { name: result.user.name || '' } })
+    }).catch(() => {});
+    $('#signup-notice').innerHTML = '<div class="notice">Account created. Taking you to your account…</div>';
+    setTimeout(() => { window.location.href = 'account.html'; }, 400);
   });
 }
 
