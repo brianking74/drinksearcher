@@ -1445,7 +1445,7 @@ async function renderSignInPage() {
       // Fall back to localStorage for legacy accounts
       result = storage.signIn(form.get('email'), form.get('password'));
     }
-    $('#signin-notice').innerHTML = result.ok ? '<div class="notice">Signed in successfully. Taking you to your account…</div>' : `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">${result.message}</div>`;
+    $('#signin-notice').innerHTML = result.ok ? '<div class="notice">Signed in successfully. Taking you to your account…</div>' : `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">${safe(result.message || 'Email or password not recognised.')}</div>`;
     if (result.ok) setTimeout(() => finishAuthFlow('account.html'), 300);
   });
   $('#forgot-password-btn')?.addEventListener('click', async () => {
