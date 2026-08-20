@@ -1534,7 +1534,8 @@ async function renderSignUpPage() {
       notice.innerHTML = '<div class="notice">Account created. Taking you to your account…</div>';
       setTimeout(() => { window.location.href = 'account.html'; }, 400);
     } catch (err) {
-      notice.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Sign up failed. Please try again.</div>`;
+      console.error('[signup] error:', err);
+      notice.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Sign up failed: ${safe(err?.message || 'Please try again.')}</div>`;
     }
   });
 }
