@@ -1475,7 +1475,8 @@ async function renderSignUpPage() {
   try { await dsAuth.signOut(); } catch {}
   let localUser = storage.getCurrentUser();
   if (!localUser) {
-    const dsUser = await dsAuth.getCurrentUser();
+    let dsUser = null;
+    try { dsUser = await dsAuth.getCurrentUser(); } catch {}
     if (dsUser) {
       const users = storage.getUsers();
       if (!users.find(u => u.email === dsUser.email)) {
