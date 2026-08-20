@@ -1505,19 +1505,22 @@ async function renderSignUpPage() {
     const name = String(fd.get('name') || '').trim();
     const city = String(fd.get('city') || '').trim();
     notice.innerHTML = '<div class="notice">Creating account…</div>';
-    console.log('[signup] direct submit start', { email, name, city });
+    console.log('[signup] step1 form data', { email, name, city, passwordLen: password.length });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+    console.log('[signup] step2 calling sb.auth.signUp');
     let result;
     try {
-      result = await Promise.race([
-        sb.auth.signUp({ email, password, options: { data: { name, role: 'searcher', city } } }),
-        new Promise((_, rej) => setTimeout(() => rej(new Error('Signup timed out after 10s')), 10000))
-      ]);
-      console.log('[signup] direct result:', result);
+      result = await sb.auth.signUp({ email, password, options: { data: { name, role: 'searcher', city } } }, { signal: controller.signal });
+      clearTimeout(timeout);
+      console.log('[signup] step3 sb.auth.signUp resolved', result);
     } catch (err) {
-      console.error('[signup] direct error:', err);
+      clearTimeout(timeout);
+      console.error('[signup] step3 sb.auth.signUp rejected', err);
       notice.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Sign up failed: ${safe(err?.message || 'Please try again.')}</div>`;
       return;
     }
+    console.log('[signup] step4 processing result');
     const { data: authData, error } = result;
     if (error) {
       notice.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">${safe(error.message || 'Sign up failed. Please try again.')}</div>`;
