@@ -1471,7 +1471,6 @@ async function renderSignInPage() {
 
 async function renderSignUpPage() {
   const app = $('#app');
-  // If someone lands on signup, clear any stale Supabase session so the form is usable
   try { await dsAuth.signOut(); } catch {}
   let localUser = storage.getCurrentUser();
   if (!localUser) {
@@ -1493,27 +1492,28 @@ async function renderSignUpPage() {
   }
   app.innerHTML = `
     <section class="hero" style="min-height:58vh;"><div class="hero-media" style="background-image:url('${siteImages.event}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Create account</span><h1>Create your account.</h1><p class="lead">Create an account to save bottles, venues, and events, track enquiries, and manage your business profile in one place.</p></div><div class="search-shell"><span class="eyebrow">Sign up</span><form id="signup-form" class="form-grid" style="margin-top:14px;"><input class="input" name="name" placeholder="Full name" required /><input class="input" name="city" placeholder="Preferred district" required /><input class="input full" name="email" type="email" placeholder="Email" required /><input class="input full" name="password" type="password" placeholder="Create password" required /><button class="btn btn-primary full" type="submit">Create account</button></form><div id="signup-notice"></div><p class="muted" style="margin-top:16px;">Already have an account? <a class="text-jade" href="signin.html">Sign in</a></p></div></div></section>`;
-  $('#signup-form')?.addEventListener('submit', async e => {
-    console.log('[signup] submit fired');
+  const form = $('#signup-form');
+  if (!form) return;
+  const fresh = form.cloneNode(true);
+  form.parentNode.replaceChild(fresh, form);
+  const notice = $('#signup-notice');
+  fresh.addEventListener('submit', async e => {
     e.preventDefault();
-    const form = new FormData(e.currentTarget);
-    const notice = $('#signup-notice');
+    const fd = new FormData(fresh);
     notice.innerHTML = '<div class="notice">Creating account…</div>';
-    console.log('[signup] calling dsAuth.signUp');
     try {
-      const result = await dsAuth.signUp({ name: form.get('name'), city: form.get('city'), email: form.get('email'), password: form.get('password'), role: 'searcher' });
-      console.log('[signup] dsAuth.signUp result:', result);
+      const result = await dsAuth.signUp({ name: fd.get('name'), city: fd.get('city'), email: fd.get('email'), password: fd.get('password'), role: 'searcher' });
       if (!result.ok) {
         notice.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">${safe(result.message || 'Sign up failed. Please try again.')}</div>`;
         return;
       }
       if (result.needsConfirmation) {
-        $('#signup-form', app).style.display = 'none';
+        fresh.style.display = 'none';
         const searchShell = $('.search-shell', app);
         if (searchShell) {
-          searchShell.innerHTML = `<div class="auth-card"><span class="eyebrow" style="margin-top:24px">Check your inbox</span><h2>Confirm your email to finish.</h2><p class="muted">We sent a confirmation link to <strong>${safe(form.get('email'))}</strong>. Click it, then sign in to start your shortlist.</p><div class="inline-actions" style="margin-top:22px"><a class="btn btn-primary" href="signin.html">Go to sign in</a><button class="btn btn-ghost" id="resend-confirm">Resend email</button></div><div id="signup-notice"></div></div>`;
+          searchShell.innerHTML = `<div class="auth-card"><span class="eyebrow" style="margin-top:24px">Check your inbox</span><h2>Confirm your email to finish.</h2><p class="muted">We sent a confirmation link to <strong>${safe(fd.get('email'))}</strong>. Click it, then sign in to start your shortlist.</p><div class="inline-actions" style="margin-top:22px"><a class="btn btn-primary" href="signin.html">Go to sign in</a><button class="btn btn-ghost" id="resend-confirm">Resend email</button></div><div id="signup-notice"></div></div>`;
           $('#resend-confirm')?.addEventListener('click', async () => {
-            const { error } = await sb.auth.resend({ type: 'signup', email: form.get('email').trim().toLowerCase() });
+            const { error } = await sb.auth.resend({ type: 'signup', email: fd.get('email').trim().toLowerCase() });
             const n = $('#signup-notice');
             if (n) n.innerHTML = error ? `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">${error.message}</div>` : '<div class="notice">Confirmation email resent.</div>';
           });
@@ -1522,7 +1522,7 @@ async function renderSignUpPage() {
       }
       const users = storage.getUsers();
       if (!users.find(u => u.email === result.user.email)) {
-        users.push({ name: result.user.name || '', email: result.user.email, password: '', city: form.get('city') || '', role: result.user.role || 'searcher', createdAt: new Date().toISOString() });
+        users.push({ name: result.user.name || '', email: result.user.email, password: '', city: fd.get('city') || '', role: result.user.role || 'searcher', createdAt: new Date().toISOString() });
         storage.setUsers(users);
       }
       storage.setCurrentUser(result.user.email);
@@ -1534,11 +1534,11 @@ async function renderSignUpPage() {
       notice.innerHTML = '<div class="notice">Account created. Taking you to your account…</div>';
       setTimeout(() => { window.location.href = 'account.html'; }, 400);
     } catch (err) {
-      console.error('[signup] unexpected error:', err);
       notice.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Sign up failed. Please try again.</div>`;
     }
   });
 }
+
 
 async function renderAccountPage() {
   const app = $('#app');
