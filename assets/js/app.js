@@ -1501,45 +1501,64 @@ async function renderSignUpPage() {
     e.preventDefault();
     const fd = new FormData(fresh);
     notice.innerHTML = '<div class="notice">Creating account…</div>';
+    console.log('[signup] calling dsAuth.signUp');
+    let result;
     try {
-      const result = await dsAuth.signUp({ name: fd.get('name'), city: fd.get('city'), email: fd.get('email'), password: fd.get('password'), role: 'searcher' });
-      if (!result.ok) {
-        notice.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">${safe(result.message || 'Sign up failed. Please try again.')}</div>`;
-        return;
-      }
-      if (result.needsConfirmation) {
-        fresh.style.display = 'none';
-        const searchShell = $('.search-shell', app);
-        if (searchShell) {
-          searchShell.innerHTML = `<div class="auth-card"><span class="eyebrow" style="margin-top:24px">Check your inbox</span><h2>Confirm your email to finish.</h2><p class="muted">We sent a confirmation link to <strong>${safe(fd.get('email'))}</strong>. Click it, then sign in to start your shortlist.</p><div class="inline-actions" style="margin-top:22px"><a class="btn btn-primary" href="signin.html">Go to sign in</a><button class="btn btn-ghost" id="resend-confirm">Resend email</button></div><div id="signup-notice"></div></div>`;
-          $('#resend-confirm')?.addEventListener('click', async () => {
-            const { error } = await sb.auth.resend({ type: 'signup', email: fd.get('email').trim().toLowerCase() });
-            const n = $('#signup-notice');
-            if (n) n.innerHTML = error ? `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">${error.message}</div>` : '<div class="notice">Confirmation email resent.</div>';
-          });
-        }
-        return;
-      }
-      const users = storage.getUsers();
-      if (!users.find(u => u.email === result.user.email)) {
-        users.push({ name: result.user.name || '', email: result.user.email, password: '', city: fd.get('city') || '', role: result.user.role || 'searcher', createdAt: new Date().toISOString() });
-        storage.setUsers(users);
-      }
-      storage.setCurrentUser(result.user.email);
-      fetch('https://kktlbznmhxaortogqspy.supabase.co/functions/v1/send-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to: result.user.email, template: 'welcome_consumer', data: { name: result.user.name || '' } })
-      }).catch(() => {});
-      notice.innerHTML = '<div class="notice">Account created. Taking you to your account…</div>';
-      setTimeout(() => { window.location.href = 'account.html'; }, 400);
+      result = await Promise.race([
+        dsAuth.signUp({ name: fd.get('name'), city: fd.get('city'), email: fd.get('email'), password: fd.get('password'), role: 'searcher' }),
+        new Promise((_, rej) => setTimeout(() => rej(new Error('Signup timed out')), 10000))
+      ]);
     } catch (err) {
-      console.error('[signup] error:', err);
-      notice.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Sign up failed: ${safe(err?.message || 'Please try again.')}</div>`;
+      console.error('[signup] dsAuth.signUp failed, trying direct sb.auth.signUp', err);
+      try {
+        const email = String(fd.get('email')).trim().toLowerCase();
+        const password = String(fd.get('password'));
+        const { data: authData, error } = await Promise.race([
+          sb.auth.signUp({ email, password, options: { data: { name: String(fd.get('name')).trim(), role: 'searcher', city: String(fd.get('city')).trim() } } }),
+          new Promise((_, rej) => setTimeout(() => rej(new Error('Direct signup timed out')), 10000))
+        ]);
+        if (error) throw new Error(error.message);
+        const confirmed = !!(authData.user && (authData.user.email_confirmed_at || authData.user.confirmed_at));
+        result = { ok: true, needsConfirmation: !confirmed, user: { email: authData.user.email, role: 'searcher', name: String(fd.get('name')).trim() } };
+      } catch (directErr) {
+        console.error('[signup] direct signup also failed:', directErr);
+        notice.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Sign up failed: ${safe(directErr?.message || 'Please try again.')}</div>`;
+        return;
+      }
     }
+    console.log('[signup] final result:', result);
+    if (!result.ok) {
+      notice.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">${safe(result.message || 'Sign up failed. Please try again.')}</div>`;
+      return;
+    }
+    if (result.needsConfirmation) {
+      fresh.style.display = 'none';
+      const searchShell = $('.search-shell', app);
+      if (searchShell) {
+        searchShell.innerHTML = `<div class="auth-card"><span class="eyebrow" style="margin-top:24px">Check your inbox</span><h2>Confirm your email to finish.</h2><p class="muted">We sent a confirmation link to <strong>${safe(fd.get('email'))}</strong>. Click it, then sign in to start your shortlist.</p><div class="inline-actions" style="margin-top:22px"><a class="btn btn-primary" href="signin.html">Go to sign in</a><button class="btn btn-ghost" id="resend-confirm">Resend email</button></div><div id="signup-notice"></div></div>`;
+        $('#resend-confirm')?.addEventListener('click', async () => {
+          const { error } = await sb.auth.resend({ type: 'signup', email: fd.get('email').trim().toLowerCase() });
+          const n = $('#signup-notice');
+          if (n) n.innerHTML = error ? `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">${error.message}</div>` : '<div class="notice">Confirmation email resent.</div>';
+        });
+      }
+      return;
+    }
+    const users = storage.getUsers();
+    if (!users.find(u => u.email === result.user.email)) {
+      users.push({ name: result.user.name || '', email: result.user.email, password: '', city: fd.get('city') || '', role: result.user.role || 'searcher', createdAt: new Date().toISOString() });
+      storage.setUsers(users);
+    }
+    storage.setCurrentUser(result.user.email);
+    fetch('https://kktlbznmhxaortogqspy.supabase.co/functions/v1/send-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ to: result.user.email, template: 'welcome_consumer', data: { name: result.user.name || '' } })
+    }).catch(() => {});
+    notice.innerHTML = '<div class="notice">Account created. Taking you to your account…</div>';
+    setTimeout(() => { window.location.href = 'account.html'; }, 400);
   });
 }
-
 
 async function renderAccountPage() {
   const app = $('#app');
