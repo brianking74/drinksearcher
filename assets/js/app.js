@@ -1249,13 +1249,6 @@ function renderLeadCapturePage() {
         leadNotice.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">${signUpResult.message}</div>`;
         return;
       }
-      // Bridge to localStorage
-      const users = storage.getUsers();
-      if (!users.find(u => u.email === email)) {
-        users.push({ name: contactName || '', email, password: '', city: form.get('district') || '', role: listingType, createdAt: new Date().toISOString() });
-        storage.setUsers(users);
-      }
-      storage.setCurrentUser(email);
     }
 
     const lead = storage.addLead({
@@ -1430,12 +1423,6 @@ async function renderSignInPage() {
     notice.innerHTML = '<div class="notice">Signing in…</div>';
     let result = await dsAuth.signIn(form.get('email'), form.get('password'));
     if (result.ok) {
-      const users = storage.getUsers();
-      if (!users.find(u => u.email === result.user.email)) {
-        users.push({ name: result.user.name || '', email: result.user.email, password: '', city: '', role: result.user.role || 'searcher', createdAt: new Date().toISOString() });
-        storage.setUsers(users);
-      }
-      storage.setCurrentUser(result.user.email);
       if (result.user.email === 'brianking@sky.com' || result.user.role === 'admin') {
         storage.setAdminRole(true);
       }
@@ -1452,9 +1439,7 @@ async function renderSignInPage() {
       });
       return;
     }
-    result = storage.signIn(form.get('email'), form.get('password'));
-    notice.innerHTML = result.ok ? '<div class="notice">Signed in successfully. Taking you to your account…</div>' : `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">${safe(result.message || 'Email or password not recognised.')}</div>`;
-    if (result.ok) setTimeout(() => finishAuthFlow('account.html'), 300);
+    notice.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">${safe(result.message || 'Email or password not recognised.')}</div>`;
   });
   $('#forgot-password-btn')?.addEventListener('click', async () => {
     const email = prompt('Enter the email address for your account and we will send a password reset link.');
@@ -1472,63 +1457,30 @@ async function renderSignInPage() {
 async function renderSignUpPage() {
   const app = $('#app');
   try { await dsAuth.signOut(); } catch {}
-  let localUser = storage.getCurrentUser();
-  if (!localUser) {
-    let dsUser = null;
-    try { dsUser = await dsAuth.getCurrentUser(); } catch {}
-    if (dsUser) {
-      const users = storage.getUsers();
-      if (!users.find(u => u.email === dsUser.email)) {
-        users.push({ name: dsUser.name || '', email: dsUser.email, password: '', city: '', role: dsUser.role || 'searcher', createdAt: new Date().toISOString() });
-        storage.setUsers(users);
-      }
-      storage.setCurrentUser(dsUser.email);
-      localUser = dsUser;
-    }
-  }
-  if (localUser) {
-    window.location.href = 'account.html';
-    return;
-  }
   app.innerHTML = `
     <section class="hero" style="min-height:58vh;"><div class="hero-media" style="background-image:url('${siteImages.event}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Create account</span><h1>Create your account.</h1><p class="lead">Create an account to save bottles, venues, and events, track enquiries, and manage your business profile in one place.</p></div><div class="search-shell"><span class="eyebrow">Sign up</span><form id="signup-form" class="form-grid" style="margin-top:14px;"><input class="input" name="name" placeholder="Full name" required /><input class="input" name="city" placeholder="Preferred district" required /><input class="input full" name="email" type="email" placeholder="Email" required /><input class="input full" name="password" type="password" placeholder="Create password" required /><button class="btn btn-primary full" type="submit">Create account</button></form><div id="signup-notice"></div><p class="muted" style="margin-top:16px;">Already have an account? <a class="text-jade" href="signin.html">Sign in</a></p></div></div></section>`;
   const form = $('#signup-form');
-  if (!form) return;
-  const fresh = form.cloneNode(true);
-  form.parentNode.replaceChild(fresh, form);
   const notice = $('#signup-notice');
-  fresh.addEventListener('submit', async e => {
+  if (!form || !notice) return;
+  form.addEventListener('submit', async e => {
     e.preventDefault();
-    const fd = new FormData(fresh);
+    const fd = new FormData(form);
     const email = String(fd.get('email') || '').trim().toLowerCase();
     const password = String(fd.get('password') || '');
     const name = String(fd.get('name') || '').trim();
     const city = String(fd.get('city') || '').trim();
-    notice.innerHTML = '<div class="notice">Creating account…</div>';
-    console.log('[signup] step1 form data', { email, name, city, passwordLen: password.length });
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10000);
-    console.log('[signup] step2 calling sb.auth.signUp');
-    let result;
-    try {
-      result = await sb.auth.signUp({ email, password, options: { data: { name, role: 'searcher', city } } }, { signal: controller.signal });
-      clearTimeout(timeout);
-      console.log('[signup] step3 sb.auth.signUp resolved', result);
-    } catch (err) {
-      clearTimeout(timeout);
-      console.error('[signup] step3 sb.auth.signUp rejected', err);
-      notice.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Sign up failed: ${safe(err?.message || 'Please try again.')}</div>`;
+    if (!email || !name || !password || password.length < 6) {
+      notice.innerHTML = '<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Please fill in your name, a valid email, and a password of at least 6 characters.</div>';
       return;
     }
-    console.log('[signup] step4 processing result');
-    const { data: authData, error } = result;
+    notice.innerHTML = '<div class="notice">Creating account…</div>';
+    const { data: authData, error } = await sb.auth.signUp({ email, password, options: { data: { name, role: 'searcher', city } } });
     if (error) {
       notice.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">${safe(error.message || 'Sign up failed. Please try again.')}</div>`;
       return;
     }
     const confirmed = !!(authData.user && (authData.user.email_confirmed_at || authData.user.confirmed_at));
     if (!confirmed) {
-      fresh.style.display = 'none';
       const searchShell = $('.search-shell', app);
       if (searchShell) {
         searchShell.innerHTML = `<div class="auth-card"><span class="eyebrow" style="margin-top:24px">Check your inbox</span><h2>Confirm your email to finish.</h2><p class="muted">We sent a confirmation link to <strong>${safe(email)}</strong>. Click it, then sign in to start your shortlist.</p><div class="inline-actions" style="margin-top:22px"><a class="btn btn-primary" href="signin.html">Go to sign in</a><button class="btn btn-ghost" id="resend-confirm">Resend email</button></div><div id="signup-notice"></div></div>`;
@@ -1540,12 +1492,6 @@ async function renderSignUpPage() {
       }
       return;
     }
-    const users = storage.getUsers();
-    if (!users.find(u => u.email === email)) {
-      users.push({ name, email, password: '', city, role: 'searcher', createdAt: new Date().toISOString() });
-      storage.setUsers(users);
-    }
-    storage.setCurrentUser(email);
     fetch('https://kktlbznmhxaortogqspy.supabase.co/functions/v1/send-email', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1558,20 +1504,8 @@ async function renderSignUpPage() {
 
 async function renderAccountPage() {
   const app = $('#app');
-  let user = storage.getCurrentUser();
-  // Bridge if Supabase session exists
-  if (!user) {
-    const dsUser = await dsAuth.getCurrentUser();
-    if (dsUser) {
-      const users = storage.getUsers();
-      if (!users.find(u => u.email === dsUser.email)) {
-        users.push({ name: dsUser.name || '', email: dsUser.email, password: '', city: '', role: dsUser.role || 'searcher', createdAt: new Date().toISOString() });
-        storage.setUsers(users);
-      }
-      storage.setCurrentUser(dsUser.email);
-      user = dsUser;
-    }
-  }
+  let user = null;
+  try { user = await dsAuth.getCurrentUser(); } catch {}
   if (!user) {
     storage.setPostAuthRedirect('account.html');
     window.location.href = 'signin.html';
