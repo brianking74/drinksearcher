@@ -282,6 +282,7 @@ const dsAuth = {
         email: session.user.email,
         role: (profile && profile.role) || 'searcher',
         id: session.user.id,
+        city: (session.user.user_metadata && session.user.user_metadata.city) || '',
         createdAt: (profile && profile.created_at) || null
       };
     } catch (e) {
@@ -291,6 +292,7 @@ const dsAuth = {
         email: session.user.email,
         role: 'searcher',
         id: session.user.id,
+        city: (session.user.user_metadata && session.user.user_metadata.city) || '',
         createdAt: null
       };
     }
@@ -339,7 +341,17 @@ const dsAuth = {
   async updateProfile(updates) {
     const user = await getCurrentUser();
     if (!user) return false;
-    const { error } = await sb.from('profiles').update(updates).eq('id', user.id);
-    return !error;
+    let ok = true;
+    // name lives in the profiles table
+    if (updates.name !== undefined) {
+      const { error } = await sb.from('profiles').update({ name: updates.name }).eq('id', user.id);
+      if (error) { console.warn('updateProfile name:', error.message); ok = false; }
+    }
+    // city lives in auth user metadata (no city column in profiles)
+    if (updates.city !== undefined) {
+      const { error } = await sb.auth.updateUser({ data: { city: updates.city } });
+      if (error) { console.warn('updateProfile city:', error.message); ok = false; }
+    }
+    return ok;
   }
 };

@@ -1,33 +1,39 @@
 function $(sel, root = document) { return root.querySelector(sel); }
 function $$(sel, root = document) { return Array.from(root.querySelectorAll(sel)); }
 
+// In-memory current-user cache, hydrated from Supabase (dsAuth) on page load
+// and refreshed on sign-in/sign-up. Every other helper reads this cache.
+let _currentUser = null;
+
+async function hydrateCurrentUser() {
+  try { _currentUser = await dsAuth.getCurrentUser(); } catch { _currentUser = null; }
+  return _currentUser;
+}
+
 const storage = {
-  // Auth: use Supabase only. localStorage user store removed.
-  getCurrentUserEmail() { return ''; },
-  getCurrentUser() { return null; },
-  setCurrentUser() {},
+  // Auth: Supabase-backed via the in-memory cache above.
+  getCurrentUserEmail() { return _currentUser ? _currentUser.email : ''; },
+  getCurrentUser() { return _currentUser; },
+  setCurrentUser(user) { _currentUser = user || null; },
   signUp() { return { ok: false, message: 'Use the signup form.' }; },
   signIn() { return { ok: false, message: 'Use the signin form.' }; },
-  signOut() {},
+  signOut() { _currentUser = null; },
   isAdmin() { try { return JSON.parse(localStorage.getItem('ds_admin_role') || 'false'); } catch { return false; } },
   setAdminRole(value) { localStorage.setItem('ds_admin_role', String(!!value)); },
   clearAdminRole() { localStorage.removeItem('ds_admin_role'); },
 
   // Saved items / onboarding / UI state — these stay in localStorage
   getSavedKey() {
-    // saved items are keyed by Supabase user id when available
-    return `ds_saved_anon`;
+    const user = this.getCurrentUser();
+    return user ? `ds_saved_${user.email}` : 'ds_saved_anon';
   },
-  updateCurrentUserProfile(data) {
+  async updateCurrentUserProfile(data) {
     const current = this.getCurrentUser();
     if (!current) return null;
-    const users = this.getUsers().map(user => user.email === current.email ? { ...user, name: data.name, city: data.city } : user);
-    this.setUsers(users);
-    return this.getCurrentUser();
-  },
-  getSavedKey() {
-    const user = this.getCurrentUser();
-    return user ? `ds_saved_${user.email}` : '';
+    try { await dsAuth.updateProfile({ name: data.name, city: data.city }); }
+    catch (e) { console.warn('Profile update failed:', e); }
+    _currentUser = { ...current, name: data.name || current.name, city: data.city || current.city };
+    return _currentUser;
   },
   getSaved() {
     const key = this.getSavedKey();
@@ -1423,6 +1429,7 @@ async function renderSignInPage() {
     notice.innerHTML = '<div class="notice">Signing in…</div>';
     let result = await dsAuth.signIn(form.get('email'), form.get('password'));
     if (result.ok) {
+      storage.setCurrentUser(result.user);
       if (result.user.email === 'brianking@sky.com' || result.user.role === 'admin') {
         storage.setAdminRole(true);
       }
@@ -1497,6 +1504,7 @@ async function renderSignUpPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ to: email, template: 'welcome_consumer', data: { name } })
     }).catch(() => {});
+    storage.setCurrentUser({ name, email, role: 'searcher', city });
     notice.innerHTML = '<div class="notice">Account created. Taking you to your account…</div>';
     setTimeout(() => { window.location.href = 'account.html'; }, 400);
   });
@@ -1506,6 +1514,7 @@ async function renderAccountPage() {
   const app = $('#app');
   let user = null;
   try { user = await dsAuth.getCurrentUser(); } catch {}
+  storage.setCurrentUser(user);
   if (!user) {
     storage.setPostAuthRedirect('account.html');
     window.location.href = 'signin.html';
@@ -1520,14 +1529,15 @@ async function renderAccountPage() {
     <section class="hero" style="min-height:48vh;"><div class="hero-media" style="background-image:url('${siteImages.rooftop}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">My account</span><h1>${user.name || 'Your account'} <span class="text-jade">dashboard</span>.</h1><p class="lead">Manage your profile, keep a shortlist of drinks and venues, and stay on top of your enquiries and saved discoveries.</p></div><div class="search-shell"><span class="eyebrow">Profile details</span><form id="account-form" class="form-grid" style="margin-top:14px;"><input class="input" name="name" value="${user.name || ''}" placeholder="Full name" required /><input class="input" name="city" value="${user.city || ''}" placeholder="Preferred district" required /><input class="input full" value="${user.email}" disabled /><button class="btn btn-primary full" type="submit">Update profile</button></form><div id="account-notice"></div></div></div></section>
     <section class="section"><div class="container grid grid-2"><div class="panel"><span class="eyebrow">Saved items</span><h2 style="margin:14px 0;">Your shortlist</h2><div id="saved-items"></div></div><div class="panel"><span class="eyebrow">Account actions</span><h2 style="margin:14px 0;">Keep track of what matters.</h2><div class="muted" style="display:grid; gap:12px;"><span>• Save bottles, bars, and events for later.</span><span>• Review your enquiries and listing requests.</span><span>• Access your business dashboard if you manage a supplier or venue profile.</span></div><div class="inline-actions" style="margin-top:18px;"><a class="btn btn-ghost" href="drinks.html">Save more drinks</a><button class="btn btn-secondary" id="account-signout-btn" type="button" onclick="dsAuth.signOut().then(()=>{storage.signOut();location.href='index.html'})">Sign Out</button></div></div></div></section>
     <section class="section-tight"><div class="container"><div class="panel"><span class="eyebrow">My business enquiries</span><h2 style="margin:14px 0;">Submitted lead capture forms</h2><div id="account-leads"></div></div></div></section>`;
-  $('#account-form').addEventListener('submit', e => {
+  $('#account-form').addEventListener('submit', async e => {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
-    storage.updateCurrentUserProfile({ name: form.get('name'), city: form.get('city') });
+    await storage.updateCurrentUserProfile({ name: form.get('name'), city: form.get('city') });
     $('#account-notice').innerHTML = '<div class="notice">Profile updated successfully.</div>';
   });
   renderAccountSaved();
   renderAccountLeads();
+  document.documentElement.dataset.appRendered = 'true';
 }
 
 function renderAccountSaved() {
@@ -1677,6 +1687,7 @@ async function importInventory() {
 async function renderBusinessDashboardPage() {
   const app = $('#app');
   const user = await dsAuth.getCurrentUser();
+  storage.setCurrentUser(user);
   if (!user) {
     const role = new URLSearchParams(location.search).get('role') || 'merchant';
     app.innerHTML = `<div class="auth-form" style="min-height:calc(100vh - 72px)"><div class="auth-card"><span class="eyebrow">Business dashboard</span><h2>Sign in to manage your listing.</h2><p class="lead">Your application was submitted. Sign in or create an account to track verification progress and manage your profile.</p><div class="inline-actions" style="margin-top:28px"><a class="btn btn-primary" href="signin.html">Sign in</a><a class="btn btn-ghost" href="signup.html">Create account</a></div><p class="muted" style="margin-top:18px"><a href="index.html" class="text-gold">Return to homepage</a></p></div></div>`;
@@ -1977,6 +1988,7 @@ async function renderBusinessDashboardPage() {
     }));
   };
   app.innerHTML = renderRole(state.activeRole || 'merchant');
+  document.documentElement.dataset.appRendered = 'true';
 }
 
 function adminPlanCatalog() {
@@ -2756,6 +2768,7 @@ async function renderBlogAdminPage() {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
+  await hydrateCurrentUser();
   const page = document.body.dataset.page;
   const activeMap = {
     home: 'Home',
