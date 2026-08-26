@@ -1674,9 +1674,9 @@ async function importInventory() {
   }
 }
 
-function renderBusinessDashboardPage() {
+async function renderBusinessDashboardPage() {
   const app = $('#app');
-  const user = storage.getCurrentUser();
+  const user = await dsAuth.getCurrentUser();
   if (!user) {
     const role = new URLSearchParams(location.search).get('role') || 'merchant';
     app.innerHTML = `<div class="auth-form" style="min-height:calc(100vh - 72px)"><div class="auth-card"><span class="eyebrow">Business dashboard</span><h2>Sign in to manage your listing.</h2><p class="lead">Your application was submitted. Sign in or create an account to track verification progress and manage your profile.</p><div class="inline-actions" style="margin-top:28px"><a class="btn btn-primary" href="signin.html">Sign in</a><a class="btn btn-ghost" href="signup.html">Create account</a></div><p class="muted" style="margin-top:18px"><a href="index.html" class="text-gold">Return to homepage</a></p></div></div>`;
@@ -2662,7 +2662,7 @@ async function renderBlogPage() {
 
 async function renderBlogAdminPage() {
   const app = $('#app');
-  const user = storage.getCurrentUser();
+  const user = await dsAuth.getCurrentUser();
   if (!user) { window.location.href = 'signin.html'; return; }
 
   const { data: posts, error } = await sb
@@ -2789,8 +2789,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (page === 'lead' && window.DrinkSearcherPremium) {
     // premium.js handles lead page via bootPremium()
   } else { if (page === 'lead') renderLeadCapturePage(); }
-  if (page === 'dashboard') renderBusinessDashboardPage();
-  if (page === 'admin') renderAdminDashboardPage();
+  if (page === 'dashboard') await renderBusinessDashboardPage();
+  if (page === 'admin') await renderAdminDashboardPage();
   if (page === 'venue-profile') await renderVenueProfile();
   if (page === 'supplier-profile') renderSupplierProfile();
   if (page === 'signin') await renderSignInPage();
