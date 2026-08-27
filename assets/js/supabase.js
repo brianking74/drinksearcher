@@ -158,7 +158,7 @@ async function fetchVenues() {
 // --- Events ---
 async function fetchEvents() {
   try {
-    const { data, error } = await sb.from('events').select('*').order('created_at').limit(200);
+    const { data, error } = await sb.from('events').select('*').eq('status', 'approved').order('created_at').limit(200);
     if (!error && Array.isArray(data) && data.length) {
       return data.map(e => ({ name: e.name, venue: e.venue || '', area: e.area || '', date: e.event_date || '', type: e.type || '', image: e.image || '', url: e.url || '' }));
     }
