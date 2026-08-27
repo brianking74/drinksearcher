@@ -2130,14 +2130,14 @@ async function removeDashboardEventRow(id) {
 function adminPlanCatalog() {
   return {
     merchant: {
-      'merchant-starter': { name: 'Merchant Starter', monthly: 'HK$0', annual: 'HK$0' },
-      'merchant-enhanced': { name: 'Merchant Enhanced', monthly: 'HK$1,280', annual: 'HK$12,720' },
-      'merchant-premium': { name: 'Merchant Premium', monthly: 'HK$2,480', annual: 'HK$24,720' }
+      'merchant-starter': { name: 'Merchant Starter', dbPlan: 'merchant_starter', monthly: 'HK$0', annual: 'HK$0', listings: 10, directoryTier: 'standard', founding: false },
+      'merchant-enhanced': { name: 'Merchant Enhanced', dbPlan: 'merchant_enhanced', monthly: 'HK$380', annual: 'HK$3,800', listings: 100, directoryTier: 'enhanced', founding: true },
+      'merchant-premium': { name: 'Merchant Premium', dbPlan: 'merchant_premium', monthly: 'HK$2,480', annual: 'HK$24,720', listings: null, directoryTier: 'featured', founding: false }
     },
     venue: {
-      'venue-starter': { name: 'Venue Starter', monthly: 'HK$0', annual: 'HK$0' },
-      'venue-enhanced': { name: 'Venue Enhanced', monthly: 'HK$980', annual: 'HK$9,720' },
-      'venue-enhanced-events': { name: 'Venue Enhanced + Events', monthly: 'HK$1,480', annual: 'HK$14,760' }
+      'venue-starter': { name: 'Venue Starter', dbPlan: 'venue_starter', monthly: 'HK$0', annual: 'HK$0', listings: 0, directoryTier: 'standard', founding: false },
+      'venue-enhanced': { name: 'Venue Enhanced', dbPlan: 'venue_enhanced', monthly: 'HK$300', annual: 'HK$3,000', listings: 0, directoryTier: 'enhanced', founding: true },
+      'venue-enhanced-events': { name: 'Venue Enhanced + Events', dbPlan: 'venue_enhanced_events', monthly: 'HK$480', annual: 'HK$4,800', listings: 0, directoryTier: 'featured', founding: true }
     }
   };
 }

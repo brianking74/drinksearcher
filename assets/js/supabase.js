@@ -177,6 +177,12 @@ async function fetchMyDrinks() {
 async function submitDrink(drink) {
   const user = await getCurrentUser();
   if (!user) throw new Error('Not signed in');
+  // Friendly pre-check before the DB trigger rejects it
+  const limit = await getMyListingLimit();
+  const count = await countMyListings();
+  if (count >= limit) {
+    throw new Error(`You have reached your free listing limit (${limit} products). Upgrade to Enhanced to list more.`);
+  }
   // Prevent duplicate by checking existing name
   const { data: existing } = await sb.from('drinks').select('id,name,supplier_name').eq('name', drink.name).limit(1);
   if (existing && existing.length > 0) {
@@ -238,6 +244,41 @@ async function updateLeadStatus(id, status) {
   const { data, error } = await sb.from('leads').update({ status }).eq('id', id).select().single();
   if (error) throw error;
   return data;
+}
+
+// --- Subscriptions / Entitlements ---
+async function fetchMySubscription() {
+  const user = await getCurrentUser();
+  if (!user) return null;
+  const { data, error } = await sb.from('subscriptions').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(1);
+  if (error || !data || !data.length) return null;
+  return data[0];
+}
+
+async function getMyListingLimit() {
+  const sub = await fetchMySubscription();
+  if (!sub) return 10; // free tier default
+  return (sub.listing_limit === null || sub.listing_limit === undefined) ? 10 : sub.listing_limit;
+}
+
+async function countMyListings() {
+  const user = await getCurrentUser();
+  if (!user) return 0;
+  const { count, error } = await sb.from('drinks').select('id', { count: 'exact', head: true }).eq('submitted_by', user.id).neq('status', 'rejected');
+  if (error) return 0;
+  return count || 0;
+}
+
+async function createSubscription(sub) {
+  const { data, error } = await sb.from('subscriptions').insert(sub).select().single();
+  if (error) throw error;
+  return data;
+}
+
+async function fetchAllSubscriptions() {
+  const { data, error } = await sb.from('subscriptions').select('*').order('created_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
 }
 
 // --- Saved Items ---
