@@ -212,6 +212,34 @@ async function rejectDrink(id) {
   return updateDrink(id, { status: 'rejected' });
 }
 
+// --- Admin: Events moderation ---
+async function fetchAllEvents() {
+  const { data, error } = await sb.from('events').select('*').order('created_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
+async function approveEvent(id) {
+  return updateEvent(id, { status: 'approved' });
+}
+
+async function rejectEvent(id) {
+  return updateEvent(id, { status: 'rejected' });
+}
+
+// --- Admin: Leads ---
+async function fetchAllLeads() {
+  const { data, error } = await sb.from('leads').select('*').order('created_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
+async function updateLeadStatus(id, status) {
+  const { data, error } = await sb.from('leads').update({ status }).eq('id', id).select().single();
+  if (error) throw error;
+  return data;
+}
+
 // --- Saved Items ---
 async function fetchSavedItems() {
   const user = await getCurrentUser();

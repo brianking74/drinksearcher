@@ -2399,6 +2399,84 @@ async function productManagerSaveImage(id, index) {
   }
 }
 
+async function loadPendingEvents() {
+  const holder = $('#admin-pending-events');
+  if (!holder) return;
+  try {
+    const events = await fetchAllEvents();
+    const pending = (events || []).filter(e => e.status !== 'approved' && e.status !== 'rejected');
+    if (!pending.length) {
+      holder.innerHTML = '<div class="notice">No pending events to review.</div>';
+      return;
+    }
+    holder.innerHTML = pending.map(e => `
+      <div class="admin-table-row" style="grid-template-columns:2fr 1fr 1fr 1fr 120px;" id="pending-event-row-${e.id}">
+        <div><strong>${e.name}</strong></div>
+        <div>${e.venue || '—'}</div>
+        <div>${e.event_date || '—'}</div>
+        <div><span class="status-badge status-${(e.status || 'pending').toLowerCase()}">${e.status || 'Pending'}</span></div>
+        <div style="display:flex;gap:4px;flex-wrap:wrap;">
+          <button class="btn btn-primary btn-small" type="button" onclick="moderateEvent('${e.id}','approved')">Approve</button>
+          <button class="btn btn-ghost btn-small" type="button" onclick="moderateEvent('${e.id}','rejected')">Reject</button>
+        </div>
+      </div>`).join('');
+  } catch (e) {
+    holder.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Could not load events: ${e.message}</div>`;
+  }
+}
+
+async function moderateEvent(id, status) {
+  const notice = $('#admin-events-notice');
+  try {
+    if (status === 'approved') await approveEvent(id);
+    else await rejectEvent(id);
+    if (notice) notice.innerHTML = `<div class="notice">Event ${status === 'approved' ? 'approved ✓' : 'rejected'}.</div>`;
+    setTimeout(() => loadPendingEvents(), 400);
+  } catch (e) {
+    if (notice) notice.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Failed: ${e.message}</div>`;
+  }
+}
+
+async function loadAdminLeads() {
+  const holder = $('#admin-leads');
+  if (!holder) return;
+  try {
+    const leads = await fetchAllLeads();
+    if (!leads.length) {
+      holder.innerHTML = '<div class="notice">No leads yet.</div>';
+      return;
+    }
+    holder.innerHTML = leads.map(lead => `
+      <div class="admin-table-row" style="grid-template-columns:1.5fr 0.8fr 1fr 1.2fr 1fr 1fr;" id="admin-lead-row-${lead.id}">
+        <div><strong>${lead.business_name || '—'}</strong></div>
+        <div>${lead.listing_type === 'venue' ? 'Venue' : 'Supplier'}</div>
+        <div>${lead.district || '—'}</div>
+        <div>${lead.contact_name || '—'}<br><span class="small-note">${lead.email || ''}</span></div>
+        <div><span class="status-badge status-${(lead.status || 'new').toLowerCase()}">${lead.status || 'New'}</span>
+          <select class="select admin-select" data-lead-status="${lead.id}" style="margin-top:6px;width:100%;">
+            ${['new','reviewing','approved','rejected'].map(s => `<option value="${s}" ${lead.status === s ? 'selected' : ''}>${s}</option>`).join('')}
+          </select>
+        </div>
+        <div><button class="btn btn-primary btn-small" type="button" onclick="setLeadStatus('${lead.id}')">Save</button></div>
+      </div>`).join('');
+  } catch (e) {
+    holder.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Could not load leads: ${e.message}</div>`;
+  }
+}
+
+async function setLeadStatus(id) {
+  const notice = $('#admin-leads-notice');
+  const select = document.querySelector(`[data-lead-status="${id}"]`);
+  if (!select) return;
+  try {
+    await updateLeadStatus(id, select.value);
+    if (notice) notice.innerHTML = '<div class="notice">Lead status updated.</div>';
+    setTimeout(() => loadAdminLeads(), 400);
+  } catch (e) {
+    if (notice) notice.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Failed: ${e.message}</div>`;
+  }
+}
+
 async function renderAdminDashboardPage() {
   const app = $('#app');
   const user = await dsAuth.getCurrentUser();
@@ -2501,6 +2579,35 @@ async function renderAdminDashboardPage() {
             <div id="admin-pending-items"><div class="notice">Loading…</div></div>
           </div>
           <div id="admin-pending-notice"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section-tight">
+      <div class="container">
+        <div class="panel">
+          <span class="eyebrow">Pending events</span>
+          <h2 style="margin:14px 0;">Awaiting approval</h2>
+          <div class="admin-table">
+            <div class="admin-table-head" style="grid-template-columns:2fr 1fr 1fr 1fr 120px;"><div>Event</div><div>Venue</div><div>Date</div><div>Status</div><div></div></div>
+            <div id="admin-pending-events"><div class="notice">Loading…</div></div>
+          </div>
+          <div id="admin-events-notice"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section-tight">
+      <div class="container">
+        <div class="panel">
+          <span class="eyebrow">Leads</span>
+          <h2 style="margin:14px 0;">Business enquiries</h2>
+          <p class="muted" style="margin-bottom:16px;">New supplier and venue applications from the lead capture form.</p>
+          <div class="admin-table">
+            <div class="admin-table-head" style="grid-template-columns:1.5fr 0.8fr 1fr 1.2fr 1fr 1fr;"><div>Business</div><div>Type</div><div>District</div><div>Contact</div><div>Status</div><div></div></div>
+            <div id="admin-leads"><div class="notice">Loading…</div></div>
+          </div>
+          <div id="admin-leads-notice"></div>
         </div>
       </div>
     </section>
@@ -2617,8 +2724,10 @@ async function renderAdminDashboardPage() {
       </div>
     </section>`;
 
-  // Load pending inventory and product manager
+  // Load pending inventory, pending events, leads, and product manager
   loadPendingItems();
+  loadPendingEvents();
+  loadAdminLeads();
   loadProductManager();
 
 
