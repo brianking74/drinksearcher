@@ -166,9 +166,9 @@ const storage = {
         { id: 'app_seed_4', businessName: 'Quinary', listingType: 'venue', planInterest: 'venue-enhanced', contactName: 'Reservations Team', email: 'bookings@quinary.hk', district: 'Central', source: 'pricing', status: 'New', priority: 'Medium', submittedAt: '2026-05-21T16:45:00.000Z', notes: 'Interested in enhanced profile with booking CTA.' }
       ],
       subscriptions: [
-        { id: 'sub_seed_1', businessName: 'Watson\'s Wine', listingType: 'merchant', plan: 'Merchant Premium', billing: 'Annual', amount: 'HK$24,720 / year', status: 'Active', renewal: '2027-05-18', addOns: { featuredSupplier: true, featuredEvent: false, extraProducts: true }, invoiceStatus: 'Paid' },
-        { id: 'sub_seed_2', businessName: 'Cardinal Point', listingType: 'venue', plan: 'Venue Enhanced + Events', billing: 'Monthly', amount: 'HK$1,480 / month', status: 'Trial', renewal: '2026-06-01', addOns: { featuredVenue: true, featuredEvent: true, bookingBoost: false }, invoiceStatus: 'Pending' },
-        { id: 'sub_seed_3', businessName: 'Young Master Ales', listingType: 'merchant', plan: 'Merchant Enhanced', billing: 'Monthly', amount: 'HK$1,280 / month', status: 'Past Due', renewal: '2026-05-30', addOns: { featuredSupplier: false, featuredEvent: true, extraProducts: false }, invoiceStatus: 'Overdue' }
+        { id: 'sub_seed_1', businessName: 'Watson\'s Wine', listingType: 'merchant', plan: 'Merchant Premium', billing: 'Monthly', amount: 'HK$2,480 / month', status: 'Active', renewal: '2027-05-18', addOns: { featuredSupplier: true, featuredEvent: false, extraProducts: true }, invoiceStatus: 'Paid' },
+        { id: 'sub_seed_2', businessName: 'Cardinal Point', listingType: 'venue', plan: 'Venue Enhanced + Events', billing: 'Monthly', amount: 'HK$480 / month', status: 'Trial', renewal: '2026-06-01', addOns: { featuredVenue: true, featuredEvent: true, bookingBoost: false }, invoiceStatus: 'Pending' },
+        { id: 'sub_seed_3', businessName: 'Young Master Ales', listingType: 'merchant', plan: 'Merchant Enhanced', billing: 'Monthly', amount: 'HK$380 / month', status: 'Past Due', renewal: '2026-05-30', addOns: { featuredSupplier: false, featuredEvent: true, extraProducts: false }, invoiceStatus: 'Overdue' }
       ],
       placements: [
         { id: 'slot_1', slot: 'Homepage supplier spotlight', listingType: 'merchant', occupant: 'Watson\'s Wine', status: 'Live', notes: 'Premium supplier rotation lead.' },
@@ -1015,7 +1015,42 @@ async function renderEventsPage() {
   bindSaveButtons(app);
 }
 
-function renderPricingPage() {
+// Starts a Stripe Checkout session for a paid tier and redirects to Stripe.
+// Requires the user to be signed in (the subscription is keyed to their
+// profile). Not signed in -> stash the intent, send them to sign in, and
+// resume the checkout automatically after login.
+async function startCheckout(planSlug) {
+  const user = await dsAuth.getCurrentUser();
+  if (!user) {
+    try { localStorage.setItem('ds_pending_plan', String(planSlug)); } catch (e) { /* noop */ }
+    storage.setPostAuthRedirect('pricing.html');
+    location.href = 'signin.html';
+    return;
+  }
+  const type = String(planSlug).startsWith('venue') ? 'venue' : 'merchant';
+  const successUrl = `${location.origin}/dashboard.html?role=${type}&checkout=success`;
+  const cancelUrl = `${location.origin}/pricing.html`;
+  let btn = null;
+  try {
+    btn = document.querySelector(`[data-checkout-plan="${planSlug}"]`);
+  } catch (e) { /* noop */ }
+  const originalLabel = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Redirecting to Stripe…'; }
+  try {
+    const { data, error } = await sb.functions.invoke('create-checkout', {
+      body: { plan: planSlug, successUrl, cancelUrl }
+    });
+    if (error) throw new Error(error.message || error);
+    if (!data || !data.url) throw new Error('No checkout URL returned');
+    location.href = data.url;
+  } catch (e) {
+    if (btn) { btn.disabled = false; btn.textContent = originalLabel; }
+    const msg = String(e && e.message ? e.message : e);
+    alert('Checkout could not be started: ' + msg);
+  }
+}
+
+async function renderPricingPage() {
   const app = $('#app');
   app.innerHTML = `
     <section class="hero" style="min-height:64vh;">
@@ -1031,12 +1066,9 @@ function renderPricingPage() {
           </div>
         </div>
         <div class="search-shell">
-          <span class="eyebrow">Billing mode</span>
-          <div class="pricing-toggle" style="margin-top:16px;">
-            <button class="toggle-pill active" data-billing="monthly">Monthly</button>
-            <button class="toggle-pill" data-billing="annual">Annual <span class="text-jade">save 17%</span></button>
-          </div>
-          <div class="notice">Annual pricing is shown as the effective monthly rate, billed yearly for easier comparison.</div>
+          <span class="eyebrow">Founding offer</span>
+          <div class="notice" style="margin-top:16px;">Founding members lock today's lower price for life. Standard rates return once the launch window closes.</div>
+          <div class="notice" style="margin-top:10px;">Paid plans are billed securely via Stripe. Start free and upgrade whenever you're ready.</div>
         </div>
       </div>
     </section>
@@ -1048,45 +1080,44 @@ function renderPricingPage() {
           <article class="price-card">
             <span class="badge gold">Starter</span>
             <h3>Merchant Starter</h3>
-            <p class="muted">Free company profile with contact details and search presence.</p>
-            <div class="price"><span class="amount" data-monthly="HK$0" data-annual="HK$0">HK$0</span><span class="price-period">/ month</span></div>
+            <p class="muted">Free company profile and your first 10 products.</p>
+            <div class="price"><span class="amount">HK$0</span><span class="price-period">/ month</span></div>
             <ul class="feature-list">
               <li>Free company profile</li>
+              <li>10 product listings</li>
               <li>Website and contact details</li>
-              <li>Appears in standard supplier directory</li>
-              <li>No drinks inventory shown on Drinks page</li>
+              <li>Standard supplier directory placement</li>
             </ul>
             <a class="btn btn-ghost btn-block" href="list-your-business.html?type=merchant&plan=merchant-starter">Start free</a>
           </article>
           <article class="price-card featured-tier">
-            <span class="badge jade">Recommended</span>
+            <span class="badge jade">Founding offer</span>
             <h3>Merchant Enhanced</h3>
-            <p class="muted">For suppliers that want their own profile page and the first 10 visible items.</p>
-            <div class="price"><span class="amount" data-monthly="HK$1,280" data-annual="HK$1,060">HK$1,280</span><span class="price-period">/ month</span></div>
-            <div class="price-note">Annual billing: HK$12,720 / year</div>
+            <p class="muted">Stronger visibility and 100 listings for early supporters.</p>
+            <div class="price"><span class="amount">HK$380</span><span class="price-period">/ month</span></div>
+            <div class="price-note"><s>HK$980</s> · founding price, locked for life</div>
             <ul class="feature-list">
-              <li>Enhanced profile page</li>
-              <li>Link to online store</li>
-              <li>First 10 drink items visible on Drinks page</li>
-              <li>Buy-online CTA on eligible drinks</li>
-              <li>Priority placement in supplier directory</li>
+              <li>Everything in Starter</li>
+              <li>100 product listings</li>
+              <li>Enhanced directory placement</li>
+              <li>Homepage featured eligibility</li>
+              <li>Priority support</li>
             </ul>
-            <a class="btn btn-primary btn-block" href="list-your-business.html?type=merchant&plan=merchant-enhanced">Choose Enhanced</a>
+            <button class="btn btn-primary btn-block" type="button" data-checkout-plan="merchant_enhanced" onclick="startCheckout('merchant_enhanced')">Choose Enhanced</button>
           </article>
           <article class="price-card">
             <span class="badge pink">Premium</span>
             <h3>Merchant Premium</h3>
-            <p class="muted">For suppliers that want full catalogue visibility and stronger promotion.</p>
-            <div class="price"><span class="amount" data-monthly="HK$2,480" data-annual="HK$2,060">HK$2,480</span><span class="price-period">/ month</span></div>
-            <div class="price-note">Annual billing: HK$24,720 / year</div>
+            <p class="muted">Full catalogue and featured placement — opening soon.</p>
+            <div class="price"><span class="amount">HK$2,480</span><span class="price-period">/ month</span></div>
             <ul class="feature-list">
               <li>Everything in Enhanced</li>
-              <li>Full catalogue link / larger inventory allowance</li>
-              <li>Homepage premium supplier eligibility</li>
-              <li>Email event submission access</li>
-              <li>Priority support for launches and seasonal pushes</li>
+              <li>Unlimited product listings</li>
+              <li>Featured directory placement</li>
+              <li>Homepage premium supplier block</li>
+              <li>Priority support for launches</li>
             </ul>
-            <a class="btn btn-secondary btn-block" href="list-your-business.html?type=merchant&plan=merchant-premium">Choose Premium</a>
+            <a class="btn btn-secondary btn-block" href="list-your-business.html?type=merchant&plan=merchant-premium">Join waitlist</a>
           </article>
         </div>
       </div>
@@ -1100,44 +1131,44 @@ function renderPricingPage() {
             <span class="badge gold">Starter</span>
             <h3>Venue Starter</h3>
             <p class="muted">Free venue profile for brand presence and discovery.</p>
-            <div class="price"><span class="amount" data-monthly="HK$0" data-annual="HK$0">HK$0</span><span class="price-period">/ month</span></div>
+            <div class="price"><span class="amount">HK$0</span><span class="price-period">/ month</span></div>
             <ul class="feature-list">
               <li>Basic venue profile</li>
               <li>Address, phone, cuisine type</li>
-              <li>Appears in standard venue directory</li>
-              <li>No booking CTA or detail page</li>
+              <li>Standard venue directory placement</li>
+              <li>1 event listing</li>
             </ul>
             <a class="btn btn-ghost btn-block" href="list-your-business.html?type=venue&plan=venue-starter">Start free</a>
           </article>
           <article class="price-card featured-tier">
-            <span class="badge jade">Best for launch</span>
+            <span class="badge jade">Founding offer</span>
             <h3>Venue Enhanced</h3>
-            <p class="muted">For bars and restaurants that want a stronger story and booking conversion.</p>
-            <div class="price"><span class="amount" data-monthly="HK$980" data-annual="HK$810">HK$980</span><span class="price-period">/ month</span></div>
-            <div class="price-note">Annual billing: HK$9,720 / year</div>
+            <p class="muted">A stronger story and direct booking conversion.</p>
+            <div class="price"><span class="amount">HK$300</span><span class="price-period">/ month</span></div>
+            <div class="price-note"><s>HK$980</s> · founding price, locked for life</div>
             <ul class="feature-list">
+              <li>Everything in Starter</li>
               <li>Enhanced venue page</li>
               <li>Direct booking link (SevenRooms / Bistrochat / site)</li>
-              <li>Priority placement in venue directory</li>
               <li>Image-led listing card</li>
-              <li>Optional event listings</li>
+              <li>Priority directory placement</li>
             </ul>
-            <a class="btn btn-primary btn-block" href="list-your-business.html?type=venue&plan=venue-enhanced">Choose Venue Enhanced</a>
+            <button class="btn btn-primary btn-block" type="button" data-checkout-plan="venue_enhanced" onclick="startCheckout('venue_enhanced')">Choose Venue Enhanced</button>
           </article>
           <article class="price-card">
             <span class="badge pink">Growth</span>
             <h3>Venue Enhanced + Events</h3>
-            <p class="muted">For venues that host frequent guest shifts, tasting menus, and brand nights.</p>
-            <div class="price"><span class="amount" data-monthly="HK$1,480" data-annual="HK$1,230">HK$1,480</span><span class="price-period">/ month</span></div>
-            <div class="price-note">Annual billing: HK$14,760 / year</div>
+            <p class="muted">For venues hosting frequent tastings and guest shifts.</p>
+            <div class="price"><span class="amount">HK$480</span><span class="price-period">/ month</span></div>
+            <div class="price-note"><s>HK$1,480</s> · founding price, locked for life</div>
             <ul class="feature-list">
               <li>Everything in Venue Enhanced</li>
+              <li>Unlimited event listings</li>
               <li>Always-on event promotion slot</li>
               <li>Homepage event consideration</li>
               <li>Seasonal campaign priority</li>
-              <li>Better lead path for tourists and locals</li>
             </ul>
-            <a class="btn btn-secondary btn-block" href="list-your-business.html?type=venue&plan=venue-enhanced-events">Choose Growth Plan</a>
+            <button class="btn btn-secondary btn-block" type="button" data-checkout-plan="venue_enhanced_events" onclick="startCheckout('venue_enhanced_events')">Choose Growth Plan</button>
           </article>
         </div>
       </div>
@@ -1149,10 +1180,9 @@ function renderPricingPage() {
           <span class="eyebrow">Featured add-ons</span>
           <h2 style="margin:14px 0;">Layered upsells that are easy to explain.</h2>
           <div class="addon-list">
-            <div class="addon-card"><div><strong>Homepage featured supplier block</strong><p class="muted">Rotating placement in premium supplier cards.</p></div><div class="addon-price" data-monthly="+ HK$680/mo" data-annual="+ HK$560/mo">+ HK$680/mo</div></div>
-            <div class="addon-card"><div><strong>Homepage featured venue block</strong><p class="muted">Image-led visibility in the Where Hong Kong drinks section.</p></div><div class="addon-price" data-monthly="+ HK$580/mo" data-annual="+ HK$480/mo">+ HK$580/mo</div></div>
-            <div class="addon-card"><div><strong>Featured event promotion</strong><p class="muted">Extra event card amplification for launches and guest shifts.</p></div><div class="addon-price" data-monthly="HK$450 / event" data-annual="HK$450 / event">HK$450 / event</div></div>
-            <div class="addon-card"><div><strong>Additional 25 products for Enhanced merchants</strong><p class="muted">Inventory expansion without jumping fully to Premium.</p></div><div class="addon-price" data-monthly="+ HK$320/mo" data-annual="+ HK$265/mo">+ HK$320/mo</div></div>
+            <div class="addon-card"><div><strong>Homepage featured supplier block</strong><p class="muted">Rotating placement in premium supplier cards.</p></div><div class="addon-price">+ HK$680/mo</div></div>
+            <div class="addon-card"><div><strong>Homepage featured venue block</strong><p class="muted">Image-led visibility in the Where Hong Kong drinks section.</p></div><div class="addon-price">+ HK$580/mo</div></div>
+            <div class="addon-card"><div><strong>Featured event promotion</strong><p class="muted">Extra event card amplification for launches and guest shifts.</p></div><div class="addon-price">HK$450 / event</div></div>
           </div>
         </div>
         <div class="panel">
@@ -1162,7 +1192,7 @@ function renderPricingPage() {
             <span>• Free starter plans help seed listings without slowing growth.</span>
             <span>• Enhanced is the obvious first paid step for both merchants and venues.</span>
             <span>• Premium and add-ons create higher-value upsell paths once the audience starts compounding.</span>
-            <span>• Annual plans improve cash flow early, which matters when you are still validating the market.</span>
+            <span>• Founding members lock today's price for life — the strongest early incentive.</span>
           </div>
           <div class="inline-actions" style="margin-top:20px;">
             <a class="btn btn-primary" href="list-your-business.html?type=merchant">Start application</a>
@@ -1172,18 +1202,15 @@ function renderPricingPage() {
       </div>
     </section>`;
 
-  const periodLabels = $$('.price-period', app);
-  const amountNodes = $$('.amount', app);
-  const addonNodes = $$('.addon-price', app);
-  const toggles = $$('[data-billing]', app);
-  const setBilling = (mode) => {
-    toggles.forEach(btn => btn.classList.toggle('active', btn.dataset.billing === mode));
-    amountNodes.forEach(node => { node.textContent = node.dataset[mode]; });
-    addonNodes.forEach(node => { node.textContent = node.dataset[mode]; });
-    periodLabels.forEach(label => { label.textContent = mode === 'annual' ? '/ mo (annual billing)' : '/ month'; });
-  };
-  toggles.forEach(btn => btn.addEventListener('click', () => setBilling(btn.dataset.billing)));
-  setBilling('monthly');
+  // Resume a checkout that was interrupted by a sign-in redirect.
+  try {
+    const pendingPlan = localStorage.getItem('ds_pending_plan');
+    if (pendingPlan) {
+      localStorage.removeItem('ds_pending_plan');
+      const user = await dsAuth.getCurrentUser();
+      if (user) startCheckout(pendingPlan);
+    }
+  } catch (e) { /* noop */ }
 }
 
 function renderLeadCapturePage() {
