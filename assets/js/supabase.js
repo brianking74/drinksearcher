@@ -296,6 +296,30 @@ async function submitReview(reviewData) {
   return data;
 }
 
+// --- Leads ---
+async function submitLead(lead) {
+  const { data, error } = await sb.from('leads').insert({
+    account_email: lead.accountEmail || null,
+    listing_type: lead.listingType || '',
+    business_name: lead.businessName || '',
+    contact_name: lead.contactName || '',
+    email: lead.email || '',
+    phone: lead.phone || '',
+    district: lead.district || '',
+    website: lead.website || '',
+    notes: lead.notes || '',
+    source: lead.source || ''
+  }).select().single();
+  if (error) throw error;
+  return data;
+}
+
+async function fetchMyLeads(email) {
+  const { data, error } = await sb.from('leads').select('*').eq('email', email).order('created_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
 console.log('[supabase] Client initialized');
 
 // ============================================================

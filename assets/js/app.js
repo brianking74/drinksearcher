@@ -1238,7 +1238,7 @@ function renderLeadCapturePage() {
       }
     }
 
-    const lead = storage.addLead({
+    const leadPayload = {
       accountEmail: email,
       listingType,
       businessName,
@@ -1249,8 +1249,15 @@ function renderLeadCapturePage() {
       website: form.get('website'),
       notes: form.get('notes') || '',
       source
-    });
-    leadNotice.innerHTML = `<div class="notice">Account created! Your enquiry for <strong>${lead.businessName}</strong> has been received. Redirecting to your dashboard…</div>`;
+    };
+    let lead = null;
+    try {
+      lead = await submitLead(leadPayload);
+    } catch (e) {
+      leadNotice.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Could not save your enquiry: ${e.message || 'Please try again.'}</div>`;
+      return;
+    }
+    leadNotice.innerHTML = `<div class="notice">Account created! Your enquiry for <strong>${businessName}</strong> has been received. Redirecting to your dashboard…</div>`;
     // Send admin notification email
     try {
       await fetch('https://kktlbznmhxaortogqspy.supabase.co/functions/v1/send-email', {
@@ -1563,7 +1570,7 @@ async function renderAccountPage() {
     $('#account-notice').innerHTML = '<div class="notice">Profile updated successfully.</div>';
   });
   renderAccountSaved();
-  renderAccountLeads();
+  await renderAccountLeads();
   document.documentElement.dataset.appRendered = 'true';
 }
 
@@ -1579,11 +1586,14 @@ function renderAccountSaved() {
   }));
 }
 
-function renderAccountLeads() {
+async function renderAccountLeads() {
   const holder = $('#account-leads');
   if (!holder) return;
-  const leads = storage.getCurrentUserLeads();
-  holder.innerHTML = leads.length ? `<div class="grid grid-2">${leads.map(lead => `<div class="panel"><div class="eyebrow">${lead.listingType === 'venue' ? 'Venue enquiry' : 'Merchant enquiry'}</div><h3 style="margin:12px 0;">${lead.businessName}</h3><p class="muted">${lead.planInterest.replace(/-/g, ' ')} · ${lead.district}</p><div class="muted" style="display:grid; gap:8px; margin-top:14px;"><span>${lead.contactName}</span><span>${lead.email}</span><span>${lead.phone}</span></div><div class="inline-actions" style="margin-top:16px;"><a class="btn btn-ghost btn-small" href="list-your-business.html?type=${lead.listingType}&plan=${lead.planInterest}">Edit / submit another</a><a class="btn btn-primary btn-small" href="dashboard.html?role=${lead.listingType}">Open dashboard</a></div></div>`).join('')}</div>` : '<div class="empty-state">No business enquiries yet. Use the lead capture page to submit your first supplier or venue application.</div>';
+  const user = storage.getCurrentUser();
+  if (!user) { holder.innerHTML = '<div class="empty-state">Sign in to view your business enquiries.</div>'; return; }
+  let leads = [];
+  try { leads = await fetchMyLeads(user.email); } catch (e) { leads = []; }
+  holder.innerHTML = leads.length ? `<div class="grid grid-2">${leads.map(lead => `<div class="panel"><div class="eyebrow">${lead.listing_type === 'venue' ? 'Venue enquiry' : 'Merchant enquiry'}</div><h3 style="margin:12px 0;">${lead.business_name}</h3><p class="muted">${lead.listing_type} · ${lead.district}</p><div class="muted" style="display:grid; gap:8px; margin-top:14px;"><span>${lead.contact_name}</span><span>${lead.email}</span><span>${lead.phone}</span></div><div class="inline-actions" style="margin-top:16px;"><a class="btn btn-ghost btn-small" href="list-your-business.html?type=${lead.listing_type}">Edit / submit another</a><a class="btn btn-primary btn-small" href="dashboard.html?role=${lead.listing_type}">Open dashboard</a></div></div>`).join('')}</div>` : '<div class="empty-state">No business enquiries yet. Use the lead capture page to submit your first supplier or venue application.</div>';
 }
 
 
