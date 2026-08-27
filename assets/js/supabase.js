@@ -5,6 +5,36 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { detectSessionInUrl: false } });
 
 // ============================================================
+// TURNSTILE CAPTCHA — bot protection for the auth forms
+// ============================================================
+const TURNSTILE_SITEKEY = '0x4AAAAAAEdYgcSUBRj7PFdK';
+function onTurnstileVerify(token) { window.__dsCaptchaToken = token; }
+function getCaptchaToken() {
+  try {
+    if (window.turnstile && typeof window.turnstile.getResponse === 'function') {
+      const t = window.turnstile.getResponse();
+      if (t) return t;
+    }
+  } catch (e) { /* noop */ }
+  return window.__dsCaptchaToken || '';
+}
+function mountTurnstile(scope) {
+  const el = (scope && typeof scope.querySelector === 'function') ? scope.querySelector('.turnstile-mount') : null;
+  if (!el || el.dataset.tsRendered) return;
+  if (window.turnstile && typeof window.turnstile.render === 'function') {
+    el.dataset.tsRendered = '1';
+    window.turnstile.render(el, {
+      sitekey: TURNSTILE_SITEKEY,
+      callback: onTurnstileVerify,
+      'expired-callback': function () { window.__dsCaptchaToken = ''; },
+      'error-callback': function () { window.__dsCaptchaToken = ''; }
+    });
+  } else {
+    setTimeout(function () { mountTurnstile(scope); }, 250);
+  }
+}
+
+// ============================================================
 // AUTH HELPERS
 // ============================================================
 
@@ -355,10 +385,12 @@ const dsAuth = {
   async signUp(data) {
     try {
       const email = String(data.email || '').trim().toLowerCase();
+      const options = { data: { name: String(data.name || '').trim(), role: data.role || 'searcher', city: String(data.city || '').trim() } };
+      if (data.captchaToken) options.captchaToken = data.captchaToken;
       const { data: authData, error } = await sb.auth.signUp({
         email,
         password: String(data.password || ''),
-        options: { data: { name: String(data.name || '').trim(), role: data.role || 'searcher', city: String(data.city || '').trim() } }
+        options
       });
       if (error) return { ok: false, message: error.message };
       const confirmed = !!(authData.user && (authData.user.email_confirmed_at || authData.user.confirmed_at));
@@ -368,9 +400,11 @@ const dsAuth = {
     }
   },
 
-  async signIn(email, password) {
+  async signIn(email, password, captchaToken) {
     try {
-      const { data, error } = await sb.auth.signInWithPassword({ email: String(email || '').trim().toLowerCase(), password: String(password || '') });
+      const creds = { email: String(email || '').trim().toLowerCase(), password: String(password || '') };
+      if (captchaToken) creds.options = { captchaToken };
+      const { data, error } = await sb.auth.signInWithPassword(creds);
       if (error) {
         const emailNotConfirmed = /email not confirmed|confirm your email|email confirmation/i.test(error.message || '');
         return { ok: false, message: error.message || 'Email or password not recognised.', emailNotConfirmed };
