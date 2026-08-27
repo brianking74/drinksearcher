@@ -2827,7 +2827,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (page === 'dashboard') await renderBusinessDashboardPage();
   if (page === 'admin') await renderAdminDashboardPage();
   if (page === 'venue-profile') await renderVenueProfile();
-  if (page === 'supplier-profile') renderSupplierProfile();
+  if (page === 'supplier-profile') await renderSupplierProfile();
   if (page === 'signin') await renderSignInPage();
   if (page === 'signup') await renderSignUpPage();
   if (page === 'blog') await renderBlogPage();
