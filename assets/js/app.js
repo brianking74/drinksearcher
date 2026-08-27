@@ -502,10 +502,11 @@ function bindCarouselButtons(scope = document) {
 async function renderHomepage() {
   const app = $('#app');
   // Fetch live data from Supabase — parallelized for speed
-  const [allDrinks, sData, vData] = await Promise.all([
+  const [allDrinks, sData, vData, allEvents] = await Promise.all([
     fetchDrinks(),
     fetchSuppliers(),
-    fetchVenues()
+    fetchVenues(),
+    fetchEvents()
   ]);
   const featuredDrinks = allDrinks.filter(d => d.tier === 'featured' || d.tier === 'enhanced').slice(0, 6);
   const featuredSuppliers = sData.enhanced.concat(sData.featured).slice(0, 4).map(s => ({
@@ -528,30 +529,10 @@ async function renderHomepage() {
     description: '',
     website: v.website || '#'
   }));
-  // Fall back to hardcoded if DB returns nothing
-  if (!featuredDrinks.length) {
-    featuredDrinks.push(
-      { name:'Cincoro Blanco Tequila', area:'HK Drinks • Jalisco', type:'Tequila', price:'HK$1,498', image:'https://www.hkdrinks.shop/images/cincoro-blanco.jpg', buy:'https://www.hkdrinks.shop/' },
-      { name:'Clase Azul Reposado', area:'HK Drinks • Jalisco', type:'Tequila', price:'HK$1,898', image:'https://www.hkdrinks.shop/images/clase-azul-reposado.jpg', buy:'https://www.hkdrinks.shop/' },
-      { name:'Alfred GIRAUD Harmonie 700ml', area:'HK Drinks • Guadalajara', type:'Whisky', price:'HK$2,578', image:'https://www.hkdrinks.shop/images/alfred-giraud-harmonie.png', buy:'https://www.hkdrinks.shop/' }
-    );
-  }
-  if (!featuredSuppliers.length) {
-    featuredSuppliers.push(
-      { slug:'hkdrinks', name:'HK Drinks', area:'Central', tierLabel:'Premium Spirits', specialty:'Tequila & Whisky', image:'assets/images/hongkong-view.jpg', description:'Premium spirits and craft tequila available now in Hong Kong.' }
-    );
-  }
-  const now = new Date();
-  const dd = String(now.getDate()).padStart(2, '0');
-  const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  const mn = monthNames[now.getMonth()];
-  const nxtMn = monthNames[(now.getMonth() + 1) % 12];
-  const events = [
-    { name:'Wine & Spirit Tasting Evening', venue:'Landmark Mandarin Oriental, Central', date:`${mn} ${dd+1}`, type:'Tasting', image:siteImages.trio },
-    { name:`${mn} Cocktail Masterclass`, venue:'Quinary, Central', date:`${mn} ${parseInt(dd)+7 <= 31 ? parseInt(dd)+7 : 7}`, type:'Masterclass', image:siteImages.rooftop },
-    { name:`${nxtMn} Natural Wine Social`, venue:'La Cabane, Soho', date:`${nxtMn} 05`, type:'Wine', image:siteImages.hero },
-    { name:'Zero-Proof Cocktail Lab', venue:'PMQ, Central', date:`${nxtMn} 12`, type:'Non-Alcoholic', image:siteImages.trio }
-  ];
+  // NOTE: fetchDrinks()/fetchSuppliers() already fall back to the bundled
+  // data.js arrays when Supabase returns nothing, so no separate hardcoded
+  // fallback is needed here. Keeps all homepage content Supabase-driven.
+  const events = allEvents.slice(0, 4);
 
   app.innerHTML = `
     <section class="hero homepage-hero">
@@ -1352,18 +1333,64 @@ async function renderVenueProfile() {
   bindSaveButtons(app);
 }
 
-function renderSupplierProfile() {
+async function renderSupplierProfile() {
   const slug = queryParam('slug') || 'watsons-wine';
-  const profile = supplierProfiles[slug] || supplierProfiles['watsons-wine'];
   const app = $('#app');
+
+  // Supplier profile now reads straight from Supabase so every listed
+  // merchant shows its own (admin-editable) details — never a hardcoded fallback.
+  let profile = null;
+  let catalogue = [];
+  let supplierEvents = [];
+  try {
+    const { data: suppliers } = await sb.from('suppliers').select('*').eq('slug', slug).limit(1);
+    profile = (suppliers && suppliers.length) ? suppliers[0] : null;
+    if (profile) {
+      const [drinksRes, eventsRes] = await Promise.all([
+        sb.from('drinks').select('*').eq('status', 'approved').eq('supplier_name', profile.name).order('price').limit(12),
+        sb.from('events').select('*').eq('venue', profile.name).order('created_at').limit(6)
+      ]);
+      catalogue = (drinksRes.data || []).map(d => ({ name: d.name, price: d.price, image: d.image || '', type: d.type || '', origin: d.origin || '', abv: d.abv || '', description: d.description || '' }));
+      supplierEvents = (eventsRes.data || []).map(e => ({ name: e.name, date: e.event_date || '', area: e.area || '', image: e.image || '', venue: e.venue || '' }));
+    }
+  } catch (e) { /* fall through to bundled fallback below */ }
+
+  // Only fall back to bundled data when Supabase has nothing at all (e.g. table empty).
+  if (!profile && typeof supplierProfiles !== 'undefined' && supplierProfiles[slug]) {
+    profile = supplierProfiles[slug];
+  }
+
+  if (!profile) {
+    app.innerHTML = '<section class="section"><div class="container"><div class="empty-state">Supplier not found.</div></div></section>';
+    return;
+  }
+
+  const name = profile.name;
+  const hero = profile.image || profile.hero || siteImages.shop;
+  const area = profile.area || '';
+  const specialty = profile.specialty || '';
+  const phone = profile.phone || '';
+  const website = (profile.website && profile.website !== '#') ? profile.website : '#';
+  const summary = profile.summary || '';
+  const sellingPoints = Array.isArray(profile.selling_points)
+    ? profile.selling_points
+    : (Array.isArray(profile.sellingPoints) ? profile.sellingPoints : []);
+
+  const catalogueHTML = catalogue.length
+    ? `<div class="grid grid-3">${catalogue.map(item => renderCard({name:item.name, area, price:item.price, image:item.image || siteImages.shop, type:item.type || specialty, description:item.description || ''}, {type:'drink', href:`product.html?name=${slugify(item.name)}`, cta:`<a class="btn btn-primary btn-small" href="product.html?name=${slugify(item.name)}">View</a>`})).join('')}</div>`
+    : '<div class="empty-state"><h3>No products listed yet.</h3><p class="muted">This supplier\'s catalogue is being added.</p></div>';
+
+  const eventsHTML = supplierEvents.length
+    ? `<div class="grid grid-2">${supplierEvents.map(evt => renderCard({name:evt.name, area:evt.area || area, venue:name, date:evt.date, image:evt.image || siteImages.event, tierLabel:'Supplier event'}, {type:'event', className:'event-card', cta:`<a class="btn btn-primary btn-small" href="events.html">Browse events</a>`})).join('')}</div>`
+    : '<div class="empty-state"><h3>No upcoming events.</h3><p class="muted">Check back soon for tastings and launches.</p></div>';
+
   app.innerHTML = `
-    <section class="profile-hero"><div class="hero-media" style="background-image:url('${profile.hero}')"></div><div class="container profile-content"><div><span class="kicker">Featured supplier</span><h1>${profile.name}</h1><p class="lead" style="margin-top:16px;">${profile.summary}</p><div class="info-strip"><div class="info-chip"><div class="muted">Area</div><strong>${profile.area}</strong></div><div class="info-chip"><div class="muted">Specialty</div><strong>${profile.specialty}</strong></div><div class="info-chip"><div class="muted">Website</div><strong>Online store</strong></div><div class="info-chip"><div class="muted">Listing</div><strong>Verified profile</strong></div></div></div><div class="panel"><span class="eyebrow">Quick actions</span><div class="inline-actions" style="margin-top:16px;"><a class="btn btn-primary" href="${profile.website}">Visit supplier website</a>${saveButton({id:`supplier:${slug}`, name:profile.name, kind:'supplier', href:`supplier-template.html?slug=${slug}`, meta:profile.area})}</div><hr class="sep"><div class="muted" style="display:grid; gap:8px;"><span>${profile.address}</span><span>${profile.phone}</span><span>${profile.specialty}</span></div></div></div></section>
-    <div class="anchor-nav"><div class="container"><a class="anchor-link active" href="#overview">Overview</a><a class="anchor-link" href="#catalogue">Catalogue</a><a class="anchor-link" href="#events">Events</a><a class="anchor-link" href="#reviews">Reviews</a><a class="anchor-link" href="#contact">Contact</a></div></div>
-    <section id="overview" class="section"><div class="container split"><div><span class="eyebrow">Overview</span><h2>Why shoppers use this supplier.</h2><p class="lead" style="margin-top:16px;">Get a quick sense of what this merchant does best, the bottle categories they are known for, and the easiest route to browse or buy locally.</p></div><div class="panel"><div class="muted" style="display:grid; gap:12px;">${profile.sellingPoints.map(i => `<span>• ${i}</span>`).join('')}</div></div></div></section>
-    <section id="catalogue" class="section-tight"><div class="container"><div class="section-head"><div><span class="eyebrow">Catalogue</span><h2>Bottles and categories to start with.</h2><p class="lead" style="margin-top:14px;">A quick sample of what this supplier is known for before you click through to the full shop.</p></div></div><div class="grid grid-3">${profile.catalogue.map(item => renderCard({name:item[0], area:profile.area, price:item[1], image:siteImages.shop, type:profile.specialty, description:'Sample bottle from this supplier'}, {type:'drink', cta:`<a class="btn btn-primary btn-small" href="${profile.website}">Buy from supplier</a>`})).join('')}</div></div></section>
-    <section id="events" class="section"><div class="container"><div class="section-head"><div><span class="eyebrow">Supplier events</span><h2>Tastings and activations worth watching.</h2><p class="lead" style="margin-top:14px;">Supplier tastings and launches worth planning your calendar around.</p></div></div><div class="grid grid-2">${profile.events.map((evt, index) => renderCard({name:evt[0], area:profile.area, venue:profile.name, date:evt[1], image:[siteImages.event, siteImages.shop, siteImages.rooftop][index % 3], tierLabel:'Supplier event'}, {type:'event', className:'event-card', cta:`<a class="btn btn-primary btn-small" href="${profile.website}">Visit supplier</a>`})).join('')}</div></div></section>
-    <section id="reviews" class="section-tight"><div class="container grid grid-2">${profile.reviews.map(r => `<div class="panel"><span class="eyebrow">Customer feedback</span><p style="margin-top:14px; font-size:1.05rem;">${r[0]}</p><p class="muted" style="margin-top:14px;">— ${r[1]}</p></div>`).join('')}</div></section>
-    <section id="contact" class="section"><div class="container grid grid-2"><div class="panel"><span class="eyebrow">Contact</span><h3 style="margin:14px 0;">Ready to browse or buy?</h3><div class="muted" style="display:grid; gap:10px;"><span>${profile.address}</span><span>${profile.phone}</span><span><a href="${profile.website}">${profile.website}</a></span></div></div><div class="panel"><span class="eyebrow">Own this supplier listing?</span><h3 style="margin:14px 0;">Get your profile live</h3><p class="muted">Add your story, catalogue, and store links so shoppers can move from discovery to purchase more easily.</p><div class="inline-actions" style="margin-top:18px;"><a class="btn btn-primary btn-small" href="list-your-business.html?type=merchant&plan=merchant-enhanced">List your business</a></div></div></div></section>`;
+    <section class="profile-hero"><div class="hero-media" style="background-image:url('${hero}')"></div><div class="container profile-content"><div><span class="kicker">${profile.tier === 'enhanced' ? 'Featured supplier' : 'Supplier'}</span><h1>${name}</h1>${summary ? `<p class="lead" style="margin-top:16px;">${summary}</p>` : ''}<div class="info-strip"><div class="info-chip"><div class="muted">Area</div><strong>${area || 'Hong Kong'}</strong></div><div class="info-chip"><div class="muted">Specialty</div><strong>${specialty || 'Drinks'}</strong></div><div class="info-chip"><div class="muted">Website</div><strong>Online store</strong></div><div class="info-chip"><div class="muted">Listing</div><strong>Verified profile</strong></div></div></div><div class="panel"><span class="eyebrow">Quick actions</span><div class="inline-actions" style="margin-top:16px;"><a class="btn btn-primary" href="${website}">Visit supplier website</a>${saveButton({id:`supplier:${slug}`, name, kind:'supplier', href:`supplier-template.html?slug=${slug}`, meta:area})}</div><hr class="sep"><div class="muted" style="display:grid; gap:8px;">${phone ? `<span>${phone}</span>` : ''}<span>${specialty || ''}</span></div></div></div></section>
+    <div class="anchor-nav"><div class="container"><a class="anchor-link active" href="#overview">Overview</a><a class="anchor-link" href="#catalogue">Catalogue</a><a class="anchor-link" href="#events">Events</a><a class="anchor-link" href="#contact">Contact</a></div></div>
+    <section id="overview" class="section"><div class="container split"><div><span class="eyebrow">Overview</span><h2>Why shoppers use this supplier.</h2><p class="lead" style="margin-top:16px;">Get a quick sense of what this merchant does best, the bottle categories they are known for, and the easiest route to browse or buy locally.</p></div><div class="panel"><div class="muted" style="display:grid; gap:12px;">${sellingPoints.length ? sellingPoints.map(i => `<span>• ${i}</span>`).join('') : '<span>• Hong Kong supplier</span><span>• Direct store links</span><span>• Local availability</span>'}</div></div></div></section>
+    <section id="catalogue" class="section-tight"><div class="container"><div class="section-head"><div><span class="eyebrow">Catalogue</span><h2>Bottles and categories to start with.</h2><p class="lead" style="margin-top:14px;">Live products this supplier has listed with us.</p></div></div>${catalogueHTML}</div></section>
+    <section id="events" class="section"><div class="container"><div class="section-head"><div><span class="eyebrow">Supplier events</span><h2>Tastings and activations worth watching.</h2><p class="lead" style="margin-top:14px;">Supplier tastings and launches worth planning your calendar around.</p></div></div>${eventsHTML}</div></section>
+    <section id="contact" class="section"><div class="container grid grid-2"><div class="panel"><span class="eyebrow">Contact</span><h3 style="margin:14px 0;">Ready to browse or buy?</h3><div class="muted" style="display:grid; gap:10px;">${phone ? `<span>${phone}</span>` : ''}<span>${area || 'Hong Kong'}</span><span><a href="${website}">${website === '#' ? 'Visit website' : website}</a></span></div></div><div class="panel"><span class="eyebrow">Own this supplier listing?</span><h3 style="margin:14px 0;">Get your profile live</h3><p class="muted">Add your story, catalogue, and store links so shoppers can move from discovery to purchase more easily.</p><div class="inline-actions" style="margin-top:18px;"><a class="btn btn-primary btn-small" href="list-your-business.html?type=merchant&plan=merchant-enhanced">List your business</a></div></div></div></section>`;
   bindSaveButtons(app);
 }
 
@@ -1650,7 +1677,7 @@ function saveDashboardProfile() {
 
 function fillSampleTemplate() {
   var el = document.getElementById('sheet-import-source');
-  if (el) el.value = 'Name,Price,Availability,Image\nChardonnay Reserve,188,In stock,\nSmall Batch Gin,420,Low stock,\nZero-Proof Spritz,98,Pre-order,';
+  if (el) el.value = 'Name,Price,Availability\nChardonnay Reserve,188,In stock\nSmall Batch Gin,420,Low stock\nZero-Proof Spritz,98,Pre-order';
 }
 
 async function importInventory() {
@@ -1674,7 +1701,7 @@ async function importInventory() {
     const { data: authData } = await sb.auth.getUser().catch(() => ({}));
     const userId = authData?.user?.id || null;
     for (const item of items) {
-      const { error } = await sb.from('drinks').insert({ name: item.name, price: item.price, availability: item.availability || 'In stock', image: item.image || null, status: 'pending', submitted_by: userId, supplier_name: config.listingName || user.name || '', type: 'Spirit', origin: 'Hong Kong' });
+      const { error } = await sb.from('drinks').insert({ name: item.name, price: item.price, availability: item.availability || 'In stock', status: 'pending', submitted_by: userId, supplier_name: config.listingName || user.name || '', type: 'Spirit', origin: 'Hong Kong' });
       if (!error) supabaseCount++;
     }
     if (holder) holder.innerHTML = '<div class="notice">Imported <strong>' + items.length + '</strong> rows. <strong>' + supabaseCount + '</strong> submitted for review.</div>';
@@ -1792,7 +1819,7 @@ async function renderBusinessDashboardPage() {
               <label class="dashboard-field"><span>Google Sheet CSV URL or pasted CSV</span><textarea class="input" rows="6" id="sheet-import-source" placeholder="https://docs.google.com/.../export?format=csv or pasted CSV rows"></textarea></label>
               <label class="dashboard-field"><span>Import mode</span><select class="select" id="sheet-import-mode"><option value="append">Append to current inventory</option><option value="replace">Replace current inventory</option></select></label>
               <div class="admin-inline"><button class="btn btn-primary" id="sheet-import-btn" type="button" onclick="importInventory()">Import inventory</button><button class="btn btn-ghost" id="sheet-template-btn" type="button" onclick="fillSampleTemplate()">Insert sample template</button></div>
-              <div class="small-note">Recommended columns: Name, Price, Availability. You can extend the mapping later for SKU, size, pack, ABV, image, and product URL.</div>
+              <div class="small-note">Recommended columns: Name, Price, Availability. You can extend the mapping later for SKU, size, pack, ABV, and product URL.</div>
               <div id="sheet-import-notice"></div>
             </div>
             <div class="panel admin-stack">
@@ -1909,7 +1936,7 @@ async function renderBusinessDashboardPage() {
     });
     if (state.activeRole === 'merchant' && $('#sheet-template-btn', app)) {
       $('#sheet-template-btn', app).addEventListener('click', () => {
-        $('#sheet-import-source', app).value = 'Name,Price,Availability,Image\nChardonnay Reserve,188,In stock,\nSmall Batch Gin,420,Low stock,\nZero-Proof Spritz,98,Pre-order,';
+        $('#sheet-import-source', app).value = 'Name,Price,Availability\nChardonnay Reserve,188,In stock\nSmall Batch Gin,420,Low stock\nZero-Proof Spritz,98,Pre-order';
       });
       $('#sheet-import-btn', app).addEventListener('click', async () => {
         const source = $('#sheet-import-source', app).value.trim();
@@ -2090,7 +2117,6 @@ function importItemsFromCSV(text) {
   const nameIndex = inventoryColumnIndex(headers, ['name', 'title', 'product', 'product name', 'item']);
   const priceIndex = inventoryColumnIndex(headers, ['price', 'unit price', 'sale price']);
   const availabilityIndex = inventoryColumnIndex(headers, ['availability', 'stock status', 'stock', 'inventory', 'status']);
-  const imageIndex = inventoryColumnIndex(headers, ['image', 'image url', 'image_url', 'img', 'photo', 'picture']);
   const items = rows.slice(1).map((row, index) => {
     const name = row[nameIndex] || row[0];
     if (!name) return null;
@@ -2099,7 +2125,6 @@ function importItemsFromCSV(text) {
       name: name.trim(),
       price: normalizeImportPrice(row[priceIndex]),
       availability: normalizeImportAvailability(row[availabilityIndex]),
-      image: imageIndex >= 0 ? String(row[imageIndex] || '').trim() : '',
       status: 'Pending'
     };
   }).filter(Boolean);
@@ -2259,9 +2284,6 @@ async function productManagerSaveImage(id, index) {
   try {
     const { error } = await sb.from('drinks').update({ image: url }).eq('id', id);
     if (error) throw error;
-    // Clear image sync cache so the next page load picks up the new URL
-    sessionStorage.removeItem('ds_supabase_drink_image_sync_v1');
-    delete document.documentElement.dataset.drinkImagesSynced;
     if (notice) notice.innerHTML = '<div class="notice">Image saved.</div>';
   } catch (e) {
     if (notice) notice.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Failed: ${e.message}</div>`;

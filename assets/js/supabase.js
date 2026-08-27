@@ -41,54 +41,67 @@ function slugify(text) {
 // ============================================================
 
 // --- Drinks ---
-let supabaseDrinksPromise = null;
-
+// Reads the approved catalogue straight from Supabase so admin edits are
+// reflected on the public site immediately. Falls back to the bundled
+// drinksInventory only if Supabase returns nothing.
 async function fetchDrinks(filters = {}) {
-  // Return local catalogue immediately — no Supabase wait.
+  try {
+    const { data, error } = await sb.from('drinks').select('*').eq('status', 'approved').order('name').limit(2000);
+    if (!error && Array.isArray(data) && data.length) {
+      // Dedupe by name — prefer the row with a Cloudinary image.
+      const byName = new Map();
+      data.forEach(r => {
+        if (!r.name) return;
+        const prev = byName.get(r.name);
+        const isCloud = (r.image || '').includes('res.cloudinary.com');
+        const prevCloud = prev && (prev.image || '').includes('res.cloudinary.com');
+        if (!prev || (isCloud && !prevCloud)) byName.set(r.name, r);
+      });
+      let rows = Array.from(byName.values()).map(r => ({
+        name: r.name,
+        supplier: r.supplier_name || '',
+        supplierSlug: slugify(r.supplier_name || ''),
+        area: r.area || '',
+        type: r.type || '',
+        price: r.price || '—',
+        image: r.image || '',
+        tier: r.tier || 'standard',
+        buy: r.buy_url || '',
+        description: r.description || '',
+        origin: r.origin || '',
+        abv: r.abv || ''
+      }));
+      if (filters.search) {
+        const q = String(filters.search).toLowerCase();
+        rows = rows.filter(d => [d.name, d.supplier, d.type].some(v => String(v || '').toLowerCase().includes(q)));
+      }
+      if (filters.area && filters.area !== 'all') rows = rows.filter(d => d.area === filters.area);
+      return rows;
+    }
+  } catch { /* fall through to local fallback */ }
+
   let rows = typeof drinksInventory !== 'undefined' ? drinksInventory.slice() : [];
   if (filters.search) {
     const q = String(filters.search).toLowerCase();
     rows = rows.filter(d => [d.name, d.supplier, d.type].some(v => String(v || '').toLowerCase().includes(q)));
   }
   if (filters.area && filters.area !== 'all') rows = rows.filter(d => d.area === filters.area);
-
-  // Kick off the Supabase refresh once and fire-and-forget the overlay.
-  if (!supabaseDrinksPromise) {
-    supabaseDrinksPromise = (async () => {
-      try {
-        const { data } = await sb.from('drinks').select('*').eq('status', 'approved').order('name').limit(2000);
-        if (!Array.isArray(data) || !data.length) return [];
-        const imgMap = {};
-        data.forEach(r => { if (r.name && r.image) imgMap[r.name] = r.image; });
-        return { imgMap, supabaseOnly: data.filter(r => r.name && !rows.some(d => d.name === r.name)) };
-      } catch { return []; }
-    })();
-  }
-  // Don't await — return rows immediately. The overlay fires after.
-  supabaseDrinksPromise.then(result => {
-    if (!result || !result.imgMap) return;
-    const { imgMap, supabaseOnly } = result;
-    if (typeof drinksInventory !== 'undefined') {
-      drinksInventory = drinksInventory.map(d => imgMap[d.name] ? { ...d, image: imgMap[d.name] } : d);
-    }
-    if (supabaseOnly.length) {
-      const extras = supabaseOnly.map(r => ({
-        name: r.name, supplier: r.supplier_name || '—', type: r.type || '',
-        price: r.price || '—', area: r.area || '', image: r.image || '',
-        buy: r.buy_url || '', origin: r.origin || '', abv: r.abv || '',
-        tier: r.tier || 'standard', description: r.description || ''
-      }));
-      if (typeof drinksInventory !== 'undefined') {
-        // Prepend so next call picks them up
-        drinksInventory.unshift(...extras);
-      }
-    }
-  }).catch(() => {});
   return rows;
 }
 
 // --- Suppliers ---
 async function fetchSuppliers() {
+  try {
+    const { data, error } = await sb.from('suppliers').select('*').order('name').limit(1000);
+    if (!error && Array.isArray(data) && data.length) {
+      const mapRow = s => ({ slug: s.slug, name: s.name, area: s.area || '', phone: s.phone || '', specialty: s.specialty || '', tier: s.tier, image: s.image || '', website: s.website || '', summary: s.summary || '' });
+      return {
+        enhanced: data.filter(s => s.tier === 'enhanced').map(mapRow),
+        featured: data.filter(s => s.tier === 'featured').map(mapRow),
+        standard: data.filter(s => s.tier === 'standard').map(s => [s.name, s.area || '', s.phone || '', s.specialty || ''])
+      };
+    }
+  } catch { /* fall through */ }
   return typeof supplierListings !== 'undefined'
     ? { enhanced: supplierListings.enhanced.slice(), featured: supplierListings.featured.slice(), standard: supplierListings.standard.slice() }
     : { enhanced: [], featured: [], standard: [] };
@@ -96,6 +109,17 @@ async function fetchSuppliers() {
 
 // --- Venues ---
 async function fetchVenues() {
+  try {
+    const { data, error } = await sb.from('venues').select('*').order('name').limit(1000);
+    if (!error && Array.isArray(data) && data.length) {
+      const mapRow = v => ({ slug: v.slug, name: v.name, area: v.area || '', phone: v.phone || '', cuisine: v.cuisine || '', price: v.price || '', rating: v.rating || '', booking: v.booking || '', specialty: v.specialty || '', image: v.image || '', website: v.website || '' });
+      return {
+        enhanced: data.filter(v => v.tier === 'enhanced').map(mapRow),
+        featured: data.filter(v => v.tier === 'featured').map(mapRow),
+        standard: data.filter(v => v.tier === 'standard').map(v => [v.name, v.area || '', v.phone || '', v.cuisine || ''])
+      };
+    }
+  } catch { /* fall through */ }
   return typeof venueListings !== 'undefined'
     ? { enhanced: venueListings.enhanced.slice(), featured: venueListings.featured.slice(), standard: venueListings.standard.slice() }
     : { enhanced: [], featured: [], standard: [] };
@@ -103,6 +127,12 @@ async function fetchVenues() {
 
 // --- Events ---
 async function fetchEvents() {
+  try {
+    const { data, error } = await sb.from('events').select('*').order('created_at').limit(200);
+    if (!error && Array.isArray(data) && data.length) {
+      return data.map(e => ({ name: e.name, venue: e.venue || '', area: e.area || '', date: e.event_date || '', type: e.type || '', image: e.image || '', url: e.url || '' }));
+    }
+  } catch { /* fall through */ }
   return typeof eventsData !== 'undefined' ? eventsData.slice() : [];
 }
 

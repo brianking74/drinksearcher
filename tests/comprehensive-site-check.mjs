@@ -53,7 +53,6 @@ const REQUIRED_ASSETS = [
   'assets/js/premium.js',
   'assets/js/supabase.js',
   'assets/js/data.js',
-  'assets/js/drink-images.js',
   'assets/brand/drinksearcher-logo.webp',
   'assets/brand/favicon.png',
 ];
@@ -111,7 +110,6 @@ const JS_FILES = [
   'assets/js/app.js',
   'assets/js/premium.js',
   'assets/js/supabase.js',
-  'assets/js/drink-images.js',
 ];
 
 for (const file of JS_FILES) {
@@ -284,17 +282,7 @@ for (const fn of SUPABASE_FNS) {
 check(supabaseJS.includes('supabase.createClient'), 'supabase.js missing client creation');
 
 // ============================================================
-// 14. DRINK-IMAGES.JS
-// ============================================================
-
-const diJS = read('assets/js/drink-images.js');
-check(diJS.includes('fetchDrinkImageMapFromSupabase'), 'drink-images.js missing fetchDrinkImageMapFromSupabase');
-check(diJS.includes('syncDrinkImages'), 'drink-images.js missing syncDrinkImages');
-check(diJS.includes('data-drink-name'), 'drink-images.js missing data-drink-name selector');
-check(diJS.includes('MutationObserver'), 'drink-images.js missing MutationObserver');
-
-// ============================================================
-// 15. PAGE-SPECIFIC DATA-PAGE ATTRIBUTES
+// 14. PAGE-SPECIFIC DATA-PAGE ATTRIBUTES
 // ============================================================
 
 const PAGE_MARKERS = {
@@ -357,16 +345,7 @@ for (const [page, title] of Object.entries(PAGE_TITLES)) {
 }
 
 // ============================================================
-// 18. DRINK-IMAGES.JS LOADED ON ALL PAGES
-// ============================================================
-
-for (const page of PAGES) {
-  if (!fileExists(page)) continue;
-  check(hasText(page, 'drink-images.js'), `${page} missing drink-images.js script reference`);
-}
-
-// ============================================================
-// 19. PRODUCT PAGE — SPECIAL CHECKS
+// 17. PRODUCT PAGE — SPECIAL CHECKS
 // ============================================================
 
 if (fileExists('product.html')) {
@@ -410,17 +389,16 @@ if (failures.length > 0) {
   console.log(`\n✓ All checks passed.`);
   console.log(`\nBreakdown:`);
   console.log(`  ✓ ${PAGES.length}/16 pages exist`);
-  console.log(`  ✓ ${REQUIRED_ASSETS.length}/9 core assets exist`);
+  console.log(`  ✓ ${REQUIRED_ASSETS.length}/8 core assets exist`);
   console.log(`  ✓ All pages linked to core assets`);
   console.log(`  ✓ No broken local references`);
   console.log(`  ✓ ${JS_FILES.length} JS files have valid syntax`);
   console.log(`  ✓ CSS selectors and braces balanced`);
   console.log(`  ✓ ${STYLE_RULES.length} premium.css style rules`);
-  console.log(`  ✓ ${PAGE_MARKERS.length} page marker attributes`);
+  console.log(`  ✓ ${Object.keys(PAGE_MARKERS).length} page marker attributes`);
   console.log(`  ✓ ${PREMIUM_FUNCTIONS.length} premium.js functions`);
   console.log(`  ✓ ${PREMIUM_PAGES.length} router pages`);
   console.log(`  ✓ ${SUPABASE_FNS.length} supabase.js functions`);
-  console.log(`  ✓ drink-images.js structure`);
   console.log(`  ✓ ${COPY_PHRASES.length} copy phrases present`);
   console.log(`  ✓ Cache buster versions consistent`);
   console.log(`  ✓ data.js data arrays`);

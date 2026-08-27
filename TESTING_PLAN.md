@@ -11,21 +11,20 @@
 # Quick smoke test (14 routes + UI regressions)
 npm test
 
-# Comprehensive check (316 tests across all pages, CSS, JS, data)
+# Comprehensive check (295 tests across all pages, CSS, JS, data)
 node tests/comprehensive-site-check.mjs
 ```
 
 **What the automated suite covers:**
 - All 16 HTML pages exist
-- All 9 core assets exist (CSS, JS, images)
+- All 8 core assets exist (CSS, JS, images)
 - Every HTML page references all required scripts/styles
 - No broken local references (images, CSS, JS)
-- JS syntax validation (5 files)
+- JS syntax validation (4 files)
 - CSS brace balance
 - 20 premium.css style rules (images, map, layout, responsive)
 - 32 premium.js functions (routers, patchers, helpers, map)
 - 24 supabase.js functions (CRUD, auth, queries)
-- drink-images.js structure (Supabase sync, MutationObserver)
 - 9 key copy phrases present
 - Data arrays in data.js
 - Page title tags
