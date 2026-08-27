@@ -350,6 +350,44 @@ async function fetchMyLeads(email) {
   return data || [];
 }
 
+// --- Events (business dashboard) ---
+async function submitEvent(ev) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error('Not signed in');
+  const { data, error } = await sb.from('events').insert({
+    name: ev.name,
+    venue: ev.venue || '',
+    area: ev.area || '',
+    event_date: ev.date || ev.event_date || '',
+    type: ev.type || '',
+    image: ev.image || '',
+    url: ev.url || '',
+    submitted_by: user.id,
+    status: 'pending'
+  }).select().single();
+  if (error) throw error;
+  return data;
+}
+
+async function fetchMyEvents() {
+  const user = await getCurrentUser();
+  if (!user) return [];
+  const { data, error } = await sb.from('events').select('*').eq('submitted_by', user.id).order('created_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
+async function updateEvent(id, updates) {
+  const { data, error } = await sb.from('events').update(updates).eq('id', id).select().single();
+  if (error) throw error;
+  return data;
+}
+
+async function deleteEvent(id) {
+  const { error } = await sb.from('events').delete().eq('id', id);
+  if (error) throw error;
+}
+
 console.log('[supabase] Client initialized');
 
 // ============================================================

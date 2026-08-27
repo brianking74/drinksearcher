@@ -1884,6 +1884,20 @@ async function renderBusinessDashboardPage() {
 
         <section class="section-tight">
           <div class="container">
+            <div class="section-head"><div><span class="eyebrow">Events</span><h2>Promote tastings, launches and guest shifts.</h2><p class="lead" style="margin-top:14px;">Events you add are reviewed by our team before they go live on the public events directory.</p></div></div>
+            <div class="dashboard-table-wrap">
+              <div class="dashboard-table-head"><div>Event name</div><div>Date</div><div>Venue</div><div>Status</div><div></div></div>
+              <div id="dashboard-events-list" data-venue="${config.listingName || user.name || ''}"><div class="muted" style="padding:16px;">Loading your events…</div></div>
+              <div class="inline-actions" style="padding:20px; border-top:1px solid rgba(255,255,255,.06);">
+                <button class="btn btn-primary" type="button" onclick="addDashboardEventRow()">+ Add event</button>
+              </div>
+            </div>
+            <div id="dashboard-events-notice"></div>
+          </div>
+        </section>
+
+        <section class="section-tight">
+          <div class="container">
             <div class="inline-actions" style="justify-content:center; gap:16px;">
               <a class="btn btn-ghost" href="account.html">Back to account</a>
               <button class="btn btn-secondary" id="dashboard-signout-btn" type="button" onclick="dsAuth.signOut();storage.signOut();location.href='index.html'">Sign Out</button>
@@ -2043,7 +2057,74 @@ async function renderBusinessDashboardPage() {
     }));
   };
   app.innerHTML = renderRole(state.activeRole || 'merchant');
+  renderDashboardEvents();
   document.documentElement.dataset.appRendered = 'true';
+}
+
+function eventRowHTML(e) {
+  const id = e.id || 'new';
+  return `<div class="dashboard-row" data-event-id="${id}">
+    <input class="input" data-event-name value="${String(e.name || '').replace(/"/g, '&quot;')}" placeholder="Event name" />
+    <input class="input" data-event-date value="${String(e.event_date || '').replace(/"/g, '&quot;')}" placeholder="18 Nov · 7:30 PM" />
+    <input class="input" data-event-venue value="${String(e.venue || '').replace(/"/g, '&quot;')}" placeholder="Venue" />
+    <span class="status-badge status-${(e.status || 'pending').toLowerCase()}">${e.status || 'Pending'}</span>
+    <div class="inline-actions" style="gap:6px;">
+      <button class="btn btn-primary btn-small" type="button" onclick="saveDashboardEventRow('${id}')">Save</button>
+      <button class="btn btn-ghost btn-small" type="button" title="Remove" style="color:#ff6b9d;" onclick="removeDashboardEventRow('${id}')">✕</button>
+    </div>
+  </div>`;
+}
+
+async function renderDashboardEvents() {
+  const list = document.getElementById('dashboard-events-list');
+  if (!list) return;
+  let events = [];
+  try { events = await fetchMyEvents(); } catch (e) { events = []; }
+  if (!events.length) {
+    list.innerHTML = '<div class="muted" style="padding:16px;">No events yet. Add your first tasting, launch, or guest shift.</div>';
+    return;
+  }
+  list.innerHTML = events.map(eventRowHTML).join('');
+}
+
+function addDashboardEventRow() {
+  const list = document.getElementById('dashboard-events-list');
+  if (!list) return;
+  // Remove any unsaved blank row first
+  const blank = list.querySelector('[data-event-id="new"]');
+  if (blank) return;
+  const defaultVenue = list.dataset.venue || '';
+  list.insertAdjacentHTML('beforeend', eventRowHTML({ id: 'new', name: '', event_date: '', venue: defaultVenue, status: 'pending' }));
+}
+
+async function saveDashboardEventRow(id) {
+  const row = document.querySelector(`[data-event-id="${id}"]`);
+  const notice = document.getElementById('dashboard-events-notice');
+  if (!row) return;
+  const name = (row.querySelector('[data-event-name]')?.value || '').trim();
+  const date = (row.querySelector('[data-event-date]')?.value || '').trim();
+  const venue = (row.querySelector('[data-event-venue]')?.value || '').trim();
+  if (!name) {
+    if (notice) notice.innerHTML = '<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Event name is required.</div>';
+    return;
+  }
+  try {
+    if (id === 'new') {
+      await submitEvent({ name, date, venue });
+    } else {
+      await updateEvent(id, { name, event_date: date, venue });
+    }
+    if (notice) notice.innerHTML = '<div class="notice">Event saved — pending review by our team.</div>';
+    await renderDashboardEvents();
+  } catch (e) {
+    if (notice) notice.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">${e.message || 'Could not save event.'}</div>`;
+  }
+}
+
+async function removeDashboardEventRow(id) {
+  if (id === 'new') { await renderDashboardEvents(); return; }
+  try { await deleteEvent(id); } catch (e) { console.warn('deleteEvent failed:', e); }
+  await renderDashboardEvents();
 }
 
 function adminPlanCatalog() {
