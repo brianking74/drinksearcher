@@ -2484,7 +2484,10 @@ async function loadAdminLeads() {
             ${['new','reviewing','approved','rejected'].map(s => `<option value="${s}" ${lead.status === s ? 'selected' : ''}>${s}</option>`).join('')}
           </select>
         </div>
-        <div><button class="btn btn-primary btn-small" type="button" onclick="setLeadStatus('${lead.id}')">Save</button></div>
+        <div style="display:flex;gap:4px;flex-wrap:wrap;">
+          <button class="btn btn-primary btn-small" type="button" onclick="setLeadStatus('${lead.id}')">Save</button>
+          <button class="btn btn-ghost btn-small" type="button" onclick="provisionLead('${lead.id}')" title="Create profile + starter plan + mark approved">Go live</button>
+        </div>
       </div>`).join('');
   } catch (e) {
     holder.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Could not load leads: ${e.message}</div>`;
@@ -2501,6 +2504,17 @@ async function setLeadStatus(id) {
     setTimeout(() => loadAdminLeads(), 400);
   } catch (e) {
     if (notice) notice.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Failed: ${e.message}</div>`;
+  }
+}
+
+async function provisionLead(id) {
+  const notice = $('#admin-leads-notice');
+  try {
+    const result = await provisionBusiness(id);
+    if (notice) notice.innerHTML = `<div class="notice">Provisioned <strong>${result.business_name || 'business'}</strong> as ${result.listing_type === 'venue' ? 'Venue' : 'Supplier'} (${result.plan}). Starter plan issued. ✓</div>`;
+    setTimeout(() => { loadAdminLeads(); }, 500);
+  } catch (e) {
+    if (notice) notice.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Provision failed: ${e.message}</div>`;
   }
 }
 

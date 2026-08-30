@@ -246,6 +246,15 @@ async function updateLeadStatus(id, status) {
   return data;
 }
 
+// Provisions a business from an approved lead: creates the supplier/venue row,
+// flips the profile role, issues the starter subscription, and marks the lead
+// approved — all server-side (SECURITY DEFINER, admin-gated).
+async function provisionBusiness(leadId) {
+  const { data, error } = await sb.rpc('provision_business', { p_lead_id: leadId });
+  if (error) throw error;
+  return data;
+}
+
 // --- Subscriptions / Entitlements ---
 async function fetchMySubscription() {
   const user = await getCurrentUser();
