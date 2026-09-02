@@ -6,8 +6,8 @@
 // Env vars required (set via `supabase secrets set`):
 //   STRIPE_SECRET_KEY                    (sk_live_... / sk_test_...)
 //   STRIPE_PRICE_MERCHANT_ENHANCED       (founding Merchant Enhanced, HK$380/mo)
-//   STRIPE_PRICE_VENUE_ENHANCED          (founding Venue Enhanced, HK$300/mo)
-//   STRIPE_PRICE_VENUE_ENHANCED_EVENTS   (founding Venue + Events, HK$480/mo)
+//   STRIPE_PRICE_VENUE_FEATURED          (founding Venue Enhanced, HK$300/mo)
+//   STRIPE_PRICE_VENUE_ENHANCED          (founding Venue + Events, HK$480/mo)
 // Premium is intentionally absent — held as a waitlist/anchor for now.
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
@@ -15,11 +15,16 @@ import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY") || "";
 const STRIPE_API = "https://api.stripe.com/v1";
 
-// plan slug -> env var holding that plan's Stripe Price ID
+// plan slug -> env var holding that plan's Stripe Price ID.
+// NOTE: Brian renamed two secrets in the Supabase dashboard (2026-09-02):
+//   venue_enhanced        -> STRIPE_PRICE_VENUE_FEATURED   (HK$300, "enhanced" tier)
+//   venue_enhanced_events -> STRIPE_PRICE_VENUE_ENHANCED   (HK$480, "featured" tier)
+// The names are inverted vs. the directory tier they grant — keep this mapping
+// in mind if you ever rename prices.
 const PRICE_ENV: Record<string, string> = {
   merchant_enhanced: "STRIPE_PRICE_MERCHANT_ENHANCED",
-  venue_enhanced: "STRIPE_PRICE_VENUE_ENHANCED",
-  venue_enhanced_events: "STRIPE_PRICE_VENUE_ENHANCED_EVENTS",
+  venue_enhanced: "STRIPE_PRICE_VENUE_FEATURED",
+  venue_enhanced_events: "STRIPE_PRICE_VENUE_ENHANCED",
 };
 
 // plan slug -> whether it is checkout-able right now
