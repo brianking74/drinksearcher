@@ -385,6 +385,18 @@ deno_version = 2
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 
+# ============================================================
+# PER-FUNCTION SETTINGS
+# ============================================================
+# The Stripe webhook receives calls FROM Stripe, which sends a
+# Stripe-Signature header (not a Supabase JWT). We therefore disable JWT
+# verification for it — the function verifies Stripe's HMAC signature itself.
+[functions.stripe-webhook]
+verify_jwt = false
+
+# create-checkout MUST keep JWT verification on (default): it is called by the
+# signed-in user's browser and reads their session to key the subscription.
+
 [analytics]
 enabled = true
 port = 54327
