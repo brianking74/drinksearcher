@@ -1814,6 +1814,36 @@ async function renderBusinessDashboardPage() {
   if (!state) { state = storage.defaultDashboardState(user); }
   const roleQuery = queryParam('role');
   if (roleQuery === 'merchant' || roleQuery === 'venue') state.activeRole = roleQuery;
+
+  // Hydrate profile fields from Supabase (the source of truth) so a
+  // supplier/venue sees their real data on any device, not just where they
+  // last edited. Server values win; failures fall back to local state.
+  try {
+    const biz = await fetchMyBusiness();
+    if (biz) {
+      if (biz.supplier) {
+        const c = state.merchant;
+        c.listingName = biz.supplier.name || c.listingName;
+        c.website = biz.supplier.website || c.website;
+        c.phone = biz.supplier.phone || c.phone;
+        c.district = biz.supplier.area || c.district;
+        c.notes = biz.supplier.summary || c.notes;
+      }
+      if (biz.venue) {
+        const c = state.venue;
+        c.listingName = biz.venue.name || c.listingName;
+        c.website = biz.venue.website || c.website;
+        c.phone = biz.venue.phone || c.phone;
+        c.district = biz.venue.area || c.district;
+        c.notes = biz.venue.summary || c.notes;
+        c.instagram = biz.venue.instagram_handle || c.instagram || '';
+      }
+      storage.setDashboardState(state);
+    }
+  } catch (e) {
+    console.warn('Dashboard hydration skipped:', e && e.message);
+  }
+
   const roleLocked = !!(roleQuery === 'merchant' || roleQuery === 'venue');
   const renderRole = (role) => {
     const config = state[role];
@@ -1992,7 +2022,7 @@ async function renderBusinessDashboardPage() {
     const planForm = $('#dashboard-plan-form', app);
     const notice = $('#dashboard-notice', app);
     const persist = () => storage.setDashboardState(state);
-    profileForm.addEventListener('submit', (e) => {
+    profileForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       const form = new FormData(profileForm);
       config.listingName = form.get('listingName');
@@ -2003,13 +2033,22 @@ async function renderBusinessDashboardPage() {
       config.instagram = form.get('instagram') || '';
       config.notes = form.get('notes');
       persist();
-      // Push instagram_handle to Supabase venues table for public profile visibility
-      if (role === 'venue' && config.instagram && typeof sb !== 'undefined') {
-        sb.from('venues').update({ instagram_handle: config.instagram }).eq('slug', slugify(config.listingName)).then(r => {
-          if (r.error) console.warn('Instagram save to Supabase:', r.error.message);
+      // Sync to Supabase so the profile survives device changes and feeds the
+      // public directory listing (server-side source of truth).
+      try {
+        await saveBusinessProfile({
+          listingType: role,
+          businessName: config.listingName,
+          phone: config.phone,
+          area: config.district,
+          website: config.website,
+          notes: config.notes,
+          instagram: config.instagram
         });
+        notice.innerHTML = '<div class="notice">Listing settings saved to your profile.</div>';
+      } catch (err) {
+        notice.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Saved locally, but server sync failed: ${err.message || err}</div>`;
       }
-      notice.innerHTML = '<div class="notice">Listing settings saved.</div>';
     });
     planForm.addEventListener('submit', (e) => {
       e.preventDefault();

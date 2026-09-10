@@ -255,6 +255,41 @@ async function provisionBusiness(leadId) {
   return data;
 }
 
+// --- Business profile sync (dashboard "Listing controls") ---
+// Fetches the signed-in user's own business profile from Supabase so the
+// dashboard hydrates from the server (survives device changes, feeds the
+// live directory listing).
+async function fetchMyBusiness() {
+  const user = await getCurrentUser();
+  if (!user) return null;
+  const [p, s, v] = await Promise.all([
+    sb.from('profiles').select('business_name,phone,area,website').eq('id', user.id).single(),
+    sb.from('suppliers').select('*').eq('user_id', user.id).limit(1),
+    sb.from('venues').select('*').eq('user_id', user.id).limit(1)
+  ]);
+  return {
+    profile: p.data || null,
+    supplier: (s.data && s.data[0]) || null,
+    venue: (v.data && v.data[0]) || null
+  };
+}
+
+// Upserts the user's business profile + directory listing server-side.
+// Caller is inherently scoped to their own rows (auth.uid()).
+async function saveBusinessProfile(payload) {
+  const { data, error } = await sb.rpc('save_business_profile', {
+    p_listing_type: payload.listingType,
+    p_business_name: payload.businessName || '',
+    p_phone: payload.phone || '',
+    p_area: payload.area || '',
+    p_website: payload.website || '',
+    p_notes: payload.notes || '',
+    p_instagram: payload.instagram || ''
+  });
+  if (error) throw error;
+  return data;
+}
+
 // --- Subscriptions / Entitlements ---
 async function fetchMySubscription() {
   const user = await getCurrentUser();
