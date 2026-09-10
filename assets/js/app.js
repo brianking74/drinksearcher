@@ -1324,6 +1324,21 @@ function renderLeadCapturePage() {
       leadNotice.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Could not save your enquiry: ${e.message || 'Please try again.'}</div>`;
       return;
     }
+    // Persist business fields to the new account's profile (server-side source
+    // of truth) so the dashboard shows them immediately — even before admin
+    // provisioning creates the directory listing. Best-effort: if the session
+    // isn't ready yet, the lead still carries the data for later hydration.
+    try {
+      const cu = await dsAuth.getCurrentUser();
+      if (cu && cu.id) {
+        await sb.from('profiles').update({
+          business_name: businessName,
+          phone: form.get('phone'),
+          area: form.get('district'),
+          website: form.get('website')
+        }).eq('id', cu.id);
+      }
+    } catch (e) { console.warn('Profile persist after lead failed (non-critical):', e && e.message); }
     leadNotice.innerHTML = `<div class="notice">Account created! Your enquiry for <strong>${businessName}</strong> has been received. Redirecting to your dashboard…</div>`;
     // Send admin notification email
     try {
@@ -1817,10 +1832,15 @@ async function renderBusinessDashboardPage() {
 
   // Hydrate profile fields from Supabase (the source of truth) so a
   // supplier/venue sees their real data on any device, not just where they
-  // last edited. Server values win; failures fall back to local state.
+  // last edited. Priority: live listing (suppliers/venues) > profiles >
+  // onboarding lead > local state.
   try {
     const biz = await fetchMyBusiness();
     if (biz) {
+      const prof = biz.profile || {};
+      const lead = biz.lead || {};
+      const leadFor = (lt) => (lead && lead.listing_type === lt ? lead : {});
+      // Merchant
       if (biz.supplier) {
         const c = state.merchant;
         c.listingName = biz.supplier.name || c.listingName;
@@ -1828,7 +1848,16 @@ async function renderBusinessDashboardPage() {
         c.phone = biz.supplier.phone || c.phone;
         c.district = biz.supplier.area || c.district;
         c.notes = biz.supplier.summary || c.notes;
+      } else {
+        const l = leadFor('merchant');
+        const c = state.merchant;
+        c.listingName = prof.business_name || l.business_name || c.listingName;
+        c.website = prof.website || l.website || c.website;
+        c.phone = prof.phone || l.phone || c.phone;
+        c.district = prof.area || l.district || c.district;
+        c.notes = l.notes || c.notes;
       }
+      // Venue
       if (biz.venue) {
         const c = state.venue;
         c.listingName = biz.venue.name || c.listingName;
@@ -1837,6 +1866,14 @@ async function renderBusinessDashboardPage() {
         c.district = biz.venue.area || c.district;
         c.notes = biz.venue.summary || c.notes;
         c.instagram = biz.venue.instagram_handle || c.instagram || '';
+      } else {
+        const l = leadFor('venue');
+        const c = state.venue;
+        c.listingName = prof.business_name || l.business_name || c.listingName;
+        c.website = prof.website || l.website || c.website;
+        c.phone = prof.phone || l.phone || c.phone;
+        c.district = prof.area || l.district || c.district;
+        c.notes = l.notes || c.notes;
       }
       storage.setDashboardState(state);
     }

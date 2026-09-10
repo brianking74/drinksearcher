@@ -258,19 +258,29 @@ async function provisionBusiness(leadId) {
 // --- Business profile sync (dashboard "Listing controls") ---
 // Fetches the signed-in user's own business profile from Supabase so the
 // dashboard hydrates from the server (survives device changes, feeds the
-// live directory listing).
+// live directory listing). Includes the user's latest lead (their signup /
+// onboarding application) as a fallback source, because before admin
+// provisioning the business fields live only on the lead.
 async function fetchMyBusiness() {
   const user = await getCurrentUser();
   if (!user) return null;
   const [p, s, v] = await Promise.all([
-    sb.from('profiles').select('business_name,phone,area,website').eq('id', user.id).single(),
+    sb.from('profiles').select('business_name,phone,area,website,name').eq('id', user.id).single(),
     sb.from('suppliers').select('*').eq('user_id', user.id).limit(1),
     sb.from('venues').select('*').eq('user_id', user.id).limit(1)
   ]);
+  let lead = null;
+  const l1 = await sb.from('leads').select('*').eq('account_email', user.email).order('created_at', { ascending: false }).limit(1);
+  if (l1.data && l1.data.length) lead = l1.data[0];
+  else {
+    const l2 = await sb.from('leads').select('*').eq('email', user.email).order('created_at', { ascending: false }).limit(1);
+    if (l2.data && l2.data.length) lead = l2.data[0];
+  }
   return {
     profile: p.data || null,
     supplier: (s.data && s.data[0]) || null,
-    venue: (v.data && v.data[0]) || null
+    venue: (v.data && v.data[0]) || null,
+    lead
   };
 }
 
