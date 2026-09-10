@@ -86,6 +86,11 @@ const storage = {
     return user ? `ds_dashboard_${user.email}` : '';
   },
   defaultDashboardState(user) {
+    // IMPORTANT: this must return EMPTY profile fields, not sample data.
+    // A brand-new account should see a blank dashboard they fill in themselves —
+    // seeded sample data (fake website/phone/district/listing name) leaked into
+    // real listings before, so never put placeholders here. The only non-empty
+    // defaults are the free-tier membership/labels and the user's own email.
     return {
       activeRole: 'merchant',
       merchant: {
@@ -94,12 +99,12 @@ const storage = {
         featuredSupplier: false,
         featuredEvent: false,
         extraProducts: false,
-        listingName: `${user?.name ? `${user.name}'s` : 'Founder'} Merchant Listing`,
-        website: 'https://example-store.hk',
+        listingName: '',
+        website: '',
         contactEmail: user?.email || '',
-        phone: '+852 1234 5678',
-        district: user?.city || 'Central',
-        notes: 'Tell us about your business (max 50 words)',
+        phone: '',
+        district: user?.city || '',
+        notes: '',
         items: []
       },
       venue: {
@@ -108,15 +113,38 @@ const storage = {
         featuredVenue: false,
         featuredEvent: false,
         bookingBoost: false,
-        listingName: `${user?.name ? `${user.name}'s` : 'Founder'} Venue Listing`,
-        website: 'https://example-bar.hk',
+        listingName: '',
+        website: '',
         contactEmail: user?.email || '',
-        phone: '+852 9876 5432',
-        district: user?.city || 'Soho',
-        notes: 'Tell us about your business (max 50 words)',
+        phone: '',
+        district: user?.city || '',
+        notes: '',
         items: []
       }
     };
+  },
+  // Strips the legacy sample/placeholder values that were seeded into new
+  // accounts before the fix. Runs transparently on read so existing accounts
+  // self-heal without the user having to clear their browser.
+  sanitizeDashboardState(state) {
+    if (!state || typeof state !== 'object') return state;
+    const SAMPLE = {
+      'https://example-store.hk': '', 'https://example-bar.hk': '',
+      '+852 1234 5678': '', '+852 9876 5432': '',
+      'Tell us about your business (max 50 words)': ''
+    };
+    for (const role of ['merchant', 'venue']) {
+      const c = state[role];
+      if (!c || typeof c !== 'object') continue;
+      for (const k of ['website', 'phone', 'notes']) {
+        if (Object.prototype.hasOwnProperty.call(SAMPLE, c[k])) c[k] = SAMPLE[c[k]];
+      }
+      // Old seed set listingName to "<Name>'s Merchant/Venue Listing"
+      if (typeof c.listingName === 'string' && /(Merchant|Venue) Listing$/.test(c.listingName)) {
+        c.listingName = '';
+      }
+    }
+    return state;
   },
   getDashboardState() {
     const key = this.getDashboardKey();
@@ -124,7 +152,13 @@ const storage = {
     if (!key || !user) return null;
     try {
       const existing = JSON.parse(localStorage.getItem(key) || 'null');
-      if (existing) return existing;
+      if (existing) {
+        const cleaned = this.sanitizeDashboardState(existing);
+        if (JSON.stringify(cleaned) !== JSON.stringify(existing)) {
+          localStorage.setItem(key, JSON.stringify(cleaned));
+        }
+        return cleaned;
+      }
     } catch {}
     const seeded = this.defaultDashboardState(user);
     localStorage.setItem(key, JSON.stringify(seeded));
