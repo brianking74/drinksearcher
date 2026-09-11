@@ -1,5 +1,14 @@
 function $(sel, root = document) { return root.querySelector(sel); }
 function $$(sel, root = document) { return Array.from(root.querySelectorAll(sel)); }
+// HTML-escape helper. Must live at global scope here: premium.js defines its own
+// `safe` inside an IIFE, so app.js cannot see it. Without this, every error
+// handler that calls safe() throws "safe is not defined" and swallows the real
+// error message (the user saw "Signing in…" stuck with no feedback).
+function safe(v) {
+  return String(v == null ? '' : v).replace(/[&<>"']/g, function(c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+}
 
 // In-memory current-user cache, hydrated from Supabase (dsAuth) on page load
 // and refreshed on sign-in/sign-up. Every other helper reads this cache.
