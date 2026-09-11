@@ -1923,7 +1923,7 @@ async function renderBusinessDashboardPage() {
     const listingLabels = role === 'merchant'
       ? ['Product / listing', 'Price', 'Status', '']
       : ['Offer / event / table inventory', 'Price', 'Status', ''];
-    return `
+    const html = `
       <div class="dashboard-shell">
         <section class="hero" style="min-height:52vh;">
           <div class="hero-media" style="background-image:url('${role === 'merchant' ? siteImages.shop : siteImages.rooftop}')"></div>
@@ -2068,6 +2068,7 @@ async function renderBusinessDashboardPage() {
           </div>
         </section>
       </div>`;
+    app.innerHTML = html;
 
     // Sync item statuses from Supabase
     if (user.email) {
@@ -2229,8 +2230,9 @@ async function renderBusinessDashboardPage() {
       persist();
       renderBusinessDashboardPage();
     }));
+  return html;
   };
-  app.innerHTML = renderRole(state.activeRole || 'merchant');
+  renderRole(state.activeRole || 'merchant');
   renderDashboardEvents();
   document.documentElement.dataset.appRendered = 'true';
 }
