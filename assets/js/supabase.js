@@ -141,7 +141,7 @@ async function fetchSuppliers() {
       return {
         enhanced: data.filter(s => s.tier === 'enhanced').map(mapRow),
         featured: data.filter(s => s.tier === 'featured').map(mapRow),
-        standard: data.filter(s => s.tier === 'standard').map(s => [s.name, s.area || '', s.phone || '', s.specialty || ''])
+        standard: data.filter(s => s.tier === 'standard').map(mapRow)
       };
     }
   } catch { /* fall through */ }
@@ -159,7 +159,7 @@ async function fetchVenues() {
       return {
         enhanced: data.filter(v => v.tier === 'enhanced').map(mapRow),
         featured: data.filter(v => v.tier === 'featured').map(mapRow),
-        standard: data.filter(v => v.tier === 'standard').map(v => [v.name, v.area || '', v.phone || '', v.cuisine || ''])
+        standard: data.filter(v => v.tier === 'standard').map(mapRow)
       };
     }
   } catch { /* fall through */ }
