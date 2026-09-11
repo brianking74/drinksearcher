@@ -3203,9 +3203,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
   if (page === 'product') await renderBottleDetail();
   if (page === 'pricing') renderPricingPage();
-  if (page === 'lead' && window.DrinkSearcherPremium) {
-    // premium.js handles lead page via bootPremium()
-  } else { if (page === 'lead') renderLeadCapturePage(); }
+  // Lead/business-onboarding page MUST use the Supabase-backed flow. premium.js
+  // previously "handled" it with a localStorage-only wizard that never created
+  // an auth account — leaving suppliers unable to sign in. Always render the
+  // real lead-capture form (creates account + submits lead to Supabase).
+  if (page === 'lead') renderLeadCapturePage();
   if (page === 'dashboard') await renderBusinessDashboardPage();
   if (page === 'admin') await renderAdminDashboardPage();
   if (page === 'venue-profile') await renderVenueProfile();

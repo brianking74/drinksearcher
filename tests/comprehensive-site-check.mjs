@@ -188,7 +188,10 @@ check(appJS.includes('DOMContentLoaded'), 'app.js missing DOMContentLoaded liste
 // ============================================================
 
 const premiumJS = read('assets/js/premium.js');
-const PREMIUM_PAGES = ['home', 'drinks', 'suppliers', 'venues', 'events', 'product', 'pricing', 'lead', 'account', 'dashboard'];
+// Note: 'lead' was removed from premium.js — business onboarding is now rendered
+// by app.js's renderLeadCapturePage (Supabase-backed), because the old
+// localStorage-only patchWizard never created an auth account.
+const PREMIUM_PAGES = ['home', 'drinks', 'suppliers', 'venues', 'events', 'product', 'pricing', 'account', 'dashboard'];
 for (const p of PREMIUM_PAGES) {
   check(premiumJS.includes(`'${p}'`), `premium.js router missing page: '${p}'`);
 }
