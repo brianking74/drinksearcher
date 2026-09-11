@@ -307,7 +307,8 @@ async function saveBusinessProfile(payload) {
     p_area: payload.area || '',
     p_website: payload.website || '',
     p_notes: payload.notes || '',
-    p_instagram: payload.instagram || ''
+    p_instagram: payload.instagram || '',
+    p_image: payload.image || ''
   });
   if (error) throw error;
   return data;

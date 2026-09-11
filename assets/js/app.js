@@ -114,6 +114,7 @@ const storage = {
         phone: '',
         district: user?.city || '',
         notes: '',
+        image: '',
         items: []
       },
       venue: {
@@ -128,6 +129,7 @@ const storage = {
         phone: '',
         district: user?.city || '',
         notes: '',
+        image: '',
         items: []
       }
     };
@@ -1867,6 +1869,7 @@ async function renderBusinessDashboardPage() {
         c.phone = biz.supplier.phone || c.phone;
         c.district = biz.supplier.area || c.district;
         c.notes = biz.supplier.summary || c.notes;
+        c.image = biz.supplier.image || c.image || '';
       } else {
         const l = leadFor('merchant');
         const c = state.merchant;
@@ -1885,6 +1888,7 @@ async function renderBusinessDashboardPage() {
         c.district = biz.venue.area || c.district;
         c.notes = biz.venue.summary || c.notes;
         c.instagram = biz.venue.instagram_handle || c.instagram || '';
+        c.image = biz.venue.image || c.image || '';
       } else {
         const l = leadFor('venue');
         const c = state.venue;
@@ -1962,6 +1966,18 @@ async function renderBusinessDashboardPage() {
                 <input class="input" name="district" value="${config.district}" placeholder="District" />
                 ${role === 'venue' ? `<input class="input" name="instagram" value="${config.instagram || ''}" placeholder="Instagram handle (e.g. @quinaryhk)" />` : ''}
                 <textarea class="input full" name="notes" rows="4" placeholder="Tell us about your business (max 50 words)">${config.notes}</textarea>
+                <div class="dashboard-field full" style="grid-column:1/-1;">
+                  <span>Logo / storefront image</span>
+                  <div style="display:flex;align-items:center;gap:12px;margin-top:8px;">
+                    <img id="dashboard-logo-preview" src="${safe(config.image || '')}" alt="Storefront preview" style="width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.03);${config.image ? '' : 'display:none;'}" />
+                    <div style="display:flex;flex-direction:column;gap:8px;">
+                      <button class="btn btn-secondary btn-small" type="button" onclick="dsDashboardImageUpload('${role}')">Upload image</button>
+                      <button class="btn btn-ghost btn-small" type="button" id="dashboard-remove-image" onclick="dsDashboardImageRemove()" ${config.image ? '' : 'style="display:none;"'}>Remove</button>
+                    </div>
+                  </div>
+                  <input type="hidden" name="image" id="dashboard-logo-input" value="${safe(config.image || '')}" />
+                  <div class="small-note">Ideal size: 1200 × 800 px (3:2 landscape) or a square 800 × 800 px. JPG, PNG or WebP, up to 5 MB. This is your listing's main image shown across the directory.</div>
+                </div>
                 <button class="btn btn-primary full" type="submit">Save listing settings</button>
               </form>
               <div id="dashboard-notice"></div>
@@ -2088,6 +2104,7 @@ async function renderBusinessDashboardPage() {
       config.district = form.get('district');
       config.instagram = form.get('instagram') || '';
       config.notes = form.get('notes');
+      config.image = form.get('image') || '';
       persist();
       // Sync to Supabase so the profile survives device changes and feeds the
       // public directory listing (server-side source of truth).
@@ -2099,7 +2116,8 @@ async function renderBusinessDashboardPage() {
           area: config.district,
           website: config.website,
           notes: config.notes,
-          instagram: config.instagram
+          instagram: config.instagram,
+          image: config.image
         });
         notice.innerHTML = '<div class="notice">Listing settings saved to your profile.</div>';
       } catch (err) {
