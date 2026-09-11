@@ -1587,8 +1587,14 @@ async function renderSignInPage() {
     if (!email) return;
     const notice = $('#signin-notice');
     if (!notice) return;
+    const captchaToken = getCaptchaToken();
+    if (!captchaToken) {
+      notice.innerHTML = '<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Please complete the security check before requesting a reset link.</div>';
+      return;
+    }
     notice.innerHTML = '<div class="notice">Sending reset link...</div>';
-    const { error } = await sb.auth.resetPasswordForEmail(email.trim().toLowerCase(), { redirectTo: `${location.origin}/signin.html` });
+    const { error } = await sb.auth.resetPasswordForEmail(email.trim().toLowerCase(), { redirectTo: `${location.origin}/signin.html`, captchaToken });
+    resetTurnstile();
     notice.innerHTML = error
       ? `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">${error.message}</div>`
       : '<div class="notice">Reset link sent. Check your inbox and spam folder.</div>';
