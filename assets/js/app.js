@@ -1309,6 +1309,7 @@ function renderLeadCapturePage() {
       }
       const signUpResult = await dsAuth.signUp({ name: contactName, city: form.get('district'), email, password, role: listingType, captchaToken });
       if (!signUpResult.ok) {
+        resetTurnstile();
         leadNotice.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">${signUpResult.message}</div>`;
         return;
       }
@@ -1569,6 +1570,7 @@ async function renderSignInPage() {
       return;
     }
     if (result.emailNotConfirmed) {
+      resetTurnstile();
       notice.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Email not confirmed. <button class="btn btn-ghost btn-small" style="margin-top:8px;" type="button" id="resend-confirm-signin">Resend confirmation email</button></div><div id="resend-signin-notice"></div>`;
       $('#resend-confirm-signin')?.addEventListener('click', async () => {
         const { error } = await sb.auth.resend({ type: 'signup', email: form.get('email').trim().toLowerCase() });
@@ -1577,6 +1579,7 @@ async function renderSignInPage() {
       });
       return;
     }
+    resetTurnstile();
     notice.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">${safe(result.message || 'Email or password not recognised.')}</div>`;
   });
   $('#forgot-password-btn')?.addEventListener('click', async () => {
@@ -1620,6 +1623,7 @@ async function renderSignUpPage() {
     notice.innerHTML = '<div class="notice">Creating account…</div>';
     const { data: authData, error } = await sb.auth.signUp({ email, password, options: { data: { name, role: 'searcher', city }, captchaToken } });
     if (error) {
+      resetTurnstile();
       notice.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">${safe(error.message || 'Sign up failed. Please try again.')}</div>`;
       return;
     }

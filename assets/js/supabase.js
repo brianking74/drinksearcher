@@ -34,6 +34,19 @@ function mountTurnstile(scope) {
   }
 }
 
+// Turnstile tokens are single-use and short-lived. After a submit attempt —
+// success or failure — the token is consumed/expired, so the widget must be
+// reset to mint a fresh token. Without this, a retry reuses the old token and
+// Supabase rejects it with "timeout-or-duplicate".
+function resetTurnstile() {
+  window.__dsCaptchaToken = '';
+  try {
+    if (window.turnstile && typeof window.turnstile.reset === 'function') {
+      window.turnstile.reset();
+    }
+  } catch (e) { /* noop */ }
+}
+
 // ============================================================
 // AUTH HELPERS
 // ============================================================
