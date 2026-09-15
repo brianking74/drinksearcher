@@ -21,11 +21,17 @@ if (page === 'venue-profile') {
   });
 
 } else if (page === 'supplier-profile') {
-  // Fetch supplier images from Supabase
-  sb.from('supplier_profiles').select('hero_image,gallery_images').eq('slug', slug).limit(1).then(function(result) {
-    if (result.error || !result.data || !result.data.length) return;
-    var s = result.data[0];
-    applyGallery('supplier', s.hero_image || '', s.gallery_images || []);
+  // Fetch supplier images from Supabase. Hero lives on suppliers.hero_image
+  // (new) with legacy fallback to supplier_profiles.hero_image; gallery stays
+  // on supplier_profiles.
+  Promise.all([
+    sb.from('suppliers').select('hero_image,image').eq('slug', slug).limit(1),
+    sb.from('supplier_profiles').select('hero_image,gallery_images').eq('slug', slug).limit(1)
+  ]).then(function(results) {
+    var sup = (results[0].data && results[0].data[0]) || {};
+    var sp = (results[1].data && results[1].data[0]) || {};
+    var hero = sup.hero_image || sp.hero_image || sup.image || '';
+    applyGallery('supplier', hero, sp.gallery_images || []);
   });
 }
 

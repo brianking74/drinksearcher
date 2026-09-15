@@ -115,6 +115,7 @@ const storage = {
         district: user?.city || '',
         notes: '',
         image: '',
+        heroImage: '',
         items: []
       },
       venue: {
@@ -130,6 +131,7 @@ const storage = {
         district: user?.city || '',
         notes: '',
         image: '',
+        heroImage: '',
         items: []
       }
     };
@@ -1408,11 +1410,12 @@ async function renderVenueProfile() {
     return;
   }
   
-  const image = v.image || siteImages.rooftop;
+  const heroBg = v.hero_image || v.image || siteImages.rooftop;
+  const logo = v.image || '';
   const website = v.website && v.website !== '#' ? v.website : '#';
   
   app.innerHTML = `
-    <section class="profile-hero"><div class="hero-media" style="background-image:url('${image}')"></div><div class="container profile-content"><div><span class="kicker">${v.tier === 'enhanced' ? 'Featured venue' : 'Venue'}</span><h1>${v.name}</h1><p class="lead" style="margin-top:16px;">${v.specialty || v.cuisine || ''} in ${v.area || 'Hong Kong'}</p><div class="info-strip"><div class="info-chip"><div class="muted">Area</div><strong>${v.area || 'Hong Kong'}</strong></div><div class="info-chip"><div class="muted">Category</div><strong>${v.cuisine || 'Bar'}</strong></div>${v.rating ? `<div class="info-chip"><div class="muted">Rating</div><strong>★ ${v.rating}</strong></div>` : ''}<div class="info-chip"><div class="muted">Price</div><strong>${v.price || 'N/A'}</strong></div></div></div><div class="panel"><span class="eyebrow">Quick actions</span><div class="inline-actions" style="margin-top:16px;"><a class="btn btn-secondary" href="${website}">${v.booking ? 'Book via ' + v.booking : 'Visit website'}</a>${saveButton({id:`venue:${slug}`, name:v.name, kind:'venue', href:`venue-template.html?slug=${slug}`, meta:v.area})}</div><hr class="sep"><div class="muted" style="display:grid; gap:8px;"><span>${v.phone || ''}</span><span>${v.price || ''} · ${v.cuisine || ''}</span></div></div></div></section>
+    <section class="profile-hero"><div class="hero-media" style="background-image:url('${heroBg}')"></div><div class="container profile-content"><div>${logo ? `<img src="${logo}" alt="Logo" style="width:80px;height:80px;object-fit:cover;border-radius:12px;border:1px solid rgba(255,255,255,.18);margin-bottom:16px;" />` : ''}<span class="kicker">${v.tier === 'enhanced' ? 'Featured venue' : 'Venue'}</span><h1>${v.name}</h1><p class="lead" style="margin-top:16px;">${v.specialty || v.cuisine || ''} in ${v.area || 'Hong Kong'}</p><div class="info-strip"><div class="info-chip"><div class="muted">Area</div><strong>${v.area || 'Hong Kong'}</strong></div><div class="info-chip"><div class="muted">Category</div><strong>${v.cuisine || 'Bar'}</strong></div>${v.rating ? `<div class="info-chip"><div class="muted">Rating</div><strong>★ ${v.rating}</strong></div>` : ''}<div class="info-chip"><div class="muted">Price</div><strong>${v.price || 'N/A'}</strong></div></div></div><div class="panel"><span class="eyebrow">Quick actions</span><div class="inline-actions" style="margin-top:16px;"><a class="btn btn-secondary" href="${website}">${v.booking ? 'Book via ' + v.booking : 'Visit website'}</a>${saveButton({id:`venue:${slug}`, name:v.name, kind:'venue', href:`venue-template.html?slug=${slug}`, meta:v.area})}</div><hr class="sep"><div class="muted" style="display:grid; gap:8px;"><span>${v.phone || ''}</span><span>${v.price || ''} · ${v.cuisine || ''}</span></div></div></div></section>
     <section class="section"><div class="container"><div class="section-head"><div><span class="eyebrow">About</span><h2>${v.name}</h2><p class="lead" style="margin-top:14px;">${v.specialty ? 'Known for ' + v.specialty.toLowerCase() + '.' : ''} A ${v.cuisine || 'bar'} in ${v.area || 'Hong Kong'}${v.price ? ' with ' + v.price.toLowerCase() + ' pricing' : ''}.</p></div></div></div></section>
     <section class="section-tight"><div class="container grid grid-2"><div class="panel"><span class="eyebrow">Contact & details</span><h3 style="margin:14px 0;">Plan your visit.</h3><div class="muted" style="display:grid; gap:10px;">${v.phone ? '<span>📞 ' + v.phone + '</span>' : ''}<span>📍 ${v.area || 'Hong Kong'}</span>${v.booking ? '<span>📅 Book via ' + v.booking + '</span>' : ''}</div></div><div class="panel"><span class="eyebrow">Claim your venue</span><h3 style="margin:14px 0;">Own this venue?</h3><p class="muted">Add direct booking links, imagery, and promoted placement so guests find you first.</p><div class="inline-actions" style="margin-top:18px;"><a class="btn btn-primary" href="list-your-business.html?type=venue">Claim your venue</a></div></div></div></section>
     ${v.tier === 'enhanced' && v.instagram_handle ? `
@@ -1467,7 +1470,8 @@ async function renderSupplierProfile() {
   }
 
   const name = profile.name;
-  const hero = profile.image || profile.hero || siteImages.shop;
+  const heroBg = profile.hero_image || profile.image || profile.hero || siteImages.shop;
+  const logo = profile.image || '';
   const area = profile.area || '';
   const specialty = profile.specialty || '';
   const phone = profile.phone || '';
@@ -1486,7 +1490,7 @@ async function renderSupplierProfile() {
     : '<div class="empty-state"><h3>No upcoming events.</h3><p class="muted">Check back soon for tastings and launches.</p></div>';
 
   app.innerHTML = `
-    <section class="profile-hero"><div class="hero-media" style="background-image:url('${hero}')"></div><div class="container profile-content"><div><span class="kicker">${profile.tier === 'enhanced' ? 'Featured supplier' : 'Supplier'}</span><h1>${name}</h1>${summary ? `<p class="lead" style="margin-top:16px;">${summary}</p>` : ''}<div class="info-strip"><div class="info-chip"><div class="muted">Area</div><strong>${area || 'Hong Kong'}</strong></div><div class="info-chip"><div class="muted">Specialty</div><strong>${specialty || 'Drinks'}</strong></div><div class="info-chip"><div class="muted">Website</div><strong>Online store</strong></div><div class="info-chip"><div class="muted">Listing</div><strong>Verified profile</strong></div></div></div><div class="panel"><span class="eyebrow">Quick actions</span><div class="inline-actions" style="margin-top:16px;"><a class="btn btn-primary" href="${website}">Visit supplier website</a>${saveButton({id:`supplier:${slug}`, name, kind:'supplier', href:`supplier-template.html?slug=${slug}`, meta:area})}</div><hr class="sep"><div class="muted" style="display:grid; gap:8px;">${phone ? `<span>${phone}</span>` : ''}<span>${specialty || ''}</span></div></div></div></section>
+    <section class="profile-hero"><div class="hero-media" style="background-image:url('${heroBg}')"></div><div class="container profile-content"><div>${logo ? `<img src="${logo}" alt="Logo" style="width:80px;height:80px;object-fit:cover;border-radius:12px;border:1px solid rgba(255,255,255,.18);margin-bottom:16px;" />` : ''}<span class="kicker">${profile.tier === 'enhanced' ? 'Featured supplier' : 'Supplier'}</span><h1>${name}</h1>${summary ? `<p class="lead" style="margin-top:16px;">${summary}</p>` : ''}<div class="info-strip"><div class="info-chip"><div class="muted">Area</div><strong>${area || 'Hong Kong'}</strong></div><div class="info-chip"><div class="muted">Specialty</div><strong>${specialty || 'Drinks'}</strong></div><div class="info-chip"><div class="muted">Website</div><strong>Online store</strong></div><div class="info-chip"><div class="muted">Listing</div><strong>Verified profile</strong></div></div></div><div class="panel"><span class="eyebrow">Quick actions</span><div class="inline-actions" style="margin-top:16px;"><a class="btn btn-primary" href="${website}">Visit supplier website</a>${saveButton({id:`supplier:${slug}`, name, kind:'supplier', href:`supplier-template.html?slug=${slug}`, meta:area})}</div><hr class="sep"><div class="muted" style="display:grid; gap:8px;">${phone ? `<span>${phone}</span>` : ''}<span>${specialty || ''}</span></div></div></div></section>
     <div class="anchor-nav"><div class="container"><a class="anchor-link active" href="#overview">Overview</a><a class="anchor-link" href="#catalogue">Catalogue</a><a class="anchor-link" href="#events">Events</a><a class="anchor-link" href="#contact">Contact</a></div></div>
     <section id="overview" class="section"><div class="container split"><div><span class="eyebrow">Overview</span><h2>Why shoppers use this supplier.</h2><p class="lead" style="margin-top:16px;">Get a quick sense of what this merchant does best, the bottle categories they are known for, and the easiest route to browse or buy locally.</p></div><div class="panel"><div class="muted" style="display:grid; gap:12px;">${sellingPoints.length ? sellingPoints.map(i => `<span>• ${i}</span>`).join('') : '<span>• Hong Kong supplier</span><span>• Direct store links</span><span>• Local availability</span>'}</div></div></div></section>
     <section id="catalogue" class="section-tight"><div class="container"><div class="section-head"><div><span class="eyebrow">Catalogue</span><h2>Bottles and categories to start with.</h2><p class="lead" style="margin-top:14px;">Live products this supplier has listed with us.</p></div></div>${catalogueHTML}</div></section>
@@ -1870,6 +1874,7 @@ async function renderBusinessDashboardPage() {
         c.district = biz.supplier.area || c.district;
         c.notes = biz.supplier.summary || c.notes;
         c.image = biz.supplier.image || c.image || '';
+        c.heroImage = biz.supplier.hero_image || c.heroImage || '';
       } else {
         const l = leadFor('merchant');
         const c = state.merchant;
@@ -1889,6 +1894,7 @@ async function renderBusinessDashboardPage() {
         c.notes = biz.venue.summary || c.notes;
         c.instagram = biz.venue.instagram_handle || c.instagram || '';
         c.image = biz.venue.image || c.image || '';
+        c.heroImage = biz.venue.hero_image || c.heroImage || '';
       } else {
         const l = leadFor('venue');
         const c = state.venue;
@@ -1967,16 +1973,28 @@ async function renderBusinessDashboardPage() {
                 ${role === 'venue' ? `<input class="input" name="instagram" value="${config.instagram || ''}" placeholder="Instagram handle (e.g. @quinaryhk)" />` : ''}
                 <textarea class="input full" name="notes" rows="4" placeholder="Tell us about your business (max 50 words)">${config.notes}</textarea>
                 <div class="dashboard-field full" style="grid-column:1/-1;">
-                  <span>Logo / storefront image</span>
+                  <span>Profile image / logo (square)</span>
                   <div style="display:flex;align-items:center;gap:12px;margin-top:8px;">
-                    <img id="dashboard-logo-preview" src="${safe(config.image || '')}" alt="Storefront preview" style="width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.03);${config.image ? '' : 'display:none;'}" />
+                    <img id="dashboard-logo-preview" src="${safe(config.image || '')}" alt="Logo preview" style="width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.03);${config.image ? '' : 'display:none;'}" />
                     <div style="display:flex;flex-direction:column;gap:8px;">
-                      <button class="btn btn-secondary btn-small" type="button" onclick="dsDashboardImageUpload('${role}')">Upload image</button>
-                      <button class="btn btn-ghost btn-small" type="button" id="dashboard-remove-image" onclick="dsDashboardImageRemove()" ${config.image ? '' : 'style="display:none;"'}>Remove</button>
+                      <button class="btn btn-secondary btn-small" type="button" onclick="dsDashboardImageUpload('${role}','logo')">Upload logo</button>
+                      <button class="btn btn-ghost btn-small" type="button" id="dashboard-remove-image" onclick="dsDashboardImageRemove('logo')" ${config.image ? '' : 'style="display:none;"'}>Remove</button>
                     </div>
                   </div>
                   <input type="hidden" name="image" id="dashboard-logo-input" value="${safe(config.image || '')}" />
-                  <div class="small-note">Ideal size: 1200 × 800 px (3:2 landscape) or a square 800 × 800 px. JPG, PNG or WebP, up to 5 MB. This is your listing's main image shown across the directory.</div>
+                  <div class="small-note">Square, e.g. 800 × 800 px. JPG, PNG or WebP, up to 5 MB. Shown as your logo on your profile and in directory cards.</div>
+                </div>
+                <div class="dashboard-field full" style="grid-column:1/-1;">
+                  <span>Header / banner image (wide)</span>
+                  <div style="display:flex;align-items:center;gap:12px;margin-top:8px;">
+                    <img id="dashboard-header-preview" src="${safe(config.heroImage || '')}" alt="Header preview" style="width:180px;height:56px;object-fit:cover;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.03);${config.heroImage ? '' : 'display:none;'}" />
+                    <div style="display:flex;flex-direction:column;gap:8px;">
+                      <button class="btn btn-secondary btn-small" type="button" onclick="dsDashboardImageUpload('${role}','header')">Upload header</button>
+                      <button class="btn btn-ghost btn-small" type="button" id="dashboard-remove-header" onclick="dsDashboardImageRemove('header')" ${config.heroImage ? '' : 'style="display:none;"'}>Remove</button>
+                    </div>
+                  </div>
+                  <input type="hidden" name="hero_image" id="dashboard-header-input" value="${safe(config.heroImage || '')}" />
+                  <div class="small-note">Wide banner, e.g. 1600 × 500 px (about 3:1). JPG, PNG or WebP, up to 5 MB. Shown as the full-width header across the top of your profile page.</div>
                 </div>
                 <button class="btn btn-primary full" type="submit">Save listing settings</button>
               </form>
@@ -2106,6 +2124,7 @@ async function renderBusinessDashboardPage() {
       config.instagram = form.get('instagram') || '';
       config.notes = form.get('notes');
       config.image = form.get('image') || '';
+      config.heroImage = form.get('hero_image') || '';
       persist();
       // Sync to Supabase so the profile survives device changes and feeds the
       // public directory listing (server-side source of truth).
@@ -2118,7 +2137,8 @@ async function renderBusinessDashboardPage() {
           website: config.website,
           notes: config.notes,
           instagram: config.instagram,
-          image: config.image
+          image: config.image,
+          heroImage: config.heroImage
         });
         notice.innerHTML = '<div class="notice">Listing settings saved to your profile.</div>';
       } catch (err) {

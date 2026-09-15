@@ -1,9 +1,10 @@
 /**
  * dashboard-cloudinary.js
  * Supplier/venue-facing Cloudinary upload widget for the business dashboard.
- * Adds "Upload image" / "Remove" controls to the Listing controls form so each
- * business can set its own logo/storefront image (stored on suppliers.image /
- * venues.image via the save_business_profile RPC).
+ * Provides TWO upload slots on the "Listing controls" form:
+ *   - 'logo'   -> square profile image / logo   (suppliers.image / venues.image)
+ *   - 'header' -> wide header/banner image      (suppliers.hero_image / venues.hero_image)
+ * Both are persisted via the save_business_profile RPC.
  * Uses the same unsigned upload preset as the admin (cloud rqokncht).
  */
 (function () {
@@ -14,10 +15,14 @@
   const UPLOAD_PRESET = 'drinksearcher';
   let widget = null;
 
-  function showPreview(url) {
-    const input = document.getElementById('dashboard-logo-input');
-    const preview = document.getElementById('dashboard-logo-preview');
-    const removeBtn = document.getElementById('dashboard-remove-image');
+  // slot: 'logo' | 'header'
+  function showPreview(slot, url) {
+    const inputId = slot === 'header' ? 'dashboard-header-input' : 'dashboard-logo-input';
+    const previewId = slot === 'header' ? 'dashboard-header-preview' : 'dashboard-logo-preview';
+    const removeId = slot === 'header' ? 'dashboard-remove-header' : 'dashboard-remove-image';
+    const input = document.getElementById(inputId);
+    const preview = document.getElementById(previewId);
+    const removeBtn = document.getElementById(removeId);
     if (input) input.value = url || '';
     if (preview) {
       if (url) { preview.src = url; preview.style.display = ''; }
@@ -26,7 +31,8 @@
     if (removeBtn) removeBtn.style.display = url ? '' : 'none';
   }
 
-  window.dsDashboardImageUpload = function (role) {
+  window.dsDashboardImageUpload = function (role, slot) {
+    slot = slot || 'logo';
     if (typeof cloudinary === 'undefined') {
       alert('Image upload is still loading — please try again in a moment.');
       return;
@@ -36,7 +42,7 @@
       {
         cloudName: CLOUD_NAME,
         uploadPreset: UPLOAD_PRESET,
-        folder,
+        folder: slot === 'header' ? folder + '/headers' : folder + '/logos',
         sources: ['local', 'url', 'camera'],
         multiple: false,
         maxFiles: 1,
@@ -64,14 +70,14 @@
       function (error, result) {
         if (error) return;
         if (result && result.event === 'success') {
-          showPreview(result.info.secure_url);
+          showPreview(slot, result.info.secure_url);
         }
       }
     );
     widget.open();
   };
 
-  window.dsDashboardImageRemove = function () {
-    showPreview('');
+  window.dsDashboardImageRemove = function (slot) {
+    showPreview(slot || 'logo', '');
   };
 })();
