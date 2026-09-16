@@ -139,7 +139,7 @@ for (const file of ['assets/css/styles.css', 'assets/css/premium.css']) {
 
 const premiumCSS = read('assets/css/premium.css');
 const STYLE_RULES = [
-  ['#efefef',             'Product image background'],
+  ['background:#fff',     'Product image white background'],
   ['mix-blend-mode:multiply', 'Bottle image blend mode'],
   ['view-toggle',          'List/Map toggle'],
   ['district-map',        'District map container'],

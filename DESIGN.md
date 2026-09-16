@@ -113,7 +113,7 @@ DrinkSearcher.HK is a premium dark-theme marketplace for Hong Kong drinks and ni
 - Border: 1px solid `--border`
 - Border-radius: 8px
 - Hover: border becomes `--border-strong`
-- Image containers: #efefef background
+- Image containers: white (#fff) background
 - Bottle images: mix-blend-mode: multiply
 
 ### Filter Panel
@@ -139,7 +139,7 @@ DrinkSearcher.HK is a premium dark-theme marketplace for Hong Kong drinks and ni
 
 ## 6. Photography & Imagery
 
-- Product images: #efefef background, contain sizing, multiply blend for bottles
+- Product images: white (#fff) background, contain sizing, multiply blend for bottles
 - Venue/storefront images: object-fit cover
 - All images: subtle desaturation via filter
 

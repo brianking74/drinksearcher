@@ -112,7 +112,7 @@ node tests/comprehensive-site-check.mjs
 
 Test with: `Clase Azul Spirit of Champions`, `Cincoro Blanco Tequila`, `Alfred GIRAUD Heritage 700ml`
 
-- [ ] Hero bottle image loads with `#efefef` background
+- [ ] Hero bottle image loads on a white background
 - [ ] Bottle name, type, size, ABV display correctly
 - [ ] **SAVE** button works
 - [ ] **Price alert** button toggles
@@ -317,7 +317,7 @@ Test on actual devices or resize browser:
 
 ## 18. IMAGE CONSISTENCY
 
-- [ ] All product images use `#efefef` background (not white)
+- [ ] All product images use a white background
 - [ ] Bottle images look clean with `mix-blend-mode: multiply`
 - [ ] Venue/storefront images use `object-fit: cover`
 - [ ] Images from Supabase admin override local defaults

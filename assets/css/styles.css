@@ -558,6 +558,7 @@ textarea:focus-visible {
   box-shadow: 0 16px 48px rgba(0,0,0,.26);
 }
 .supplier-card .card-media { aspect-ratio: 1 / 1; }
+.supplier-card .card-media img { object-fit: cover; }
 .supplier-card .card-overlay {
   background: linear-gradient(180deg, rgba(7,8,13,.06) 0%, rgba(7,8,13,.26) 56%, rgba(7,8,13,.78) 100%);
 }

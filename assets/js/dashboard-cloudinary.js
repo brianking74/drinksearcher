@@ -48,6 +48,9 @@
         maxFiles: 1,
         clientAllowedFormats: ['jpg', 'jpeg', 'png', 'webp'],
         maxFileSize: 5000000,
+        ...(slot === 'logo'
+          ? { cropping: true, croppingAspectRatio: 1, showSkipCropButton: false, croppingShowDimensions: true }
+          : {}),
         styles: {
           palette: {
             window: '#090a0b',
