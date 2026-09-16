@@ -2105,7 +2105,7 @@ async function renderBusinessDashboardPage() {
           <div class="container">
             <div class="section-head"><div><span class="eyebrow">Events</span><h2>Promote tastings, launches and guest shifts.</h2><p class="lead" style="margin-top:14px;">Events you add are reviewed by our team before they go live on the public events directory.</p></div></div>
             <div class="dashboard-table-wrap">
-              <div class="dashboard-table-head"><div>Event name</div><div>Date</div><div>Venue</div><div>Status</div><div></div></div>
+              <div class="dashboard-table-head dashboard-events-head"><div>Event name</div><div>Date</div><div>Time</div><div>Price</div><div>Venue</div><div>Status</div><div></div></div>
               <div id="dashboard-events-list" data-venue="${config.listingName || user.name || ''}"><div class="muted" style="padding:16px;">Loading your events…</div></div>
               <div class="inline-actions" style="padding:20px; border-top:1px solid rgba(255,255,255,.06);">
                 <button class="btn btn-primary" type="button" onclick="addDashboardEventRow()">+ Add event</button>
@@ -2297,9 +2297,12 @@ async function renderBusinessDashboardPage() {
 
 function eventRowHTML(e) {
   const id = e.id || 'new';
-  return `<div class="dashboard-row" data-event-id="${id}">
+  const date = e.date ? String(e.date).slice(0, 10) : '';
+  return `<div class="dashboard-row dashboard-events-row" data-event-id="${id}">
     <input class="input" data-event-name value="${String(e.name || '').replace(/"/g, '&quot;')}" placeholder="Event name" />
-    <input class="input" data-event-date value="${String(e.event_date || '').replace(/"/g, '&quot;')}" placeholder="18 Nov · 7:30 PM" />
+    <input class="input" type="date" data-event-date value="${date}" />
+    <input class="input" data-event-time value="${String(e.time || '').replace(/"/g, '&quot;')}" placeholder="7:30 PM" />
+    <input class="input" data-event-price value="${String(e.price || '').replace(/"/g, '&quot;')}" placeholder="HK$380 or Free" />
     <input class="input" data-event-venue value="${String(e.venue || '').replace(/"/g, '&quot;')}" placeholder="Venue" />
     <span class="status-badge status-${(e.status || 'pending').toLowerCase()}">${e.status || 'Pending'}</span>
     <div class="inline-actions" style="gap:6px;">
@@ -2328,7 +2331,7 @@ function addDashboardEventRow() {
   const blank = list.querySelector('[data-event-id="new"]');
   if (blank) return;
   const defaultVenue = list.dataset.venue || '';
-  list.insertAdjacentHTML('beforeend', eventRowHTML({ id: 'new', name: '', event_date: '', venue: defaultVenue, status: 'pending' }));
+  list.insertAdjacentHTML('beforeend', eventRowHTML({ id: 'new', name: '', date: '', time: '', price: '', venue: defaultVenue, status: 'pending' }));
 }
 
 async function saveDashboardEventRow(id) {
@@ -2337,16 +2340,22 @@ async function saveDashboardEventRow(id) {
   if (!row) return;
   const name = (row.querySelector('[data-event-name]')?.value || '').trim();
   const date = (row.querySelector('[data-event-date]')?.value || '').trim();
+  const time = (row.querySelector('[data-event-time]')?.value || '').trim();
+  const price = (row.querySelector('[data-event-price]')?.value || '').trim();
   const venue = (row.querySelector('[data-event-venue]')?.value || '').trim();
   if (!name) {
     if (notice) notice.innerHTML = '<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Event name is required.</div>';
     return;
   }
+  if (!date) {
+    if (notice) notice.innerHTML = '<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Event date is required.</div>';
+    return;
+  }
   try {
     if (id === 'new') {
-      await submitEvent({ name, date, venue });
+      await submitEvent({ name, date, time, price, venue });
     } else {
-      await updateEvent(id, { name, event_date: date, venue });
+      await updateEvent(id, { name, date, time, price, venue });
     }
     if (notice) notice.innerHTML = '<div class="notice">Event saved — pending review by our team.</div>';
     await renderDashboardEvents();
@@ -2647,7 +2656,7 @@ async function loadPendingEvents() {
       <div class="admin-table-row" style="grid-template-columns:2fr 1fr 1fr 1fr 120px;" id="pending-event-row-${e.id}">
         <div><strong>${e.name}</strong></div>
         <div>${e.venue || '—'}</div>
-        <div>${e.event_date || '—'}</div>
+        <div>${e.date ? String(e.date).slice(0, 10) : (e.event_date || '—')}${e.time ? ' · ' + e.time : ''}</div>
         <div><span class="status-badge status-${(e.status || 'pending').toLowerCase()}">${e.status || 'Pending'}</span></div>
         <div style="display:flex;gap:4px;flex-wrap:wrap;">
           <button class="btn btn-primary btn-small" type="button" onclick="moderateEvent('${e.id}','approved')">Approve</button>
@@ -2656,6 +2665,36 @@ async function loadPendingEvents() {
       </div>`).join('');
   } catch (e) {
     holder.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Could not load events: ${e.message}</div>`;
+  }
+}
+
+async function adminAddEventFromForm() {
+  const notice = document.getElementById('admin-add-event-notice');
+  const name = (document.getElementById('admin-ev-name')?.value || '').trim();
+  const date = (document.getElementById('admin-ev-date')?.value || '').trim();
+  if (!name) {
+    if (notice) notice.innerHTML = '<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Event name is required.</div>';
+    return;
+  }
+  if (!date) {
+    if (notice) notice.innerHTML = '<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Event date is required.</div>';
+    return;
+  }
+  try {
+    await adminAddEvent({
+      name,
+      venue: document.getElementById('admin-ev-venue')?.value || '',
+      area: document.getElementById('admin-ev-area')?.value || '',
+      type: document.getElementById('admin-ev-type')?.value || '',
+      date: date || null,
+      time: document.getElementById('admin-ev-time')?.value || '',
+      price: document.getElementById('admin-ev-price')?.value || '',
+      url: document.getElementById('admin-ev-url')?.value || ''
+    });
+    if (notice) notice.innerHTML = '<div class="notice">Event added — now live on the events page.</div>';
+    ['admin-ev-name','admin-ev-venue','admin-ev-area','admin-ev-type','admin-ev-date','admin-ev-time','admin-ev-price','admin-ev-url'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  } catch (e) {
+    if (notice) notice.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">${e.message || 'Could not add event.'}</div>`;
   }
 }
 
@@ -2847,6 +2886,30 @@ async function renderAdminDashboardPage() {
             <div id="admin-pending-items"><div class="notice">Loading…</div></div>
           </div>
           <div id="admin-pending-notice"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section-tight">
+      <div class="container">
+        <div class="panel">
+          <span class="eyebrow">Curate an event</span>
+          <h2 style="margin:14px 0;">Add an event to the site</h2>
+          <p class="muted" style="margin-bottom:16px;">Events you add here go live immediately — no approval step.</p>
+          <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;">
+            <label class="dashboard-field" style="grid-column:1/-1;"><span>Event name</span><input class="input" id="admin-ev-name" placeholder="e.g. Burgundy Grand Cru Masterclass" /></label>
+            <label class="dashboard-field"><span>Venue</span><input class="input" id="admin-ev-venue" placeholder="Venue" /></label>
+            <label class="dashboard-field"><span>District</span><input class="input" id="admin-ev-area" placeholder="Central" /></label>
+            <label class="dashboard-field"><span>Type</span><input class="input" id="admin-ev-type" placeholder="Tasting / Whisky / Wine…" /></label>
+            <label class="dashboard-field"><span>Date</span><input class="input" id="admin-ev-date" type="date" /></label>
+            <label class="dashboard-field"><span>Time</span><input class="input" id="admin-ev-time" placeholder="7:30 PM" /></label>
+            <label class="dashboard-field"><span>Price</span><input class="input" id="admin-ev-price" placeholder="HK$380 or Free" /></label>
+            <label class="dashboard-field" style="grid-column:1/-1;"><span>Booking / RSVP link</span><input class="input" id="admin-ev-url" placeholder="https://…" /></label>
+          </div>
+          <div style="margin-top:14px;display:flex;align-items:center;gap:12px;">
+            <button class="btn btn-primary" type="button" onclick="adminAddEventFromForm()">Add event</button>
+            <span id="admin-add-event-notice"></span>
+          </div>
         </div>
       </div>
     </section>

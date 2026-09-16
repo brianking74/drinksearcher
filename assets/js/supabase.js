@@ -171,10 +171,10 @@ async function fetchVenues() {
 // --- Events ---
 async function fetchEvents() {
   try {
-    const { data, error } = await sb.from('events').select('*').eq('status', 'approved').order('created_at').limit(200);
-    if (!error && Array.isArray(data) && data.length) {
-      return data.map(e => ({ name: e.name, venue: e.venue || '', area: e.area || '', date: e.event_date || '', type: e.type || '', image: e.image || '', url: e.url || '' }));
-    }
+    const today = new Date().toISOString().slice(0, 10);
+    const { data, error } = await sb.from('events').select('*').eq('status', 'approved').gte('date', today).order('date', { ascending: true }).limit(200);
+    if (error) throw error;
+    return (data || []).map(e => ({ id: e.id, name: e.name, venue: e.venue || '', area: e.area || '', date: e.date || '', time: e.time || '', price: e.price || '', type: e.type || '', image: e.image || '', url: e.url || '' }));
   } catch { /* fall through */ }
   return typeof eventsData !== 'undefined' ? eventsData.slice() : [];
 }
@@ -489,24 +489,29 @@ async function fetchMyLeads(email) {
   return data || [];
 }
 
-// --- Events (business dashboard) ---
-async function submitEvent(ev) {
+// --- Events (business dashboard + admin) ---
+async function insertEvent(ev, status) {
   const user = await getCurrentUser();
   if (!user) throw new Error('Not signed in');
   const { data, error } = await sb.from('events').insert({
     name: ev.name,
     venue: ev.venue || '',
     area: ev.area || '',
-    event_date: ev.date || ev.event_date || '',
+    event_date: ev.event_date || '',
+    date: ev.date || null,
+    time: ev.time || '',
+    price: ev.price || '',
     type: ev.type || '',
     image: ev.image || '',
     url: ev.url || '',
     submitted_by: user.id,
-    status: 'pending'
+    status
   }).select().single();
   if (error) throw error;
   return data;
 }
+async function submitEvent(ev) { return insertEvent(ev, 'pending'); }
+async function adminAddEvent(ev) { return insertEvent(ev, 'approved'); }
 
 async function fetchMyEvents() {
   const user = await getCurrentUser();
