@@ -1940,7 +1940,7 @@ async function renderBusinessDashboardPage() {
     const listingLabels = role === 'merchant'
       ? ['Product / listing', 'Price', 'Status', '']
       : ['Offer / event / table inventory', 'Price', 'Status', ''];
-    const canManageEvents = state.directoryTier === 'enhanced' || state.directoryTier === 'featured';
+    const isEnhanced = state.directoryTier === 'enhanced' || state.directoryTier === 'featured';
     const html = `
       <div class="dashboard-shell">
         <section class="hero" style="min-height:52vh;">
@@ -2047,10 +2047,15 @@ async function renderBusinessDashboardPage() {
               <span class="eyebrow">Website scan</span>
               <h2 style="margin:14px 0;">Queue an ecommerce scan for mixed platforms.</h2>
               <p class="muted">For mixed supplier websites, the strongest production setup is connector-first and crawler-second: use platform APIs or feeds where available, then fall back to product structured data and page crawling.</p>
-              <label class="dashboard-field"><span>Supplier ecommerce URL</span><input class="input" id="scan-site-url" placeholder="https://supplier-site.hk" /></label>
-              <label class="dashboard-field"><span>Platform type</span><select class="select" id="scan-site-platform"><option value="Mixed">Mixed</option><option value="Shopify">Shopify</option><option value="WooCommerce">WooCommerce</option><option value="Custom">Custom</option></select></label>
-              <label class="dashboard-field"><span>Founder note</span><textarea class="input" rows="4" id="scan-site-notes" placeholder="Optional notes about collections, categories, or important product pages"></textarea></label>
-              <div class="admin-inline"><button class="btn btn-secondary" id="scan-site-btn" type="button">Queue scan request</button></div>
+              ${!isEnhanced ? `
+              <div class="notice" style="background:rgba(200,170,110,.08);border:1px solid rgba(200,170,110,.25);color:#e8d5a8;padding:14px 16px;border-radius:8px;margin:14px 0;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+                <span>🔒 Website scan is available on Enhanced plans.</span>
+                <a class="btn btn-primary btn-small" href="pricing.html">Upgrade to scan your site</a>
+              </div>` : ''}
+              <label class="dashboard-field"><span>Supplier ecommerce URL</span><input class="input" id="scan-site-url" placeholder="https://supplier-site.hk" ${isEnhanced ? '' : 'disabled'} /></label>
+              <label class="dashboard-field"><span>Platform type</span><select class="select" id="scan-site-platform" ${isEnhanced ? '' : 'disabled'}><option value="Mixed">Mixed</option><option value="Shopify">Shopify</option><option value="WooCommerce">WooCommerce</option><option value="Custom">Custom</option></select></label>
+              <label class="dashboard-field"><span>Founder note</span><textarea class="input" rows="4" id="scan-site-notes" placeholder="Optional notes about collections, categories, or important product pages" ${isEnhanced ? '' : 'disabled'}></textarea></label>
+              <div class="admin-inline"><button class="btn btn-secondary" id="scan-site-btn" type="button" ${isEnhanced ? '' : 'disabled'}>Queue scan request</button></div>
               <div class="small-note">Website scan requests are queued into Founder Admin for review. Shopify, WooCommerce, sitemap, feed, and structured-data connectors can be added as the next production step.</div>
               <div id="scan-site-notice"></div>
             </div>
@@ -2075,7 +2080,7 @@ async function renderBusinessDashboardPage() {
           </div>
         </section>` : ''}
 
-        ${canManageEvents ? `
+        ${isEnhanced ? `
         <section class="section-tight">
           <div class="container">
             <div class="section-head"><div><span class="eyebrow">Events</span><h2>Promote tastings, launches and guest shifts.</h2><p class="lead" style="margin-top:14px;">Events you add are reviewed by our team before they go live on the public events directory.</p></div></div>
@@ -2247,6 +2252,7 @@ async function renderBusinessDashboardPage() {
         }
       });
       $('#scan-site-btn', app).addEventListener('click', () => {
+        if (!isEnhanced) return;
         const source = $('#scan-site-url', app).value.trim();
         const platform = $('#scan-site-platform', app).value;
         const notesField = $('#scan-site-notes', app).value.trim();
