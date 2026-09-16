@@ -3146,13 +3146,13 @@ async function renderBlogPage() {
     ? '<div class="empty-state"><h3>No posts yet.</h3><p>Check back soon for stories from Hong Kong’s drinks scene.</p></div>'
     : posts.map(post => `
         <article class="card blog-card">
-          <div class="blog-card__body">
-            <span class="eyebrow">${post.published_at ? new Date(post.published_at).toLocaleDateString('en-HK', { year:'numeric', month:'short', day:'numeric' }) : 'Draft'}</span>
-            <h3 class="card-title">${post.title}</h3>
-            ${post.excerpt ? `<p class="muted">${post.excerpt}</p>` : ''}
-            <div id="blog-body-${post.id}" class="blog-card__content" style="display:none">${post.body}</div>
-            <button class="btn btn-ghost btn-small" type="button" data-blog-toggle="${post.id}">Read →</button>
+          ${post.cover_image ? `<a href="blog-post.html?slug=${safe(post.slug || '')}" style="display:block;"><div class="card-media"><img src="${safe(post.cover_image)}" alt="${safe(post.title)}" loading="lazy" onerror="this.style.display='none'"></div></a>` : ''}
+          <div class="card-body">
+            <span class="card-kicker">${formatDate(post.published_at)}</span>
+            <h3><a href="blog-post.html?slug=${safe(post.slug || '')}">${safe(post.title)}</a></h3>
+            ${post.excerpt ? `<p class="muted">${safe(post.excerpt)}</p>` : ''}
           </div>
+          <div class="card-foot"><a class="btn btn-ghost btn-small" href="blog-post.html?slug=${safe(post.slug || '')}">Read →</a></div>
         </article>
       `).join('');
 
@@ -3167,17 +3167,35 @@ async function renderBlogPage() {
       </div>
     </section>
   `;
+}
 
-  $$('[data-blog-toggle]', app).forEach(btn => {
-    btn.addEventListener('click', () => {
-      const id = btn.dataset.blogToggle;
-      const body = $(`#blog-body-${id}`);
-      if (!body) return;
-      const open = body.style.display !== 'none';
-      if (open) { body.style.display = 'none'; btn.textContent = 'Read →'; }
-      else { body.style.display = 'block'; btn.textContent = 'Show less'; }
-    });
-  });
+async function renderBlogPostPage() {
+  const app = $('#app');
+  const slug = queryParam('slug') || '';
+  let post = null;
+  try {
+    const { data, error } = await sb.from('blog_posts').select('*').eq('slug', slug).eq('published', true).limit(1);
+    if (!error && data && data.length) post = data[0];
+  } catch (e) { post = null; }
+
+  if (!post) {
+    app.innerHTML = '<section class="section"><div class="container"><div class="empty-state"><h3>Post not found.</h3><p class="muted">That story may have moved or been unpublished.</p><a class="btn btn-ghost" href="blog.html" style="margin-top:16px;">← All posts</a></div></div></section>';
+    return;
+  }
+
+  app.innerHTML = `
+    <section class="section" style="padding-top:64px">
+      <div class="container" style="max-width:760px;">
+        <a class="btn btn-ghost btn-small" href="blog.html">← All posts</a>
+        <div style="margin-top:32px;">
+          <span class="eyebrow">${formatDate(post.published_at)}</span>
+          <h1 style="margin:14px 0 20px;">${safe(post.title)}</h1>
+        </div>
+        ${post.cover_image ? `<img src="${safe(post.cover_image)}" alt="${safe(post.title)}" style="width:100%;border-radius:8px;margin-bottom:28px;border:1px solid var(--border);">` : ''}
+        <div class="blog-prose">${post.body}</div>
+      </div>
+    </section>
+  `;
 }
 
 async function renderBlogAdminPage() {
@@ -3319,6 +3337,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (page === 'signin') await renderSignInPage();
   if (page === 'signup') await renderSignUpPage();
   if (page === 'blog') await renderBlogPage();
+  if (page === 'blog-post') await renderBlogPostPage();
   if (page === 'account') await renderAccountPage();
   setupAnchorSpy();
   syncSaveButtons();
