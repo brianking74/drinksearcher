@@ -102,6 +102,7 @@ const storage = {
     // defaults are the free-tier membership/labels and the user's own email.
     return {
       activeRole: 'merchant',
+      directoryTier: 'standard',
       merchant: {
         membership: 'Merchant Starter',
         billing: 'Free Entry',
@@ -1910,6 +1911,16 @@ async function renderBusinessDashboardPage() {
     console.warn('Dashboard hydration skipped:', e && e.message);
   }
 
+  // Entitlement: read the real subscription tier (Supabase) so feature gating
+  // reflects the paid plan — not the local "membership" dropdown, which is a
+  // placeholder and can't be trusted for access control.
+  try {
+    const sub = await fetchMySubscription();
+    state.directoryTier = (sub && sub.directory_tier) || state.directoryTier || 'standard';
+  } catch (e) {
+    state.directoryTier = state.directoryTier || 'standard';
+  }
+
   const roleLocked = !!(roleQuery === 'merchant' || roleQuery === 'venue');
   const renderRole = (role) => {
     const config = state[role];
@@ -1929,6 +1940,7 @@ async function renderBusinessDashboardPage() {
     const listingLabels = role === 'merchant'
       ? ['Product / listing', 'Price', 'Status', '']
       : ['Offer / event / table inventory', 'Price', 'Status', ''];
+    const canManageEvents = state.directoryTier === 'enhanced' || state.directoryTier === 'featured';
     const html = `
       <div class="dashboard-shell">
         <section class="hero" style="min-height:52vh;">
@@ -2063,6 +2075,7 @@ async function renderBusinessDashboardPage() {
           </div>
         </section>` : ''}
 
+        ${canManageEvents ? `
         <section class="section-tight">
           <div class="container">
             <div class="section-head"><div><span class="eyebrow">Events</span><h2>Promote tastings, launches and guest shifts.</h2><p class="lead" style="margin-top:14px;">Events you add are reviewed by our team before they go live on the public events directory.</p></div></div>
@@ -2075,7 +2088,17 @@ async function renderBusinessDashboardPage() {
             </div>
             <div id="dashboard-events-notice"></div>
           </div>
-        </section>
+        </section>` : `
+        <section class="section-tight">
+          <div class="container">
+            <div class="panel" style="text-align:center;padding:36px;">
+              <span class="eyebrow">Events</span>
+              <h2 style="margin:14px 0;">Events are an Enhanced feature.</h2>
+              <p class="muted">Promote tastings, launches and guest shifts by upgrading from your Starter plan.</p>
+              <a class="btn btn-primary" href="pricing.html" style="margin-top:18px;">View plans</a>
+            </div>
+          </div>
+        </section>`}
 
         <section class="section-tight">
           <div class="container">
