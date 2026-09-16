@@ -103,6 +103,7 @@ const storage = {
     return {
       activeRole: 'merchant',
       directoryTier: 'standard',
+      plan: '',
       merchant: {
         membership: 'Merchant Starter',
         billing: 'Free Entry',
@@ -1917,6 +1918,7 @@ async function renderBusinessDashboardPage() {
   try {
     const sub = await fetchMySubscription();
     state.directoryTier = (sub && sub.directory_tier) || state.directoryTier || 'standard';
+    if (sub && sub.plan) state.plan = sub.plan;
   } catch (e) {
     state.directoryTier = state.directoryTier || 'standard';
   }
@@ -1926,21 +1928,12 @@ async function renderBusinessDashboardPage() {
     const config = state[role];
     const roleTitle = role === 'merchant' ? 'Merchant dashboard' : 'Bar & venue dashboard';
     const roleLabel = role === 'merchant' ? 'Supplier / Merchant' : 'Bar / Venue';
-    const addOnRows = role === 'merchant'
-      ? [
-          ['featuredSupplier', 'Homepage featured supplier block'],
-          ['featuredEvent', 'Featured event promotion'],
-          ['extraProducts', 'Extra product allocation']
-        ]
-      : [
-          ['featuredVenue', 'Homepage featured venue block'],
-          ['featuredEvent', 'Featured event promotion'],
-          ['bookingBoost', 'Booking link boost']
-        ];
     const listingLabels = role === 'merchant'
       ? ['Product / listing', 'Price', 'Status', '']
       : ['Offer / event / table inventory', 'Price', 'Status', ''];
     const isEnhanced = state.directoryTier === 'enhanced' || state.directoryTier === 'featured';
+    const planNames = { merchant_starter: 'Merchant Starter', merchant_enhanced: 'Merchant Enhanced', merchant_premium: 'Merchant Premium', venue_starter: 'Venue Starter', venue_enhanced: 'Venue Enhanced', venue_enhanced_events: 'Venue Enhanced + Events' };
+    const planName = planNames[state.plan] || (role === 'venue' ? 'Venue Starter' : 'Merchant Starter');
     const html = `
       <div class="dashboard-shell">
         <section class="hero" style="min-height:52vh;">
@@ -2013,17 +2006,16 @@ async function renderBusinessDashboardPage() {
               <div id="dashboard-notice"></div>
             </div>
             <div class="panel">
-              <span class="eyebrow">Membership & add-ons</span>
-              <h2 style="margin:14px 0;">Plan, billing, and visibility boosts</h2>
-              <form id="dashboard-plan-form" class="dashboard-stack">
-                <label class="dashboard-field"><span>Membership tier</span><select class="select" name="membership">${(role === 'merchant' ? ['Merchant Starter','Merchant Enhanced','Merchant Premium'] : ['Venue Starter','Venue Enhanced','Venue Enhanced + Events']).map(option => `<option value="${option}" ${config.membership === option ? 'selected' : ''}>${option}</option>`).join('')}</select></label>
-                <label class="dashboard-field"><span>Billing cycle</span><select class="select" name="billing"><option value="Free Entry" ${config.billing === 'Free Entry' ? 'selected' : ''}>Free Entry</option><option value="Monthly" ${config.billing === 'Monthly' ? 'selected' : ''}>Monthly</option><option value="Annual" ${config.billing === 'Annual' ? 'selected' : ''}>Annual</option></select></label>
-                <div class="dashboard-toggle-group">
-                  ${addOnRows.map(([key, label]) => `<label class="check-row"><input type="checkbox" name="${key}" ${config[key] ? 'checked' : ''} /><span>${label}</span></label>`).join('')}
-                </div>
-                <button class="btn btn-secondary" type="submit">Save plan settings</button>
-                <a class="btn btn-ghost" href="pricing.html">Review pricing</a>
-              </form>
+              <span class="eyebrow">Membership</span>
+              <h2 style="margin:14px 0;">Your plan</h2>
+              <div class="dashboard-field">
+                <span>Current plan</span>
+                <div style="margin-top:8px;font-family:var(--serif);font-size:1.3rem;">${planName}</div>
+              </div>
+              <div class="small-note" style="margin-top:16px;">${isEnhanced ? 'Events and Website scan are included. Manage billing via Stripe.' : 'Your free plan includes your profile and up to 10 product listings. Upgrade to unlock Events, Website scan, and more.'}</div>
+              <div class="inline-actions" style="margin-top:18px;">
+                <a class="btn ${isEnhanced ? 'btn-ghost' : 'btn-primary'}" href="pricing.html">${isEnhanced ? 'Manage plan' : 'Upgrade plan'}</a>
+              </div>
             </div>
           </div>
         </section>
@@ -2138,7 +2130,6 @@ async function renderBusinessDashboardPage() {
     }
 
     const profileForm = $('#dashboard-profile-form', app);
-    const planForm = $('#dashboard-plan-form', app);
     const notice = $('#dashboard-notice', app);
     const persist = () => storage.setDashboardState(state);
     profileForm.addEventListener('submit', async (e) => {
@@ -2172,16 +2163,6 @@ async function renderBusinessDashboardPage() {
       } catch (err) {
         notice.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Saved locally, but server sync failed: ${err.message || err}</div>`;
       }
-    });
-    planForm.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const form = new FormData(planForm);
-      config.membership = form.get('membership');
-      config.billing = form.get('billing');
-      addOnRows.forEach(([key]) => { config[key] = form.get(key) === 'on'; });
-      persist();
-      notice.innerHTML = '<div class="notice">Membership and add-on preferences saved.</div>';
-      renderBusinessDashboardPage();
     });
     // save items now uses inline onclick: saveDashboardItems()
     $$('.delete-item-btn', app).forEach(btn => btn.addEventListener('click', () => {
