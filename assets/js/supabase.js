@@ -476,7 +476,8 @@ async function submitLead(lead) {
     district: lead.district || '',
     website: lead.website || '',
     notes: lead.notes || '',
-    source: lead.source || ''
+    source: lead.source || '',
+    claimed_slug: lead.claimedSlug || null
   }).select().single();
   if (error) throw error;
   return data;

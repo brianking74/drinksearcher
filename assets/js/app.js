@@ -1269,6 +1269,8 @@ function renderLeadCapturePage() {
   const requestedType = queryParam('type') || 'merchant';
   const requestedPlan = queryParam('plan') || (requestedType === 'venue' ? 'venue-enhanced' : 'merchant-enhanced');
   const source = queryParam('source') || 'site';
+  const claimSlug = queryParam('claim') || '';
+  let resolvedClaimType = '';
   const plans = {
     merchant: [
       ['merchant-starter', 'Merchant Starter'],
@@ -1290,13 +1292,38 @@ function renderLeadCapturePage() {
     <section class="section"><div class="container grid grid-2"><div class="panel"><span class="eyebrow">What happens next</span><h2 style="margin:14px 0;">What happens next.</h2><div class="muted" style="display:grid; gap:12px;"><span>• We review your application and listing details.</span><span>• If you're signed in, your account information pre-fills automatically.</span><span>• We confirm the right plan, profile type, and any featured add-ons.</span><span>• Once approved, your business can appear across the directory, profile pages, and relevant discovery sections.</span></div></div><div class="panel"><span class="eyebrow">Why this matters</span><h2 style="margin:14px 0;">Why list on drinksearcher.net.</h2><p class="muted">This is where suppliers and venues move from browsing to joining — with a clear path into profiles, product visibility, featured placements, and direct customer discovery.</p><div class="inline-actions" style="margin-top:18px;"><a class="btn btn-ghost btn-small" href="suppliers.html">View directory</a><a class="btn btn-ghost btn-small" href="bars-restaurants.html">View directory</a></div></div></div></section>`;
 
   mountTurnstile(app);
+
+  // Claim mode: the user is adopting an existing listing (deep-linked ?claim=<slug>).
+  if (claimSlug) {
+    const claimBanner = (claimedName) => `<div class="notice" style="background:rgba(200,170,110,.08);border:1px solid rgba(200,170,110,.25);color:#e8d5a8;margin:14px 0;">${claimedName ? 'Claiming an existing listing: <strong>' + safe(claimedName) + '</strong>. ' : ''}Your submission will be reviewed before the listing is linked to your account.</div>`;
+    (async () => {
+      const sup = await sb.from('suppliers').select('name,slug').eq('slug', claimSlug).limit(1);
+      let claimed = (sup.data && sup.data[0]) || null;
+      let kind = 'merchant';
+      if (!claimed) {
+        const ven = await sb.from('venues').select('name,slug').eq('slug', claimSlug).limit(1);
+        claimed = (ven.data && ven.data[0]) || null;
+        if (claimed) kind = 'venue';
+      }
+      if (claimed) {
+        resolvedClaimType = kind;
+        const nameInput = $('[name="businessName"]', app);
+        if (nameInput) { nameInput.value = claimed.name; nameInput.readOnly = true; }
+        const typeSel = $('[name="listingType"]', app);
+        if (typeSel) { typeSel.value = kind; typeSel.disabled = true; }
+      }
+      const form = $('#lead-form', app);
+      if (form) form.insertAdjacentHTML('beforebegin', claimBanner(claimed && claimed.name));
+    })();
+  }
+
   const typeField = $('[name="listingType"]', app);
   const leadNotice = $('#lead-notice', app);
 
   $('#lead-form').addEventListener('submit', async e => {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
-    const listingType = form.get('listingType');
+    const listingType = resolvedClaimType || form.get('listingType');
     const email = String(form.get('email') || '').trim().toLowerCase();
     const contactName = form.get('contactName');
     const businessName = form.get('businessName');
@@ -1331,7 +1358,8 @@ function renderLeadCapturePage() {
       district: form.get('district'),
       website: form.get('website'),
       notes: form.get('notes') || '',
-      source
+      source,
+      claimedSlug: claimSlug || ''
     };
     let lead = null;
     try {
@@ -1419,7 +1447,7 @@ async function renderVenueProfile() {
   app.innerHTML = `
     <section class="profile-hero"><div class="hero-media" style="background-image:url('${heroBg}')"></div><div class="container profile-content"><div>${logo ? `<img src="${logo}" alt="Logo" style="width:80px;height:80px;object-fit:cover;border-radius:12px;border:1px solid rgba(255,255,255,.18);margin-bottom:16px;" />` : ''}<span class="kicker">${v.tier === 'enhanced' ? 'Featured venue' : 'Venue'}</span><h1>${v.name}</h1><p class="lead" style="margin-top:16px;">${v.specialty || v.cuisine || ''} in ${v.area || 'Hong Kong'}</p><div class="info-strip"><div class="info-chip"><div class="muted">Area</div><strong>${v.area || 'Hong Kong'}</strong></div><div class="info-chip"><div class="muted">Category</div><strong>${v.cuisine || 'Bar'}</strong></div>${v.rating ? `<div class="info-chip"><div class="muted">Rating</div><strong>★ ${v.rating}</strong></div>` : ''}<div class="info-chip"><div class="muted">Price</div><strong>${v.price || 'N/A'}</strong></div></div></div><div class="panel"><span class="eyebrow">Quick actions</span><div class="inline-actions" style="margin-top:16px;"><a class="btn btn-secondary" href="${website}">${v.booking ? 'Book via ' + v.booking : 'Visit website'}</a>${saveButton({id:`venue:${slug}`, name:v.name, kind:'venue', href:`venue-template.html?slug=${slug}`, meta:v.area})}</div><hr class="sep"><div class="muted" style="display:grid; gap:8px;"><span>${v.phone || ''}</span><span>${v.price || ''} · ${v.cuisine || ''}</span></div></div></div></section>
     <section class="section"><div class="container"><div class="section-head"><div><span class="eyebrow">About</span><h2>${v.name}</h2><p class="lead" style="margin-top:14px;">${v.specialty ? 'Known for ' + v.specialty.toLowerCase() + '.' : ''} A ${v.cuisine || 'bar'} in ${v.area || 'Hong Kong'}${v.price ? ' with ' + v.price.toLowerCase() + ' pricing' : ''}.</p></div></div></div></section>
-    <section class="section-tight"><div class="container grid grid-2"><div class="panel"><span class="eyebrow">Contact & details</span><h3 style="margin:14px 0;">Plan your visit.</h3><div class="muted" style="display:grid; gap:10px;">${v.phone ? '<span>📞 ' + v.phone + '</span>' : ''}<span>📍 ${v.area || 'Hong Kong'}</span>${v.booking ? '<span>📅 Book via ' + v.booking + '</span>' : ''}</div></div><div class="panel"><span class="eyebrow">Claim your venue</span><h3 style="margin:14px 0;">Own this venue?</h3><p class="muted">Add direct booking links, imagery, and promoted placement so guests find you first.</p><div class="inline-actions" style="margin-top:18px;"><a class="btn btn-primary" href="list-your-business.html?type=venue">Claim your venue</a></div></div></div></section>
+    <section class="section-tight"><div class="container grid grid-2"><div class="panel"><span class="eyebrow">Contact & details</span><h3 style="margin:14px 0;">Plan your visit.</h3><div class="muted" style="display:grid; gap:10px;">${v.phone ? '<span>📞 ' + v.phone + '</span>' : ''}<span>📍 ${v.area || 'Hong Kong'}</span>${v.booking ? '<span>📅 Book via ' + v.booking + '</span>' : ''}</div></div><div class="panel"><span class="eyebrow">Claim your venue</span><h3 style="margin:14px 0;">Own this venue?</h3><p class="muted">Add direct booking links, imagery, and promoted placement so guests find you first.</p><div class="inline-actions" style="margin-top:18px;"><a class="btn btn-primary" href="list-your-business.html?type=venue&claim=${slug}">Claim your venue</a></div></div></div></section>
     ${v.tier === 'enhanced' && v.instagram_handle ? `
     <section class="section instagram-section">
       <div class="container">
@@ -1497,7 +1525,7 @@ async function renderSupplierProfile() {
     <section id="overview" class="section"><div class="container split"><div><span class="eyebrow">Overview</span><h2>Why shoppers use this supplier.</h2><p class="lead" style="margin-top:16px;">Get a quick sense of what this merchant does best, the bottle categories they are known for, and the easiest route to browse or buy locally.</p></div><div class="panel"><div class="muted" style="display:grid; gap:12px;">${sellingPoints.length ? sellingPoints.map(i => `<span>• ${i}</span>`).join('') : '<span>• Hong Kong supplier</span><span>• Direct store links</span><span>• Local availability</span>'}</div></div></div></section>
     <section id="catalogue" class="section-tight"><div class="container"><div class="section-head"><div><span class="eyebrow">Catalogue</span><h2>Bottles and categories to start with.</h2><p class="lead" style="margin-top:14px;">Live products this supplier has listed with us.</p></div></div>${catalogueHTML}</div></section>
     <section id="events" class="section"><div class="container"><div class="section-head"><div><span class="eyebrow">Supplier events</span><h2>Tastings and activations worth watching.</h2><p class="lead" style="margin-top:14px;">Supplier tastings and launches worth planning your calendar around.</p></div></div>${eventsHTML}</div></section>
-    <section id="contact" class="section"><div class="container grid grid-2"><div class="panel"><span class="eyebrow">Contact</span><h3 style="margin:14px 0;">Ready to browse or buy?</h3><div class="muted" style="display:grid; gap:10px;">${phone ? `<span>${phone}</span>` : ''}<span>${area || 'Hong Kong'}</span><span><a href="${website}">${website === '#' ? 'Visit website' : website}</a></span></div></div><div class="panel"><span class="eyebrow">Own this supplier listing?</span><h3 style="margin:14px 0;">Get your profile live</h3><p class="muted">Add your story, catalogue, and store links so shoppers can move from discovery to purchase more easily.</p><div class="inline-actions" style="margin-top:18px;"><a class="btn btn-primary btn-small" href="list-your-business.html?type=merchant&plan=merchant-enhanced">List your business</a></div></div></div></section>`;
+    <section id="contact" class="section"><div class="container grid grid-2"><div class="panel"><span class="eyebrow">Contact</span><h3 style="margin:14px 0;">Ready to browse or buy?</h3><div class="muted" style="display:grid; gap:10px;">${phone ? `<span>${phone}</span>` : ''}<span>${area || 'Hong Kong'}</span><span><a href="${website}">${website === '#' ? 'Visit website' : website}</a></span></div></div><div class="panel"><span class="eyebrow">Own this supplier listing?</span><h3 style="margin:14px 0;">Get your profile live</h3><p class="muted">Add your story, catalogue, and store links so shoppers can move from discovery to purchase more easily.</p><div class="inline-actions" style="margin-top:18px;"><a class="btn btn-primary btn-small" href="list-your-business.html?type=merchant&claim=${slug}">Claim this listing</a></div></div></div></section>`;
   bindSaveButtons(app);
 }
 
@@ -2652,9 +2680,28 @@ async function loadAdminLeads() {
       holder.innerHTML = '<div class="notice">No leads yet.</div>';
       return;
     }
+    const claimFlagsHTML = (lead) => {
+      const labels = {
+        'name-match': ['jade', '✓ name matches'],
+        'name-mismatch': ['pink', '✗ name differs'],
+        'phone-match': ['jade', '✓ phone matches'],
+        'phone-mismatch': ['pink', '✗ phone differs'],
+        'email-domain-match': ['jade', '✓ email domain matches'],
+        'email-domain-mismatch': ['pink', '✗ email domain differs'],
+        'target-not-found': ['pink', '⚠ listing not found']
+      };
+      const flags = lead.claim_flags || [];
+      if (!flags.length) return '';
+      const chips = flags.map(f => {
+        const [tone, label] = labels[f] || ['', f];
+        const color = tone === 'jade' ? 'var(--jade)' : tone === 'pink' ? '#ff6b9d' : 'var(--muted)';
+        return `<span class="info-pill" style="color:${color};border-color:${color};">${label}</span>`;
+      }).join('');
+      return `<br><span style="display:inline-flex;gap:4px;flex-wrap:wrap;margin-top:6px;">${chips}</span>`;
+    };
     holder.innerHTML = leads.map(lead => `
       <div class="admin-table-row" style="grid-template-columns:1.5fr 0.8fr 1fr 1.2fr 1fr 1fr;" id="admin-lead-row-${lead.id}">
-        <div><strong>${lead.business_name || '—'}</strong></div>
+        <div><strong>${lead.business_name || '—'}</strong>${lead.claimed_slug ? `<br><span class="status-badge" style="background:rgba(200,170,110,.12);color:#e8d5a8;border-color:rgba(200,170,110,.3);">Claim → ${lead.claimed_name || lead.claimed_slug}</span>` : ''}${claimFlagsHTML(lead)}</div>
         <div>${lead.listing_type === 'venue' ? 'Venue' : 'Supplier'}</div>
         <div>${lead.district || '—'}</div>
         <div>${lead.contact_name || '—'}<br><span class="small-note">${lead.email || ''}</span></div>
@@ -2690,7 +2737,8 @@ async function provisionLead(id) {
   const notice = $('#admin-leads-notice');
   try {
     const result = await provisionBusiness(id);
-    if (notice) notice.innerHTML = `<div class="notice">Provisioned <strong>${result.business_name || 'business'}</strong> as ${result.listing_type === 'venue' ? 'Venue' : 'Supplier'} (${result.plan}). Starter plan issued. ✓</div>`;
+    const verb = result.matched_existing ? 'Linked to existing listing' : 'Created new listing';
+    if (notice) notice.innerHTML = `<div class="notice">${verb}: <strong>${result.business_name || 'business'}</strong> (${result.plan}). ✓</div>`;
     setTimeout(() => { loadAdminLeads(); }, 500);
   } catch (e) {
     if (notice) notice.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Provision failed: ${e.message}</div>`;
