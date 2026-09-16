@@ -2698,6 +2698,51 @@ async function adminAddEventFromForm() {
   }
 }
 
+function parseEventDate(s) {
+  s = (s || '').trim();
+  if (!s) return '';
+  let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (m) return `${m[1]}-${String(m[2]).padStart(2, '0')}-${String(m[3]).padStart(2, '0')}`;
+  m = s.match(/^(\d{1,2})\s+([A-Za-z]{3,9})(?:\s+(\d{4}))?$/);
+  if (m) {
+    const MO = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12 };
+    const mon = MO[m[2].toLowerCase().slice(0, 3)];
+    if (!mon) return '';
+    const day = +m[1];
+    if (m[3]) return `${m[3]}-${String(mon).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const now = new Date();
+    let year = now.getFullYear();
+    if (new Date(year, mon - 1, day) < new Date(year, now.getMonth(), now.getDate())) year += 1;
+    return `${year}-${String(mon).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  }
+  return '';
+}
+
+async function bulkImportEvents() {
+  const ta = document.getElementById('admin-bulk-events');
+  const notice = document.getElementById('admin-bulk-notice');
+  if (!ta) return;
+  const lines = ta.value.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  if (!lines.length) {
+    if (notice) notice.innerHTML = '<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Paste at least one event line.</div>';
+    return;
+  }
+  let ok = 0, failed = 0;
+  const failures = [];
+  for (const line of lines) {
+    const f = line.split('|').map(x => (x || '').trim());
+    const name = f[0] || '';
+    const date = parseEventDate(f[4] || '');
+    if (!name || !date) { failed++; failures.push(line.slice(0, 60)); continue; }
+    try {
+      await submitEvent({ name, venue: f[1] || '', area: f[2] || '', type: f[3] || '', date, time: f[5] || '', price: f[6] || '', url: f[7] || '' });
+      ok++;
+    } catch (e) { failed++; failures.push(name + ': ' + (e.message || 'error')); }
+  }
+  if (notice) notice.innerHTML = `<div class="notice">Imported <strong>${ok}</strong> event${ok === 1 ? '' : 's'} for review.${failed ? ' Skipped ' + failed + ': ' + failures.join('; ') : ''}</div>`;
+  if (ok) ta.value = '';
+}
+
 async function moderateEvent(id, status) {
   const notice = $('#admin-events-notice');
   try {
@@ -2910,6 +2955,23 @@ async function renderAdminDashboardPage() {
             <button class="btn btn-primary" type="button" onclick="adminAddEventFromForm()">Add event</button>
             <span id="admin-add-event-notice"></span>
           </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section-tight">
+      <div class="container">
+        <div class="panel">
+          <span class="eyebrow">Bulk import events</span>
+          <h2 style="margin:14px 0;">Paste a list of events</h2>
+          <p class="muted" style="margin-bottom:16px;">One event per line, fields separated by <code>|</code>. Imported events land in <strong>Pending</strong> for you to approve.</p>
+          <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:10px 14px;font-size:.78rem;line-height:1.5;color:rgba(241,238,230,.55);overflow:auto;">Event name | Venue | District | Type | Date | Time | Price | Booking URL</div>
+          <textarea class="input" id="admin-bulk-events" rows="8" style="margin-top:12px;font-family:ui-monospace,monospace;font-size:.8rem;" placeholder="Burgundy Masterclass | Mandarin Oriental | Central | Tasting | 18 Nov | 7:30 PM | HK$1,200 | https://…&#10;Whisky Flight Night | Quinary | Central | Whisky | 2026-11-22 | 8:00 PM | HK$680 | "></textarea>
+          <div style="margin-top:12px;display:flex;align-items:center;gap:12px;">
+            <button class="btn btn-primary" type="button" onclick="bulkImportEvents()">Import for review</button>
+            <span id="admin-bulk-notice"></span>
+          </div>
+          <p class="muted" style="margin-top:10px;font-size:.78rem;">Date accepts <code>YYYY-MM-DD</code> or <code>18 Nov</code> (assumes the next occurrence). Leave a field empty with <code>||</code>.</p>
         </div>
       </div>
     </section>
