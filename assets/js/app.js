@@ -360,7 +360,7 @@ function navHTML(active = '', user) {
   return `
     <div class="container nav-inner">
       <a class="logo brand-logo" href="index.html" aria-label="DrinkSearcher home"><img src="assets/brand/drinksearcher-logo.webp" alt="DrinkSearcher"></a>
-      <button class="mobile-toggle" aria-label="Toggle menu">☰</button>
+      <button class="mobile-toggle" aria-label="Toggle menu"><span></span><span></span><span></span></button>
       <nav class="nav-links">
         ${links.map(([href,label]) => `<a class="${active===label?'active':''}" href="${href}">${label}</a>`).join('')}
       </nav>
