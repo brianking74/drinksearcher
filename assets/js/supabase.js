@@ -137,7 +137,7 @@ async function fetchSuppliers() {
   try {
     const { data, error } = await sb.from('suppliers').select('*').order('name').limit(1000);
     if (!error && Array.isArray(data) && data.length) {
-      const mapRow = s => ({ slug: s.slug, name: s.name, area: s.area || '', phone: s.phone || '', specialty: s.specialty || '', tier: s.tier, image: s.image || '', website: s.website || '', summary: s.summary || '', claimed: !!s.user_id });
+      const mapRow = s => ({ slug: s.slug, name: s.name, area: s.area || '', phone: s.phone || '', specialty: s.specialty || '', tier: s.tier, image: s.image || '', website: s.website || '', summary: s.summary || '', claimed: !!s.user_id, deliveryTime: s.delivery_time || '', minOrder: s.min_order || '' });
       return {
         enhanced: data.filter(s => s.tier === 'enhanced').map(mapRow),
         featured: data.filter(s => s.tier === 'featured').map(mapRow),
@@ -309,7 +309,9 @@ async function saveBusinessProfile(payload) {
     p_notes: payload.notes || '',
     p_instagram: payload.instagram || '',
     p_image: payload.image || '',
-    p_hero_image: payload.heroImage || ''
+    p_hero_image: payload.heroImage || '',
+    p_delivery_time: payload.deliveryTime || '',
+    p_min_order: payload.minOrder || ''
   });
   if (error) throw error;
   return data;

@@ -118,6 +118,8 @@ const storage = {
         notes: '',
         image: '',
         heroImage: '',
+        deliveryTime: '',
+        minOrder: '',
         items: []
       },
       venue: {
@@ -1907,6 +1909,8 @@ async function renderBusinessDashboardPage() {
         c.notes = biz.supplier.summary || c.notes;
         c.image = biz.supplier.image || c.image || '';
         c.heroImage = biz.supplier.hero_image || c.heroImage || '';
+        c.deliveryTime = biz.supplier.delivery_time || c.deliveryTime || '';
+        c.minOrder = biz.supplier.min_order || c.minOrder || '';
       } else {
         const l = leadFor('merchant');
         const c = state.merchant;
@@ -2005,6 +2009,7 @@ async function renderBusinessDashboardPage() {
                 <input class="input" name="contactEmail" value="${config.contactEmail}" placeholder="Contact email" />
                 <input class="input" name="phone" value="${config.phone}" placeholder="Phone" />
                 <input class="input" name="district" value="${config.district}" placeholder="District" />
+                ${role === 'merchant' ? `<select class="select" name="deliveryTime"><option value="">Delivery time…</option><option value="Same day" ${config.deliveryTime === 'Same day' ? 'selected' : ''}>Same day</option><option value="Next day" ${config.deliveryTime === 'Next day' ? 'selected' : ''}>Next day</option><option value="48 hours" ${config.deliveryTime === '48 hours' ? 'selected' : ''}>48 hours</option><option value="3-5 days" ${config.deliveryTime === '3-5 days' ? 'selected' : ''}>3-5 days</option></select><input class="input" name="minOrder" value="${config.minOrder || ''}" placeholder="Minimum order value (e.g. HK$500)" />` : ''}
                 ${role === 'venue' ? `<input class="input" name="instagram" value="${config.instagram || ''}" placeholder="Instagram handle (e.g. @quinaryhk)" />` : ''}
                 <textarea class="input full" name="notes" rows="4" placeholder="Tell us about your business (max 50 words)">${config.notes}</textarea>
                 <div class="dashboard-field full" style="grid-column:1/-1;">
@@ -2174,6 +2179,8 @@ async function renderBusinessDashboardPage() {
       config.notes = form.get('notes');
       config.image = form.get('image') || '';
       config.heroImage = form.get('hero_image') || '';
+      config.deliveryTime = form.get('deliveryTime') || '';
+      config.minOrder = form.get('minOrder') || '';
       persist();
       // Sync to Supabase so the profile survives device changes and feeds the
       // public directory listing (server-side source of truth).
@@ -2187,7 +2194,9 @@ async function renderBusinessDashboardPage() {
           notes: config.notes,
           instagram: config.instagram,
           image: config.image,
-          heroImage: config.heroImage
+          heroImage: config.heroImage,
+          deliveryTime: config.deliveryTime,
+          minOrder: config.minOrder
         });
         notice.innerHTML = '<div class="notice">Listing settings saved to your profile.</div>';
       } catch (err) {
