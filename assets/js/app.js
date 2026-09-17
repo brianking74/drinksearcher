@@ -359,7 +359,7 @@ function navHTML(active = '', user) {
     : `<a class="btn btn-ghost btn-small" href="signin.html">Sign In / Create Account</a>`;
   return `
     <div class="container nav-inner">
-      <a class="logo brand-logo" href="index.html" aria-label="DrinkSearcher home"><img src="assets/brand/drinksearcher-logo.webp" alt="DrinkSearcher"></a>
+      <a class="logo brand-logo" href="index.html" aria-label="DrinkSearcher home"><img src="assets/brand/drinksearcher-logo-horizontal.webp" alt="DrinkSearcher"></a>
       <button class="mobile-toggle" aria-label="Toggle menu"><span></span><span></span><span></span></button>
       <nav class="nav-links">
         ${links.map(([href,label]) => `<a class="${active===label?'active':''}" href="${href}">${label}</a>`).join('')}
