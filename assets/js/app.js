@@ -1290,7 +1290,7 @@ function renderLeadCapturePage() {
     ? `<div class="notice">Signed in as ${user.email}. Your details are prefilled and any submission will appear in your account dashboard.</div>`
     : `<div class="notice">Have an account already? <a class="text-jade" href="signin.html">Sign in</a> to prefill your details and track submissions.</div>`;
   app.innerHTML = `
-    <section class="hero" style="min-height:62vh;"><div class="hero-media" style="background-image:url('${requestedType === 'venue' ? siteImages.rooftop : siteImages.shop}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">List your business / Claim your venue</span><h1>${requestedType === 'venue' ? 'Claim your venue and start turning visibility into bookings.' : 'List your business and start turning discovery into sales.'}</h1><p class="lead">Tell us about your business and we'll help match you with the right listing, profile, and visibility options.</p><div class="hero-actions"><a class="btn btn-primary" href="pricing.html">Back to pricing</a><a class="btn btn-ghost" href="${user ? 'account.html' : 'signin.html'}">${user ? 'My account' : 'Sign in'}</a></div></div><div class="search-shell"><span class="eyebrow">Application form</span>${signedInNote}<div class="notice">Start with the right listing and we’ll organise the details you need for profile, visibility, and next-step setup.</div><form id="lead-form" class="form-grid" style="margin-top:14px;"><select class="select full" name="listingType"><option value="merchant" ${requestedType === 'merchant' ? 'selected' : ''}>Supplier / Merchant</option><option value="venue" ${requestedType === 'venue' ? 'selected' : ''}>Bar / Restaurant / Venue</option></select><input class="input" name="businessName" placeholder="Business name" required /><input class="input" name="contactName" placeholder="Contact name" value="${user?.name || ''}" required /><input class="input" name="email" type="email" placeholder="Email" value="${user?.email || ''}" required /><input class="input" name="phone" placeholder="Phone number" required /><input class="input" name="district" placeholder="Primary district / location" value="${user?.city || ''}" required /><input class="input" name="website" placeholder="Website / booking URL" />${!user ? '<input class="input full" name="password" type="password" placeholder="Create password (required for new accounts)" required />' : ''}<textarea class="input full" name="notes" rows="5" placeholder="Tell us what you want to list, what plan you are interested in, and what makes the business special."></textarea>${!user ? '<div class="turnstile-mount" style="margin-top:12px;"></div>' : ''}<button class="btn btn-primary full" type="submit">Create Account</button></form><div id="lead-notice"></div></div></div></section>
+    <section class="hero" style="min-height:62vh;"><div class="hero-media" style="background-image:url('${requestedType === 'venue' ? siteImages.rooftop : siteImages.shop}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">List your business / Claim your venue</span><h1>${requestedType === 'venue' ? 'Claim your venue and start turning visibility into bookings.' : 'List your business and start turning discovery into sales.'}</h1><p class="lead">Tell us about your business and we'll help match you with the right listing, profile, and visibility options.</p><div class="hero-actions"><a class="btn btn-primary" href="pricing.html">Back to pricing</a><a class="btn btn-ghost" href="${user ? 'account.html' : 'signin.html'}">${user ? 'My account' : 'Sign in'}</a></div></div><div class="search-shell"><span class="eyebrow">Application form</span>${signedInNote}<div class="notice">Start with the right listing and we’ll organise the details you need for profile, visibility, and next-step setup.</div><form id="lead-form" class="form-grid" style="margin-top:14px;"><select class="select full" name="listingType"><option value="merchant" ${requestedType === 'merchant' ? 'selected' : ''}>Supplier / Merchant</option><option value="venue" ${requestedType === 'venue' ? 'selected' : ''}>Bar / Restaurant / Venue</option></select><input class="input" name="businessName" placeholder="Business name" required /><input class="input" name="contactName" placeholder="Contact name" value="${user?.name || ''}" required /><input class="input" name="email" type="email" placeholder="Email" value="${user?.email || ''}" required />${!user ? '<input class="input full" name="password" type="password" placeholder="Create password (required for new accounts)" required />' : ''}${!user ? '<div class="turnstile-mount" style="margin-top:12px;"></div>' : ''}<button class="btn btn-primary full" type="submit">Create Account</button></form><div id="lead-notice"></div></div></div></section>
     <section class="section"><div class="container grid grid-2"><div class="panel"><span class="eyebrow">What happens next</span><h2 style="margin:14px 0;">What happens next.</h2><div class="muted" style="display:grid; gap:12px;"><span>• We review your application and listing details.</span><span>• If you're signed in, your account information pre-fills automatically.</span><span>• We confirm the right plan, profile type, and any featured add-ons.</span><span>• Once approved, your business can appear across the directory, profile pages, and relevant discovery sections.</span></div></div><div class="panel"><span class="eyebrow">Why this matters</span><h2 style="margin:14px 0;">Why list on drinksearcher.net.</h2><p class="muted">This is where suppliers and venues move from browsing to joining — with a clear path into profiles, product visibility, featured placements, and direct customer discovery.</p><div class="inline-actions" style="margin-top:18px;"><a class="btn btn-ghost btn-small" href="suppliers.html">View directory</a><a class="btn btn-ghost btn-small" href="bars-restaurants.html">View directory</a></div></div></div></section>`;
 
   mountTurnstile(app);
@@ -1342,7 +1342,7 @@ function renderLeadCapturePage() {
         leadNotice.innerHTML = '<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Please complete the security check before submitting.</div>';
         return;
       }
-      const signUpResult = await dsAuth.signUp({ name: contactName, city: form.get('district'), email, password, role: listingType, captchaToken });
+      const signUpResult = await dsAuth.signUp({ name: contactName, city: '', email, password, role: listingType, captchaToken });
       if (!signUpResult.ok) {
         resetTurnstile();
         leadNotice.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">${signUpResult.message}</div>`;
@@ -1356,10 +1356,6 @@ function renderLeadCapturePage() {
       businessName,
       contactName,
       email,
-      phone: form.get('phone'),
-      district: form.get('district'),
-      website: form.get('website'),
-      notes: form.get('notes') || '',
       source,
       claimedSlug: claimSlug || ''
     };
@@ -1378,10 +1374,7 @@ function renderLeadCapturePage() {
       const cu = await dsAuth.getCurrentUser();
       if (cu && cu.id) {
         await sb.from('profiles').update({
-          business_name: businessName,
-          phone: form.get('phone'),
-          area: form.get('district'),
-          website: form.get('website')
+          business_name: businessName
         }).eq('id', cu.id);
       }
     } catch (e) { console.warn('Profile persist after lead failed (non-critical):', e && e.message); }
@@ -1399,10 +1392,7 @@ function renderLeadCapturePage() {
             listingType,
             contactName,
             email,
-            phone: form.get('phone'),
-            district: form.get('district'),
-            planInterest: requestedPlan,
-            notes: form.get('notes') || ''
+            planInterest: requestedPlan
           }
         })
       });
