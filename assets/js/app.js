@@ -666,9 +666,9 @@ async function renderHomepage() {
       <div class="container">
         <div class="section-head"><div><span class="eyebrow">For Consumers</span><h2>How it <em>works</em></h2></div></div>
         <div class="grid grid-3">
-          <div class="panel"><div class="badge-row"><span class="badge gold">1</span></div><h3 style="margin:10px 0 12px;">Search</h3><p class="muted">Find specific bottles, upcoming tastings, or the best cocktail bars across Hong Kong.</p></div>
-          <div class="panel"><div class="badge-row"><span class="badge gold">2</span></div><h3 style="margin:10px 0 12px;">Verify</h3><p class="muted">See real-time stock availability, local pricing without hidden shipping fees, and honest venue context.</p></div>
-          <div class="panel"><div class="badge-row"><span class="badge gold">3</span></div><h3 style="margin:10px 0 12px;">Buy or book</h3><p class="muted">Click straight to the supplier's store to purchase, or head directly to the venue to plan your next night out.</p></div>
+          <div class="panel"><span class="badge gold">1</span><h3 style="margin:10px 0 12px;">Search</h3><p class="muted">Find specific bottles, upcoming tastings, or the best cocktail bars across Hong Kong.</p></div>
+          <div class="panel"><span class="badge gold">2</span><h3 style="margin:10px 0 12px;">Verify</h3><p class="muted">See real-time stock availability, local pricing without hidden shipping fees, and honest venue context.</p></div>
+          <div class="panel"><span class="badge gold">3</span><h3 style="margin:10px 0 12px;">Buy or book</h3><p class="muted">Click straight to the supplier's store to purchase, or head directly to the venue to plan your next night out.</p></div>
         </div>
       </div>
     </section>
