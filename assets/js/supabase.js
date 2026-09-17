@@ -137,7 +137,7 @@ async function fetchSuppliers() {
   try {
     const { data, error } = await sb.from('suppliers').select('*').order('name').limit(1000);
     if (!error && Array.isArray(data) && data.length) {
-      const mapRow = s => ({ slug: s.slug, name: s.name, area: s.area || '', phone: s.phone || '', specialty: s.specialty || '', tier: s.tier, image: s.image || '', website: s.website || '', summary: s.summary || '' });
+      const mapRow = s => ({ slug: s.slug, name: s.name, area: s.area || '', phone: s.phone || '', specialty: s.specialty || '', tier: s.tier, image: s.image || '', website: s.website || '', summary: s.summary || '', claimed: !!s.user_id });
       return {
         enhanced: data.filter(s => s.tier === 'enhanced').map(mapRow),
         featured: data.filter(s => s.tier === 'featured').map(mapRow),
@@ -155,7 +155,7 @@ async function fetchVenues() {
   try {
     const { data, error } = await sb.from('venues').select('*').order('name').limit(1000);
     if (!error && Array.isArray(data) && data.length) {
-      const mapRow = v => ({ slug: v.slug, name: v.name, area: v.area || '', phone: v.phone || '', cuisine: v.cuisine || '', price: v.price || '', rating: v.rating || '', booking: v.booking || '', specialty: v.specialty || '', image: v.image || '', website: v.website || '' });
+      const mapRow = v => ({ slug: v.slug, name: v.name, area: v.area || '', phone: v.phone || '', cuisine: v.cuisine || '', price: v.price || '', rating: v.rating || '', booking: v.booking || '', specialty: v.specialty || '', image: v.image || '', website: v.website || '', claimed: !!v.user_id });
       return {
         enhanced: data.filter(v => v.tier === 'enhanced').map(mapRow),
         featured: data.filter(v => v.tier === 'featured').map(mapRow),
