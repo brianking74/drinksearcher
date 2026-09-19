@@ -2458,6 +2458,8 @@ async function moderateItem(id, status, index) {
   }
 }
 
+const PM_DRINK_TYPES = ['Red Wine','White Wine','Rosé Wine','Champagne','Sparkling','Fortified Wine','Whisky','Tequila','Mezcal','Sake','Spirit','Gin','Vodka','Rum','Cognac','Beer','No & low'];
+
 async function loadProductManager() {
   const holder = $('#admin-product-manager');
   if (!holder) return;
@@ -2465,13 +2467,10 @@ async function loadProductManager() {
   try {
     const { data: items, error } = await sb.from('drinks').select('*').order('name');
     if (error) throw error;
-    let filtered = items || [];
-    // Filter out session-deleted items (keeps admin list tidy even if RLS blocks real delete)
-    const deletedIds = JSON.parse(sessionStorage.getItem('ds_admin_deleted') || '[]');
-    if (deletedIds.length) filtered = filtered.filter(r => deletedIds.indexOf(r.id) === -1);
-    const counts = { all: filtered.length, approved: 0, pending: 0, rejected: 0 };
-    filtered.forEach(r => { counts[r.status] = (counts[r.status] || 0) + 1; });
-    if (filter !== 'all') filtered = filtered.filter(r => r.status === filter);
+    const all = items || [];
+    const counts = { all: all.length, approved: 0, pending: 0, rejected: 0 };
+    all.forEach(r => { counts[r.status] = (counts[r.status] || 0) + 1; });
+    const filtered = filter === 'all' ? all : all.filter(r => r.status === filter);
 
     holder.innerHTML = `
       <div class="admin-toolbar" style="margin-bottom:14px;">
@@ -2482,25 +2481,27 @@ async function loadProductManager() {
       </div>
       ${!filtered.length ? '<div class="notice">No products match this filter.</div>' : `
       <div class="admin-table">
-        <div class="admin-table-head" style="grid-template-columns:2fr 0.8fr 200px 100px 90px 1fr;"><div>Product</div><div>Supplier</div><div>Image</div><div>Price</div><div>Status</div><div>Actions</div></div>
-        ${filtered.map((item, index) => `
-          <div class="admin-table-row" style="grid-template-columns:2fr 0.8fr 200px 100px 90px 1fr;" id="pm-row-${index}">
-            <div><strong>${item.name}</strong></div>
-            <div>${item.supplier_name || '—'}</div>
-            <div><input class="input" id="pm-img-${index}" value="${item.image || ''}" placeholder="Image URL" style="font-size:.7rem;width:100%;" /></div>
-            <div>${item.price || '—'}</div>
+        <div class="admin-table-head" style="grid-template-columns:2fr 1fr 110px 90px 96px;"><div>Product</div><div>Supplier</div><div>Price</div><div>Status</div><div></div></div>
+        ${filtered.map(item => `
+          <div class="admin-table-row" style="grid-template-columns:2fr 1fr 110px 90px 96px;">
+            <div><strong>${safe(item.name)}</strong>${(item.type || item.varietal) ? `<div class="muted" style="font-size:.78rem;">${[item.type, item.varietal].filter(Boolean).map(safe).join(' · ')}</div>` : ''}</div>
+            <div>${safe(item.supplier_name || '—')}</div>
+            <div>${safe(item.price || '—')}</div>
             <div><span class="status-badge status-${(item.status||'pending').toLowerCase()}">${item.status||'Pending'}</span></div>
-            <div style="display:flex;gap:4px;flex-wrap:wrap;">
-              <button class="btn btn-small" style="font-size:.7rem;padding:2px 8px;" type="button" onclick="productManagerAction('${item.id.replace(/'/g,"\\'")}','approve')">Approve</button>
-              <button class="btn btn-small" style="font-size:.7rem;padding:2px 8px;" type="button" onclick="productManagerAction('${item.id.replace(/'/g,"\\'")}','reject')">Reject</button>
-              <button class="btn btn-small" style="font-size:.7rem;padding:2px 8px;" type="button" onclick="productManagerSaveImage('${item.id.replace(/'/g,"\\'")}',${index})">Save img</button>
-              <button class="btn btn-small" style="font-size:.7rem;padding:2px 8px;color:#ff6b9d;" type="button" onclick="productManagerAction('${item.id.replace(/'/g,"\\'")}','delete')">Delete</button>
+            <div>
+              <select class="select" style="font-size:.72rem;padding:5px 6px;width:100%;" onchange="if(this.value){productManagerAction('${item.id.replace(/'/g,"\\'")}',this.value);}">
+                <option value="">⋯</option>
+                <option value="approve">Approve</option>
+                <option value="reject">Reject</option>
+                <option value="edit">Edit details</option>
+                <option value="delete">Delete</option>
+              </select>
             </div>
           </div>`).join('')}
       </div>`}
     `;
   } catch (e) {
-    holder.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Could not load products: ${e.message}</div>`;
+    holder.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Could not load products: ${safe(e.message)}</div>`;
   }
 }
 
@@ -2510,17 +2511,14 @@ async function productManagerAction(id, action) {
     if (notice) notice.innerHTML = '<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Admin access required.</div>';
     return;
   }
+  if (action === 'edit') { openProductEdit(id); return; }
   const notice = $('#admin-pm-notice');
   try {
     if (action === 'delete') {
-      if (!confirm('Delete this product permanently?')) return;
-      try {
-        await sb.from('drinks').delete().eq('id', id);
-      } catch(_) {}
-      const deleted = JSON.parse(sessionStorage.getItem('ds_admin_deleted') || '[]');
-      deleted.push(id);
-      sessionStorage.setItem('ds_admin_deleted', JSON.stringify(deleted));
-      if (notice) notice.innerHTML = '<div class="notice" style="background:rgba(135,168,148,.11);border-color:rgba(135,168,148,.2);color:#87a894;">Product removed from list.</div>';
+      if (!confirm('Delete this product permanently? This cannot be undone.')) return;
+      const { error } = await sb.from('drinks').delete().eq('id', id);
+      if (error) throw error;
+      if (notice) notice.innerHTML = '<div class="notice">Product deleted.</div>';
     } else if (action === 'approve' || action === 'reject') {
       const { error } = await sb.from('drinks').update({ status: action === 'approve' ? 'approved' : 'rejected' }).eq('id', id);
       if (error) throw error;
@@ -2528,21 +2526,79 @@ async function productManagerAction(id, action) {
     }
     loadProductManager();
   } catch (e) {
-    if (notice) notice.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Failed: ${e.message}</div>`;
+    if (notice) notice.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Failed: ${safe(e.message)}</div>`;
   }
 }
 
-async function productManagerSaveImage(id, index) {
+async function openProductEdit(id) {
+  const { data: item, error } = await sb.from('drinks').select('*').eq('id', id).single();
   const notice = $('#admin-pm-notice');
-  const input = document.getElementById(`pm-img-${index}`);
-  const url = (input?.value || '').trim();
-  if (!url) { if (notice) notice.innerHTML = '<div class="notice">Enter an image URL.</div>'; return; }
+  if (error || !item) {
+    if (notice) notice.innerHTML = '<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Could not load product for editing.</div>';
+    return;
+  }
+  closeProductEdit();
+  const cur = item.type || '';
+  const typeOpts = [...new Set([...PM_DRINK_TYPES, cur].filter(Boolean))].map(t => `<option value="${safe(t)}" ${t === cur ? 'selected' : ''}>${safe(t)}</option>`).join('');
+  const avail = item.availability || 'In stock';
+  const overlay = document.createElement('div');
+  overlay.id = 'pm-edit-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.62);display:flex;align-items:center;justify-content:center;z-index:9999;padding:24px;';
+  overlay.innerHTML = `
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;width:100%;max-width:680px;max-height:90vh;overflow:auto;padding:24px;">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:18px;">
+        <div><span class="eyebrow">Edit product</span><h3 style="margin:6px 0 0;">${safe(item.name)}</h3></div>
+        <button type="button" style="background:none;border:none;font-size:1.6rem;line-height:1;cursor:pointer;color:var(--muted-foreground);" onclick="closeProductEdit()">×</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+        <label class="dashboard-field"><span>Name</span><input class="input" id="pm-e-name" value="${safe(item.name)}" /></label>
+        <label class="dashboard-field"><span>Type</span><select class="select" id="pm-e-type">${typeOpts}</select></label>
+        <label class="dashboard-field"><span>Varietal</span><input class="input" id="pm-e-varietal" value="${safe(item.varietal || '')}" placeholder="e.g. Pinot Noir" /></label>
+        <label class="dashboard-field"><span>Origin</span><input class="input" id="pm-e-origin" value="${safe(item.origin || '')}" placeholder="e.g. Burgundy, France" /></label>
+        <label class="dashboard-field"><span>ABV</span><input class="input" id="pm-e-abv" value="${safe(item.abv || '')}" placeholder="e.g. 13%" /></label>
+        <label class="dashboard-field"><span>Price</span><input class="input" id="pm-e-price" value="${safe(item.price || '')}" placeholder="HK$188" /></label>
+        <label class="dashboard-field" style="grid-column:1/-1;"><span>Availability</span><select class="select" id="pm-e-availability">${['In stock','Low stock','Pre-order','Out of stock'].map(a => `<option ${a === avail ? 'selected' : ''}>${a}</option>`).join('')}</select></label>
+        <label class="dashboard-field" style="grid-column:1/-1;"><span>Image URL</span><input class="input" id="pm-e-image" value="${safe(item.image || '')}" placeholder="https://res.cloudinary.com/..." /></label>
+        <label class="dashboard-field" style="grid-column:1/-1;"><span>Buy URL</span><input class="input" id="pm-e-buy" value="${safe(item.buy_url || '')}" placeholder="https://..." /></label>
+        <label class="dashboard-field" style="grid-column:1/-1;"><span>Description</span><textarea class="input" id="pm-e-desc" rows="3">${safe(item.description || '')}</textarea></label>
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px;">
+        <button class="btn btn-ghost" type="button" onclick="closeProductEdit()">Cancel</button>
+        <button class="btn btn-primary" type="button" onclick="saveProductEdit('${id}')">Save changes</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+function closeProductEdit() {
+  document.getElementById('pm-edit-overlay')?.remove();
+}
+
+async function saveProductEdit(id) {
+  const notice = $('#admin-pm-notice');
+  const get = (sel) => document.getElementById(sel)?.value ?? '';
+  const updates = {
+    name: get('pm-e-name').trim(),
+    type: get('pm-e-type'),
+    varietal: get('pm-e-varietal').trim(),
+    origin: get('pm-e-origin').trim(),
+    abv: get('pm-e-abv').trim(),
+    price: get('pm-e-price').trim(),
+    availability: get('pm-e-availability'),
+    image: get('pm-e-image').trim(),
+    buy_url: get('pm-e-buy').trim(),
+    description: get('pm-e-desc').trim(),
+    updated_at: new Date().toISOString()
+  };
+  if (!updates.name) { if (notice) notice.innerHTML = '<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Name is required.</div>'; return; }
   try {
-    const { error } = await sb.from('drinks').update({ image: url }).eq('id', id);
+    const { error } = await sb.from('drinks').update(updates).eq('id', id);
     if (error) throw error;
-    if (notice) notice.innerHTML = '<div class="notice">Image saved.</div>';
+    closeProductEdit();
+    if (notice) notice.innerHTML = '<div class="notice">Product updated.</div>';
+    loadProductManager();
   } catch (e) {
-    if (notice) notice.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Failed: ${e.message}</div>`;
+    if (notice) notice.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Failed: ${safe(e.message)}</div>`;
   }
 }
 
@@ -2862,7 +2918,7 @@ async function renderAdminDashboardPage() {
         <div class="panel">
           <span class="eyebrow">Product manager</span>
           <h2 style="margin:14px 0;">Manage all products</h2>
-          <p class="muted" style="margin-bottom:16px;">Approve, reject, update images, or remove products from the database.</p>
+          <p class="muted" style="margin-bottom:16px;">The single source of truth for every product on the site. Edit details, change status, or delete — use the ⋯ dropdown on each row.</p>
           <div id="admin-product-manager"><div class="notice">Loading…</div></div>
           <div id="admin-pm-notice"></div>
         </div>
