@@ -56,10 +56,12 @@ function extractField(body, label) {
 
 function guessType(title, body) {
   const t = ((title || '') + ' ' + stripHtml(body)).toLowerCase()
-  if (/prosecco|champagne|spumante|sparkling|cremant|crémant|cava|frizzante|petillant|pétillant/.test(t)) return 'Sparkling'
-  if (/rosé|rosato| rose /.test(t)) return 'Rosé'
-  if (/pinot grigio|sauvignon blanc|chardonnay|riesling|chenin|viognier|muscadet|gavi|soave|vermentino|gruner|grüner|albarino|albariño|gewurztraminer/.test(t)) return 'White'
-  if (/chianti|margaux|bordeaux|bourgogne|pinot noir|cabernet|merlot|shiraz|syrah|rioja|tempranillo|malbec|barolo|barbaresco|brunello|sangiovese|toscana|saint-émilion|saint-emilion|côtes|burgundy|nebbiolo|amarone|valpolicella|primitivo|zinfandel|grenache|mourvedre/.test(t)) return 'Red'
+  if (/champagne/.test(t)) return 'Champagne'
+  if (/prosecco|spumante|sparkling|cremant|crémant|cava|frizzante|petillant|pétillant/.test(t)) return 'Sparkling'
+  if (/rosé|rosato| rose /.test(t)) return 'Rosé Wine'
+  if (/pinot grigio|sauvignon blanc|chardonnay|riesling|chenin|viognier|muscadet|gavi|soave|vermentino|gruner|grüner|albarino|albariño|gewurztraminer/.test(t)) return 'White Wine'
+  if (/chianti|margaux|bordeaux|bourgogne|pinot noir|cabernet|merlot|shiraz|syrah|rioja|tempranillo|malbec|barolo|barbaresco|brunello|sangiovese|toscana|saint-émilion|saint-emilion|côtes|burgundy|nebbiolo|amarone|valpolicella|primitivo|zinfandel|grenache|mourvedre/.test(t)) return 'Red Wine'
+  if (/port|sherry|madeira|marsala|vermouth|fortified|tawny|fino|amontillado|oloroso|vin doux/.test(t)) return 'Fortified Wine'
   return 'Wine'
 }
 
@@ -121,12 +123,13 @@ Deno.serve(async (req) => {
         name,
         supplier_id: supplierId,
         supplier_name: job.supplier_name,
-        type: p.product_type || guessType(name, body),
+        type: (p.product_type && !/^wine$/i.test(String(p.product_type).trim())) ? p.product_type : guessType(name, body),
         price: v.price ? `HK$${formatPrice(v.price)}` : '',
         image: (p.images && p.images[0] && p.images[0].src) || '',
         buy_url: p.handle ? `${origin}/products/${p.handle}` : '',
         description: stripHtml(body).slice(0, 800) || name,
-        origin: extractField(body, 'Region') || extractField(body, 'Grapes') || '',
+        origin: extractField(body, 'Region') || extractField(body, 'Country') || '',
+        varietal: extractField(body, 'Grapes') || extractField(body, 'Varietal') || '',
         abv: extractField(body, 'Alcohol') || '',
         availability: 'In stock',
         tier: 'standard',

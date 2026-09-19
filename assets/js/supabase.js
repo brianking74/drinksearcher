@@ -112,7 +112,8 @@ async function fetchDrinks(filters = {}) {
         buy: r.buy_url || '',
         description: r.description || '',
         origin: r.origin || '',
-        abv: r.abv || ''
+        abv: r.abv || '',
+        varietal: r.varietal || ''
       }));
       if (filters.search) {
         const q = String(filters.search).toLowerCase();

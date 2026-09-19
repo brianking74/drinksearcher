@@ -1716,7 +1716,7 @@ function saveDashboardProfile() {
 
 function fillSampleTemplate() {
   var el = document.getElementById('sheet-import-source');
-  if (el) el.value = 'Name,Price,Availability\nChardonnay Reserve,188,In stock\nSmall Batch Gin,420,Low stock\nZero-Proof Spritz,98,Pre-order';
+  if (el) el.value = 'Name,Type,Varietal,Origin,Price,Availability\nChardonnay Reserve,White Wine,Chardonnay,Burgundy France,188,In stock\nSmall Batch Gin,Spirit,,London,420,Low stock\nBarolo Riserva,Red Wine,Nebbiolo,Piedmont Italy,688,In stock';
 }
 
 async function importInventory() {
@@ -1740,7 +1740,7 @@ async function importInventory() {
     const { data: authData } = await sb.auth.getUser().catch(() => ({}));
     const userId = authData?.user?.id || null;
     for (const item of items) {
-      const { error } = await sb.from('drinks').insert({ name: item.name, price: item.price, availability: item.availability || 'In stock', status: 'pending', submitted_by: userId, supplier_name: config.listingName || user.name || '', type: 'Spirit', origin: 'Hong Kong' });
+      const { error } = await sb.from('drinks').insert({ name: item.name, price: item.price, availability: item.availability || 'In stock', status: 'pending', submitted_by: userId, supplier_name: config.listingName || user.name || '', type: item.type || 'Wine', varietal: item.varietal || '', origin: item.origin || '' });
       if (!error) supabaseCount++;
     }
     if (holder) holder.innerHTML = '<div class="notice">Imported <strong>' + items.length + '</strong> rows. <strong>' + supabaseCount + '</strong> submitted for review.</div>';
@@ -2167,8 +2167,9 @@ async function renderBusinessDashboardPage() {
               status: 'pending',
               submitted_by: (await sb.auth.getUser())?.data?.user?.id || null,
               supplier_name: config.listingName || user.name || '',
-              type: role === 'venue' ? 'Venue offer' : 'Spirit',
-              origin: 'Hong Kong'
+              type: item.type || (role === 'venue' ? 'Venue offer' : 'Wine'),
+              varietal: item.varietal || '',
+              origin: item.origin || ''
             });
             if (!error) supabaseCount++;
           }
@@ -2366,6 +2367,9 @@ function importItemsFromCSV(text) {
   const nameIndex = inventoryColumnIndex(headers, ['name', 'title', 'product', 'product name', 'item']);
   const priceIndex = inventoryColumnIndex(headers, ['price', 'unit price', 'sale price']);
   const availabilityIndex = inventoryColumnIndex(headers, ['availability', 'stock status', 'stock', 'inventory', 'status']);
+  const typeIndex = inventoryColumnIndex(headers, ['type', 'category', 'style', 'wine type']);
+  const varietalIndex = inventoryColumnIndex(headers, ['varietal', 'grape', 'grapes', 'grape variety']);
+  const originIndex = inventoryColumnIndex(headers, ['origin', 'region', 'country', 'appellation']);
   const items = rows.slice(1).map((row, index) => {
     const name = row[nameIndex] || row[0];
     if (!name) return null;
@@ -2374,6 +2378,9 @@ function importItemsFromCSV(text) {
       name: name.trim(),
       price: normalizeImportPrice(row[priceIndex]),
       availability: normalizeImportAvailability(row[availabilityIndex]),
+      type: (row[typeIndex] || '').trim(),
+      varietal: (row[varietalIndex] || '').trim(),
+      origin: (row[originIndex] || '').trim(),
       status: 'Pending'
     };
   }).filter(Boolean);
@@ -2401,7 +2408,7 @@ async function loadPendingItems() {
     }
     holder.innerHTML = items.map((item, index) => `
       <div class="admin-table-row" style="grid-template-columns:2fr 1fr 100px 120px 100px 1fr;" id="pending-row-${index}">
-        <div><strong>${item.name}</strong></div>
+        <div><strong>${item.name}</strong>${(item.type || item.varietal) ? `<div class="muted" style="font-size:.78rem;">${[item.type, item.varietal].filter(Boolean).join(' · ')}</div>` : ''}</div>
         <div>${item.supplier_name || 'Unknown'}</div>
         <div><input class="input" id="pending-img-${index}" placeholder="Image URL" value="${item.image || ''}" style="width:100%;font-size:.78rem;" /></div>
         <div>${item.price || 'N/A'}</div>
