@@ -527,13 +527,27 @@ async function fetchMyLeads(email) {
 
 // --- Ecommerce scan (website import) ---
 async function queueScan(payload) {
-  const { data, error } = await sb.rpc('queue_scan', {
-    p_site_url: payload.siteUrl || '',
-    p_platform: payload.platform || 'auto',
-    p_notes: payload.notes || ''
+  const { data: sessionData } = await sb.auth.getSession();
+  const token = sessionData && sessionData.session ? sessionData.session.access_token : '';
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/queue_scan`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': SUPABASE_ANON_KEY,
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    },
+    body: JSON.stringify({
+      p_site_url: payload.siteUrl || '',
+      p_platform: payload.platform || 'auto',
+      p_notes: payload.notes || ''
+    })
   });
-  if (error) throw error;
-  return data;
+  if (!res.ok) {
+    let msg = '';
+    try { msg = (await res.json()).message || ''; } catch { try { msg = await res.text(); } catch {} }
+    throw new Error(msg || `Scan queue failed (HTTP ${res.status})`);
+  }
+  return await res.json();
 }
 
 async function invokeScan(jobId) {
