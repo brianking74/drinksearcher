@@ -276,7 +276,7 @@ const SUPABASE_FNS = [
   'fetchVenuesForDrink', 'fetchReviewsForItem', 'submitReview',
   'fetchMyDrinks', 'submitDrink', 'updateDrink', 'deleteDrink',
   'fetchAllDrinks', 'approveDrink', 'rejectDrink',
-  'fetchSavedItems', 'saveItem', 'unsaveItem', 'trackClick',
+  'fetchSavedItems', 'addSavedItem', 'removeSavedItem', 'trackClick',
   'getSession', 'getCurrentUser', 'getUserProfile',
   'dsAuth',
 ];

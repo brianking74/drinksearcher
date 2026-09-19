@@ -354,18 +354,58 @@ async function fetchSavedItems() {
   return data || [];
 }
 
-async function saveItem(itemType, itemId) {
+async function addSavedItem(item) {
   const user = await getCurrentUser();
   if (!user) throw new Error('Not signed in');
-  const { error } = await sb.from('saved_items').insert({ user_id: user.id, item_type: itemType, item_id: itemId });
-  if (error && error.code !== '23505') throw error; // 23505 = unique violation (already saved)
+  const kind = item.kind || item.type || 'drink';
+  const { error } = await sb.from('saved_items').upsert(
+    { user_id: user.id, item_type: kind, item_id: item.id, name: item.name || '', href: item.href || '' },
+    { onConflict: 'user_id,item_type,item_id' }
+  );
+  if (error) throw error;
 }
 
-async function unsaveItem(itemType, itemId) {
+async function removeSavedItem(itemId) {
   const user = await getCurrentUser();
   if (!user) throw new Error('Not signed in');
-  const { error } = await sb.from('saved_items').delete().eq('user_id', user.id).eq('item_type', itemType).eq('item_id', itemId);
+  const { error } = await sb.from('saved_items').delete().eq('user_id', user.id).eq('item_id', itemId);
   if (error) throw error;
+}
+
+async function fetchSavedItems() {
+  const user = await getCurrentUser();
+  if (!user) return [];
+  const { data, error } = await sb.from('saved_items').select('*').eq('user_id', user.id).order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data || []).map(r => ({ id: r.item_id, kind: r.item_type, name: r.name, href: r.href }));
+}
+
+// --- Alerts (price / stock) ---
+async function fetchAlerts() {
+  const user = await getCurrentUser();
+  if (!user) return [];
+  const { data, error } = await sb.from('alerts').select('*').eq('user_id', user.id);
+  if (error) throw error;
+  return data || [];
+}
+
+async function toggleAlert(itemName, kind) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error('Sign in to set alerts.');
+  const { data: existing } = await sb.from('alerts').select('id').eq('user_id', user.id).eq('item_name', itemName).eq('kind', kind).limit(1);
+  if (existing && existing.length) {
+    await sb.from('alerts').delete().eq('id', existing[0].id);
+    return { active: false };
+  }
+  await sb.from('alerts').insert({ user_id: user.id, item_name: itemName, kind });
+  return { active: true };
+}
+
+// --- Subscriptions (admin) ---
+async function fetchSubscriptions() {
+  const { data, error } = await sb.from('subscriptions').select('*, profiles(email, business_name)').order('created_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
 }
 
 // --- Click Tracking ---

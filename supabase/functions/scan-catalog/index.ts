@@ -13,10 +13,10 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY)
 
-// Scanned products are the supplier's own catalog (their own store), so they
-// are imported as approved and go live immediately. If/when moderation is
-// wired to Supabase, flip this to 'pending' to route scans through review.
-const IMPORT_STATUS = 'approved'
+// Scanned products are the supplier's own catalog. They land as 'pending' so
+// the admin can review/approve them in the moderation queue (product manager /
+// pending inventory), which is now Supabase-backed.
+const IMPORT_STATUS = 'pending'
 
 function formatPrice(p) {
   const n = parseFloat(p)

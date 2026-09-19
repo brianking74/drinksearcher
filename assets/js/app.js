@@ -19,6 +19,15 @@ async function hydrateCurrentUser() {
   return _currentUser;
 }
 
+// In-memory cache of saved composite ids ("drink:slug"), hydrated from Supabase
+// so isSaved()/saveButton() can stay synchronous during render.
+let _savedItemIds = null;
+async function hydrateSavedItems() {
+  try { _savedItemIds = new Set((await fetchSavedItems()).map(i => i.id)); }
+  catch { _savedItemIds = new Set(); }
+  syncSaveButtons();
+}
+
 const storage = {
   // Auth: Supabase-backed via the in-memory cache above.
   getCurrentUserEmail() { return _currentUser ? _currentUser.email : ''; },
@@ -27,15 +36,9 @@ const storage = {
   signUp() { return { ok: false, message: 'Use the signup form.' }; },
   signIn() { return { ok: false, message: 'Use the signin form.' }; },
   signOut() { _currentUser = null; },
-  isAdmin() { try { return JSON.parse(localStorage.getItem('ds_admin_role') || 'false'); } catch { return false; } },
-  setAdminRole(value) { localStorage.setItem('ds_admin_role', String(!!value)); },
-  clearAdminRole() { localStorage.removeItem('ds_admin_role'); },
+  isAdmin() { return !!(_currentUser && _currentUser.role === 'admin'); },
 
-  // Saved items / onboarding / UI state — these stay in localStorage
-  getSavedKey() {
-    const user = this.getCurrentUser();
-    return user ? `ds_saved_${user.email}` : 'ds_saved_anon';
-  },
+  // Saved items are Supabase-backed (saved_items); see fetchSavedItems() in supabase.js.
   async updateCurrentUserProfile(data) {
     const current = this.getCurrentUser();
     if (!current) return null;
@@ -43,15 +46,6 @@ const storage = {
     catch (e) { console.warn('Profile update failed:', e); }
     _currentUser = { ...current, name: data.name || current.name, city: data.city || current.city };
     return _currentUser;
-  },
-  getSaved() {
-    const key = this.getSavedKey();
-    if (!key) return [];
-    try { return JSON.parse(localStorage.getItem(key) || '[]'); } catch { return []; }
-  },
-  setSaved(data) {
-    const key = this.getSavedKey();
-    if (key) localStorage.setItem(key, JSON.stringify(data));
   },
   setPendingSave(item) {
     localStorage.setItem('ds_pending_save', JSON.stringify(item));
@@ -70,25 +64,6 @@ const storage = {
   },
   clearPostAuthRedirect() {
     localStorage.removeItem('ds_post_auth_redirect');
-  },
-  getLeads() {
-    try { return JSON.parse(localStorage.getItem('ds_leads') || '[]'); } catch { return []; }
-  },
-  setLeads(leads) {
-    localStorage.setItem('ds_leads', JSON.stringify(leads));
-  },
-  addLead(data) {
-    const leads = this.getLeads();
-    const entry = { ...data, id: `lead_${Date.now()}`, submittedAt: new Date().toISOString() };
-    leads.unshift(entry);
-    this.setLeads(leads);
-    this.addAdminApplication(entry);
-    return entry;
-  },
-  getCurrentUserLeads() {
-    const user = this.getCurrentUser();
-    if (!user) return [];
-    return this.getLeads().filter(lead => lead.accountEmail === user.email || lead.email === user.email);
   },
   getDashboardKey() {
     const user = this.getCurrentUser();
@@ -188,105 +163,6 @@ const storage = {
   getDashboardStateForEmail(email) {
     if (!email) return null;
     try { return JSON.parse(localStorage.getItem(`ds_dashboard_${email}`) || 'null'); } catch { return null; }
-  },
-  addAdminApplication(lead) {
-    const state = this.getAdminState();
-    if (state.applications.some(entry => entry.id === lead.id)) return;
-    state.applications.unshift({
-      id: lead.id,
-      businessName: lead.businessName,
-      listingType: lead.listingType,
-      planInterest: lead.planInterest,
-      contactName: lead.contactName,
-      email: lead.email,
-      district: lead.district,
-      source: lead.source || 'site',
-      status: 'New',
-      priority: lead.listingType === 'venue' ? 'High' : 'Medium',
-      submittedAt: lead.submittedAt,
-      notes: lead.notes || ''
-    });
-    this.setAdminState(state);
-  },
-  defaultAdminState() {
-    return {
-      applications: [
-        { id: 'app_seed_1', businessName: 'Watson\'s Wine', listingType: 'merchant', planInterest: 'merchant-premium', contactName: 'Trade Team', email: 'trade@watsonswine.hk', district: 'Central', source: 'pricing', status: 'Approved', priority: 'High', submittedAt: '2026-05-18T09:00:00.000Z', notes: 'Ready for premium launch placement.' },
-        { id: 'app_seed_2', businessName: 'Cardinal Point', listingType: 'venue', planInterest: 'venue-enhanced-events', contactName: 'Venue Manager', email: 'events@cardinalpoint.hk', district: 'The Peak', source: 'venue-page', status: 'Reviewing', priority: 'High', submittedAt: '2026-05-19T11:30:00.000Z', notes: 'Wants recurring rooftop event promotion.' },
-        { id: 'app_seed_3', businessName: 'Young Master Ales', listingType: 'merchant', planInterest: 'merchant-enhanced', contactName: 'Sales Lead', email: 'sales@youngmaster.hk', district: 'Wong Chuk Hang', source: 'homepage', status: 'Needs Info', priority: 'Medium', submittedAt: '2026-05-20T08:15:00.000Z', notes: 'Needs clarification on extra product allocation.' },
-        { id: 'app_seed_4', businessName: 'Quinary', listingType: 'venue', planInterest: 'venue-enhanced', contactName: 'Reservations Team', email: 'bookings@quinary.hk', district: 'Central', source: 'pricing', status: 'New', priority: 'Medium', submittedAt: '2026-05-21T16:45:00.000Z', notes: 'Interested in enhanced profile with booking CTA.' }
-      ],
-      subscriptions: [
-        { id: 'sub_seed_1', businessName: 'Watson\'s Wine', listingType: 'merchant', plan: 'Merchant Premium', billing: 'Monthly', amount: 'HK$2,480 / month', status: 'Active', renewal: '2027-05-18', addOns: { featuredSupplier: true, featuredEvent: false, extraProducts: true }, invoiceStatus: 'Paid' },
-        { id: 'sub_seed_2', businessName: 'Cardinal Point', listingType: 'venue', plan: 'Venue Enhanced + Events', billing: 'Monthly', amount: 'HK$480 / month', status: 'Trial', renewal: '2026-06-01', addOns: { featuredVenue: true, featuredEvent: true, bookingBoost: false }, invoiceStatus: 'Pending' },
-        { id: 'sub_seed_3', businessName: 'Young Master Ales', listingType: 'merchant', plan: 'Merchant Enhanced', billing: 'Monthly', amount: 'HK$380 / month', status: 'Past Due', renewal: '2026-05-30', addOns: { featuredSupplier: false, featuredEvent: true, extraProducts: false }, invoiceStatus: 'Overdue' }
-      ],
-      placements: [
-        { id: 'slot_1', slot: 'Homepage supplier spotlight', listingType: 'merchant', occupant: 'Watson\'s Wine', status: 'Live', notes: 'Premium supplier rotation lead.' },
-        { id: 'slot_2', slot: 'Homepage venue spotlight', listingType: 'venue', occupant: 'Cardinal Point', status: 'Scheduled', notes: 'Tie to summer rooftop campaign.' },
-        { id: 'slot_3', slot: 'Featured event carousel', listingType: 'venue', occupant: 'Quinary', status: 'Open', notes: 'Available for next guest shift launch.' },
-        { id: 'slot_4', slot: 'Supplier collection banner', listingType: 'merchant', occupant: 'Young Master Ales', status: 'Review', notes: 'Awaiting payment recovery.' }
-      ],
-      moderation: [
-        { id: 'mod_1', kind: 'Supplier listing', title: 'Watson\'s Wine enhanced profile', owner: 'trade@watsonswine.hk', status: 'Approved', flag: 'Brand copy updated', notes: 'Live and verified.' },
-        { id: 'mod_2', kind: 'Venue claim', title: 'Cardinal Point event gallery', owner: 'events@cardinalpoint.hk', status: 'Reviewing', flag: 'Image rights check', notes: 'Need image confirmation.' },
-        { id: 'mod_3', kind: 'Drink item', title: 'Yamazaki 12 Year Old listing', owner: 'sales@youngmaster.hk', status: 'Needs Edit', flag: 'Pricing mismatch', notes: 'Requested corrected bottle price.' },
-        { id: 'mod_4', kind: 'Event listing', title: 'Guest Shift: Tokyo Cocktail Collective', owner: 'bookings@quinary.hk', status: 'Queued', flag: 'Awaiting approval', notes: 'Promotional copy ready.' }
-      ],
-      importJobs: [
-        { id: 'import_seed_1', businessName: 'Watson\'s Wine', email: 'trade@watsonswine.hk', method: 'Google Sheets', platform: 'Mixed', source: 'https://docs.google.com/spreadsheets/d/example', status: 'Imported', itemCount: 18, submittedAt: '2026-05-18T10:20:00.000Z', notes: 'Mapped public sheet to merchant inventory.' },
-        { id: 'import_seed_2', businessName: 'Cardinal Point', email: 'events@cardinalpoint.hk', method: 'Website Scan', platform: 'Custom', source: 'https://cardinal-point.example', status: 'Queued', itemCount: 0, submittedAt: '2026-05-21T09:10:00.000Z', notes: 'Needs structured-data crawl review.' }
-      ]
-    };
-  },
-  getAdminState() {
-    let state;
-    try { state = JSON.parse(localStorage.getItem('ds_admin_state') || 'null'); } catch {}
-    if (!state) state = this.defaultAdminState();
-    state.applications ||= [];
-    state.subscriptions ||= [];
-    state.placements ||= [];
-    state.moderation ||= [];
-    state.importJobs ||= [];
-    this.getLeads().forEach(lead => {
-      if (!state.applications.some(entry => entry.id === lead.id)) {
-        state.applications.unshift({
-          id: lead.id,
-          businessName: lead.businessName,
-          listingType: lead.listingType,
-          planInterest: lead.planInterest,
-          contactName: lead.contactName,
-          email: lead.email,
-          district: lead.district,
-          source: lead.source || 'site',
-          status: 'New',
-          priority: lead.listingType === 'venue' ? 'High' : 'Medium',
-          submittedAt: lead.submittedAt,
-          notes: lead.notes || ''
-        });
-      }
-    });
-    localStorage.setItem('ds_admin_state', JSON.stringify(state));
-    return state;
-  },
-  setAdminState(state) {
-    localStorage.setItem('ds_admin_state', JSON.stringify(state));
-  },
-  addImportJob(job) {
-    const state = this.getAdminState();
-    state.importJobs.unshift({
-      id: job.id || `import_${Date.now()}`,
-      businessName: job.businessName || 'Unknown business',
-      email: job.email || '',
-      method: job.method || 'Google Sheets',
-      platform: job.platform || 'Mixed',
-      source: job.source || '',
-      status: job.status || 'Queued',
-      itemCount: Number(job.itemCount || 0),
-      submittedAt: job.submittedAt || new Date().toISOString(),
-      notes: job.notes || ''
-    });
-    this.setAdminState(state);
   }
 };
 
@@ -295,13 +171,13 @@ function currentPagePath() {
   return `${file}${window.location.search || ''}`;
 }
 
-function consumePendingSave() {
+async function consumePendingSave() {
   const pending = storage.getPendingSave();
   if (!pending || !storage.getCurrentUser()) return;
-  const saved = storage.getSaved();
-  if (!saved.some(item => item.id === pending.id)) {
-    storage.setSaved([pending, ...saved]);
-  }
+  try {
+    await addSavedItem(pending);
+    await hydrateSavedItems();
+  } catch (e) { console.warn('Migrate pending save failed:', e); }
   storage.clearPendingSave();
 }
 
@@ -427,26 +303,24 @@ async function setupChrome(activeLabel) {
   window.addEventListener('scroll', () => nav.classList.toggle('scrolled', window.scrollY > 8));
 }
 
-function saveItem(item) {
+async function saveItem(item) {
   if (!storage.getCurrentUser()) {
     storage.setPendingSave(item);
     storage.setPostAuthRedirect(currentPagePath());
     window.location.href = 'signin.html?intent=save';
     return;
   }
-  const saved = storage.getSaved();
-  const exists = saved.some(s => s.id === item.id);
-  if (exists) {
-    storage.setSaved(saved.filter(s => s.id !== item.id));
-  } else {
-    storage.setSaved([item, ...saved]);
-  }
+  const exists = isSaved(item.id);
+  try {
+    if (exists) { await removeSavedItem(item.id); _savedItemIds.delete(item.id); }
+    else { await addSavedItem(item); _savedItemIds.add(item.id); }
+  } catch (e) { console.warn('Save failed:', e); }
   syncSaveButtons();
   renderAccountSaved();
 }
 
 function isSaved(id) {
-  return storage.getSaved().some(item => item.id === id);
+  return _savedItemIds ? _savedItemIds.has(id) : false;
 }
 
 function saveButton(item) {
@@ -1595,9 +1469,6 @@ async function renderSignInPage() {
     let result = await dsAuth.signIn(form.get('email'), form.get('password'), captchaToken);
     if (result.ok) {
       storage.setCurrentUser(result.user);
-      if (result.user.email === 'brianking@sky.com' || result.user.role === 'admin') {
-        storage.setAdminRole(true);
-      }
       notice.innerHTML = '<div class="notice">Signed in successfully. Taking you to your account…</div>';
       setTimeout(() => finishAuthFlow('account.html'), 300);
       return;
@@ -1720,13 +1591,14 @@ async function renderAccountPage() {
   document.documentElement.dataset.appRendered = 'true';
 }
 
-function renderAccountSaved() {
+async function renderAccountSaved() {
   const holder = $('#saved-items');
   if (!holder) return;
-  const saved = storage.getSaved();
-  holder.innerHTML = saved.length ? `<div class="saved-grid">${saved.map(item => `<div class="panel"><div class="eyebrow">${item.kind}</div><h3 style="margin:12px 0;">${item.name}</h3><p class="muted">${item.meta || ''}</p><div class="inline-actions" style="margin-top:16px;">${ctaLink('Open', item.href, 'btn btn-ghost btn-small', 'Saved item')}<button class="btn btn-secondary btn-small" data-remove="${item.id}">Remove</button></div></div>`).join('')}</div>` : '<div class="empty-state">You have not saved any drinks, events, suppliers, or venues yet.</div>';
-  $$('[data-remove]', holder).forEach(btn => btn.addEventListener('click', () => {
-    storage.setSaved(storage.getSaved().filter(item => item.id !== btn.dataset.remove));
+  let saved = [];
+  try { saved = await fetchSavedItems(); } catch { saved = []; }
+  holder.innerHTML = saved.length ? `<div class="saved-grid">${saved.map(item => `<div class="panel"><div class="eyebrow">${item.kind}</div><h3 style="margin:12px 0;">${item.name}</h3><div class="inline-actions" style="margin-top:16px;">${item.href ? ctaLink('Open', item.href, 'btn btn-ghost btn-small', 'Saved item') : ''}<button class="btn btn-secondary btn-small" data-remove="${item.id}">Remove</button></div></div>`).join('')}</div>` : '<div class="empty-state">You have not saved any drinks, events, suppliers, or venues yet.</div>';
+  $$('[data-remove]', holder).forEach(btn => btn.addEventListener('click', async () => {
+    try { await removeSavedItem(btn.dataset.remove); _savedItemIds.delete(btn.dataset.remove); } catch {}
     renderAccountSaved();
     syncSaveButtons();
   }));
@@ -2287,43 +2159,11 @@ async function renderBusinessDashboardPage() {
             if (!error) supabaseCount++;
           }
           
-          storage.addImportJob({
-            businessName: config.listingName,
-            email: config.contactEmail || user.email,
-            method: 'Google Sheets',
-            platform: 'Mixed',
-            source: source.slice(0, 180),
-            status: 'Imported',
-            itemCount: imported.length,
-            notes: `${mode === 'replace' ? 'Replaced' : 'Appended'} inventory from supplier sheet. ${supabaseCount} submitted for admin review.`
-          });
           holder.innerHTML = `<div class="notice">Imported <strong>${imported.length}</strong> rows. <strong>${supabaseCount}</strong> submitted to admin for review.</div>`;
           setTimeout(() => renderBusinessDashboardPage(), 300);
         } catch (error) {
           holder.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">${error.message || 'Import failed. Try using pasted CSV rows or a public CSV URL.'}</div>`;
         }
-      });
-      $('#scan-site-btn', app).addEventListener('click', () => {
-        if (!isEnhanced) return;
-        const source = $('#scan-site-url', app).value.trim();
-        const platform = $('#scan-site-platform', app).value;
-        const notesField = $('#scan-site-notes', app).value.trim();
-        const holder = $('#scan-site-notice', app);
-        if (!source) {
-          holder.innerHTML = '<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Add the supplier ecommerce URL first.</div>';
-          return;
-        }
-        storage.addImportJob({
-          businessName: config.listingName,
-          email: config.contactEmail || user.email,
-          method: 'Website Scan',
-          platform,
-          source,
-          status: 'Queued',
-          itemCount: 0,
-          notes: notesField || 'Requested platform-aware inventory scan.'
-        });
-        holder.innerHTML = '<div class="notice">Website scan request queued in Founder Admin. This is the right mixed-platform workflow for supplier sites that are not yet connected by API.</div>';
       });
     }
     $$('[data-role-switch]', app).forEach(btn => btn.addEventListener('click', () => {
@@ -2880,16 +2720,7 @@ async function renderAdminDashboardPage() {
     window.location.href = 'signin.html';
     return;
   }
-    const state = storage.getAdminState();
-  const appFilter = queryParam('filter') || 'all';
-  const filteredApplications = state.applications.filter(entry => appFilter === 'all' || entry.listingType === appFilter);
-  const counts = {
-    suppliers: state.applications.filter(entry => entry.listingType === 'merchant' && ['New', 'Reviewing', 'Needs Info'].includes(entry.status)).length,
-    venues: state.applications.filter(entry => entry.listingType === 'venue' && ['New', 'Reviewing', 'Needs Info'].includes(entry.status)).length,
-    activeSubs: state.subscriptions.filter(entry => ['Active', 'Trial'].includes(entry.status)).length,
-    moderation: state.moderation.filter(entry => ['Queued', 'Reviewing', 'Needs Edit'].includes(entry.status)).length,
-    imports: state.importJobs.filter(entry => ['Queued', 'Scanning', 'Needs Review'].includes(entry.status)).length
-  };
+  const counts = { suppliers: 0, venues: 0, activeSubs: 0, imports: 0 };
   app.innerHTML = `
     <section class="hero" style="min-height:44vh;">
       <div class="hero-media" style="background-image:url('${siteImages.hero}')"></div>
@@ -2902,38 +2733,11 @@ async function renderAdminDashboardPage() {
         <div class="search-shell">
           <span class="eyebrow">Snapshot</span>
           <div class="metric-grid" style="margin-top:16px;">
-            <div class="metric-card"><strong>${counts.suppliers}</strong><span class="muted">supplier applications</span></div>
-            <div class="metric-card"><strong>${counts.venues}</strong><span class="muted">venue claims</span></div>
-            <div class="metric-card"><strong>${counts.activeSubs}</strong><span class="muted">active subscriptions</span></div>
-            <div class="metric-card"><strong>${counts.imports}</strong><span class="muted">imports pending</span></div>
+            <div class="metric-card"><strong id="snap-leads">—</strong><span class="muted">business enquiries</span></div>
+            <div class="metric-card"><strong id="snap-subs">—</strong><span class="muted">active subscriptions</span></div>
+            <div class="metric-card"><strong id="snap-drinks">—</strong><span class="muted">pending drinks</span></div>
+            <div class="metric-card"><strong id="snap-scans">—</strong><span class="muted">scan jobs</span></div>
           </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="section-tight">
-      <div class="container">
-        <div class="panel">
-          <span class="eyebrow">Applications</span>
-          <h2 style="margin:14px 0;">Supplier & venue pipeline</h2>
-          <div class="admin-toolbar" style="margin-bottom:16px;">
-            <a class="toggle-pill ${appFilter === 'all' ? 'active' : ''}" href="admin.html?filter=all">All</a>
-            <a class="toggle-pill ${appFilter === 'merchant' ? 'active' : ''}" href="admin.html?filter=merchant">Suppliers</a>
-            <a class="toggle-pill ${appFilter === 'venue' ? 'active' : ''}" href="admin.html?filter=venue">Venues</a>
-          </div>
-          <div class="admin-table">
-            <div class="admin-table-head" style="grid-template-columns:1.5fr 1fr 1fr 1.2fr 1.2fr 60px;"><div>Business</div><div>District</div><div>Plan</div><div>Contact</div><div>Status</div><div></div></div>
-            ${filteredApplications.length ? filteredApplications.map((entry, index) => `
-            <div class="admin-table-row" style="grid-template-columns:1.5fr 1fr 1fr 1.2fr 1.2fr 60px;">
-              <div><strong>${entry.businessName}</strong></div>
-              <div>${entry.district || 'HK'}</div>
-              <div>${adminPlanMeta(entry.planInterest, entry.listingType).name}</div>
-              <div>${entry.contactName || '?'}<br><span class="small-note">${entry.email || ''}</span></div>
-              <div>${adminStatusChip(entry.status)}<select class="select admin-select" data-application-status="${index}" style="margin-top:6px;width:100%;"><option value="New" ${entry.status === 'New' ? 'selected' : ''}>New</option><option value="Reviewing" ${entry.status === 'Reviewing' ? 'selected' : ''}>Reviewing</option><option value="Needs Info" ${entry.status === 'Needs Info' ? 'selected' : ''}>Needs Info</option><option value="Approved" ${entry.status === 'Approved' ? 'selected' : ''}>Approved</option><option value="Rejected" ${entry.status === 'Rejected' ? 'selected' : ''}>Rejected</option></select></div>
-              <div><button class="btn btn-primary btn-small" type="button" data-application-save="${index}">Save</button></div>
-            </div>`).join('') : '<div class="notice">No applications yet.</div>'}
-          </div>
-          <div id="admin-applications-notice"></div>
         </div>
       </div>
     </section>
@@ -2943,23 +2747,7 @@ async function renderAdminDashboardPage() {
         <div class="panel">
           <span class="eyebrow">Subscriptions</span>
           <h2 style="margin:14px 0;">Plan management</h2>
-          <div id="admin-subscriptions">${state.subscriptions.map((sub, index) => {
-            const planOptions = Object.values(adminPlanCatalog()[sub.listingType === 'venue' ? 'venue' : 'merchant']).map(meta => meta.name);
-            return `
-              <div class="admin-stack" style="border-top:1px solid rgba(255,255,255,.06);padding-top:16px;margin-top:12px;">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;"><div><strong>${sub.businessName}</strong><div class="small-note">${sub.listingType === 'venue' ? 'Venue' : 'Merchant'}</div></div>${adminStatusChip(sub.status)}</div>
-                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
-                  <label class="dashboard-field"><span>Plan</span><select class="select" data-subscription-plan="${index}">${planOptions.map(o => `<option value="${o}" ${sub.plan === o ? 'selected' : ''}>${o}</option>`).join('')}</select></label>
-                  <label class="dashboard-field"><span>Billing</span><select class="select" data-subscription-billing="${index}"><option value="Monthly" ${sub.billing === 'Monthly' ? 'selected' : ''}>Monthly</option><option value="Annual" ${sub.billing === 'Annual' ? 'selected' : ''}>Annual</option></select></label>
-                  <label class="dashboard-field"><span>Status</span><select class="select" data-subscription-status="${index}"><option value="Trial" ${sub.status === 'Trial' ? 'selected' : ''}>Trial</option><option value="Active" ${sub.status === 'Active' ? 'selected' : ''}>Active</option><option value="Past Due" ${sub.status === 'Past Due' ? 'selected' : ''}>Past Due</option><option value="Paused" ${sub.status === 'Paused' ? 'selected' : ''}>Paused</option></select></label>
-                </div>
-                <div style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:end;">
-                  <label class="dashboard-field"><span>Renewal</span><input class="input" type="date" data-subscription-renewal="${index}" value="${sub.renewal}" /></label>
-                  <button class="btn btn-primary btn-small" type="button" data-subscription-save="${index}">Save</button>
-                </div>
-              </div>`;
-          }).join('') || '<div class="notice">No subscriptions yet.</div>'}</div>
-          <div id="admin-subscriptions-notice"></div>
+          <div id="admin-subscriptions"><div class="notice">Loading…</div></div>
         </div>
       </div>
     </section>
@@ -3063,45 +2851,6 @@ async function renderAdminDashboardPage() {
     <section class="section-tight">
       <div class="container">
         <div class="panel">
-          <span class="eyebrow">Moderation</span>
-          <h2 style="margin:14px 0;">Content review</h2>
-          <div id="admin-moderation">${state.moderation.map((item, index) => `
-            <div class="admin-stack" style="border-top:1px solid rgba(255,255,255,.06);padding-top:16px;margin-top:12px;">
-              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;"><div><strong>${item.title}</strong><div class="small-note">${item.kind} · ${item.owner}</div></div>${adminStatusChip(item.status)}</div>
-              <div style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:end;">
-                <label class="dashboard-field"><span>Status</span><select class="select" data-moderation-status="${index}"><option value="Queued" ${item.status === 'Queued' ? 'selected' : ''}>Queued</option><option value="Reviewing" ${item.status === 'Reviewing' ? 'selected' : ''}>Reviewing</option><option value="Approved" ${item.status === 'Approved' ? 'selected' : ''}>Approved</option><option value="Needs Edit" ${item.status === 'Needs Edit' ? 'selected' : ''}>Needs Edit</option><option value="Rejected" ${item.status === 'Rejected' ? 'selected' : ''}>Rejected</option></select></label>
-                <button class="btn btn-primary btn-small" type="button" data-moderation-save="${index}">Save</button>
-              </div>
-              <label class="dashboard-field"><span>Note</span><textarea class="input" rows="2" data-moderation-notes="${index}">${item.notes || ''}</textarea></label>
-            </div>`).join('') || '<div class="notice">No moderation items.</div>'}</div>
-          <div id="admin-moderation-notice"></div>
-        </div>
-      </div>
-    </section>
-
-    <section class="section-tight">
-      <div class="container">
-        <div class="panel">
-          <span class="eyebrow">Import queue</span>
-          <h2 style="margin:14px 0;">Sheet & scan jobs</h2>
-          <div id="admin-import-jobs">${state.importJobs.map((job, index) => `
-            <div class="admin-stack" style="border-top:1px solid rgba(255,255,255,.06);padding-top:16px;margin-top:12px;">
-              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;"><div><strong>${job.businessName}</strong><div class="small-note">${job.method} · ${job.itemCount || 0} items</div></div>${adminStatusChip(job.status)}</div>
-              <div class="small-note">${job.source || 'No source'} · ${job.notes || ''}</div>
-              <div style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:end;">
-                <label class="dashboard-field"><span>Status</span><select class="select" data-import-status="${index}"><option value="Queued" ${job.status === 'Queued' ? 'selected' : ''}>Queued</option><option value="Scanning" ${job.status === 'Scanning' ? 'selected' : ''}>Scanning</option><option value="Needs Review" ${job.status === 'Needs Review' ? 'selected' : ''}>Needs Review</option><option value="Imported" ${job.status === 'Imported' ? 'selected' : ''}>Imported</option><option value="Failed" ${job.status === 'Failed' ? 'selected' : ''}>Failed</option></select></label>
-                <button class="btn btn-primary btn-small" type="button" data-import-save="${index}">Save</button>
-              </div>
-            </div>`).join('') || '<div class="notice">No import jobs.</div>'}</div>
-
-          <div id="admin-imports-notice"></div>
-        </div>
-      </div>
-    </section>
-
-    <section class="section-tight">
-      <div class="container">
-        <div class="panel">
           <span class="eyebrow">Content</span>
           <h2 style="margin:14px 0;">Guides</h2>
           <p class="muted" style="margin-bottom:16px;">Create and manage editorial guides (rooftop bars, whisky collections, etc.). Each guide is a list of venues with descriptions and images.</p>
@@ -3134,157 +2883,65 @@ async function renderAdminDashboardPage() {
         </div>
       </div>
     </section>
-
-    <section class="section-tight">
-      <div class="container">
-        <div class="panel">
-          <span class="eyebrow">Featured placements</span>
-        </div>
-      </div>
-    </section>
-
-    <section class="section-tight">
-      <div class="container">
-        <div class="panel">
-          <span class="eyebrow">Featured placements</span>
-          <h2 style="margin:14px 0;">Paid visibility</h2>
-          <div id="admin-placements" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">${state.placements.map((slot, index) => `
-            <div style="border:1px solid rgba(255,255,255,.06);padding:16px;border-radius:8px;">
-              <div style="display:flex;justify-content:space-between;margin-bottom:12px;"><div><strong>${slot.slot}</strong><div class="small-note">${slot.listingType === 'venue' ? 'Venue' : 'Supplier'}</div></div>${adminStatusChip(slot.status)}</div>
-              <label class="dashboard-field"><span>Occupant</span><input class="input" data-placement-occupant="${index}" value="${slot.occupant}" /></label>
-              <label class="dashboard-field"><span>Status</span><select class="select" data-placement-status="${index}"><option value="Live" ${slot.status === 'Live' ? 'selected' : ''}>Live</option><option value="Scheduled" ${slot.status === 'Scheduled' ? 'selected' : ''}>Scheduled</option><option value="Review" ${slot.status === 'Review' ? 'selected' : ''}>Review</option><option value="Open" ${slot.status === 'Open' ? 'selected' : ''}>Open</option></select></label>
-              <button class="btn btn-primary btn-small" type="button" data-placement-save="${index}">Save</button>
-            </div>`).join('') || '<div class="notice">No placements defined.</div>'}</div>
-          <div id="admin-placements-notice"></div>
-        </div>
-      </div>
-    </section>`;
+`;
 
   // Load pending inventory, pending events, leads, and product manager
   loadPendingItems();
   loadPendingEvents();
   loadAdminLeads();
   loadProductManager();
+  loadAdminSubscriptions();
+  loadAdminScanJobs();
+  loadAdminSnapshot();
+}
 
+async function loadAdminSubscriptions() {
+  const holder = $('#admin-subscriptions');
+  if (!holder) return;
+  try {
+    const subs = await fetchSubscriptions();
+    if (!subs.length) { holder.innerHTML = '<div class="notice">No subscriptions yet.</div>'; return; }
+    holder.innerHTML = subs.map(s => {
+      const name = (s.profiles && (s.profiles.business_name || s.profiles.email)) || 'Unknown';
+      return `<div class="admin-stack" style="border-top:1px solid rgba(255,255,255,.06);padding-top:16px;margin-top:12px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;"><div><strong>${safe(name)}</strong><div class="small-note">${safe(s.plan)} · ${safe((s.profiles && s.profiles.email) || '')}</div></div><span class="status-badge status-${(s.status || 'active').toLowerCase()}">${safe(s.status || 'active')}</span></div>
+        <div class="muted" style="margin-top:8px;font-size:.85rem;">Tier: <strong>${safe(s.directory_tier)}</strong> · Listings: ${s.listing_limit == null ? 'unlimited' : s.listing_limit}</div>
+      </div>`;
+    }).join('');
+  } catch (e) {
+    holder.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Could not load subscriptions: ${e.message}</div>`;
+  }
+}
 
+async function loadAdminScanJobs() {
+  const holder = $('#admin-scan-jobs');
+  if (!holder) return;
+  try {
+    const jobs = await fetchScanJobs();
+    if (!jobs.length) { holder.innerHTML = '<div class="notice">No scan jobs yet.</div>'; return; }
+    holder.innerHTML = jobs.map(j => `<div class="admin-stack" style="border-top:1px solid rgba(255,255,255,.06);padding-top:16px;margin-top:12px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;"><div><strong>${safe(j.supplier_name)}</strong><div class="small-note">${safe(j.site_url)}</div></div><span class="status-badge status-${j.status}">${safe(j.status)}</span></div>
+      <div class="muted" style="margin-top:8px;font-size:.85rem;">${j.items_imported} imported${j.error ? ' · ' + safe(j.error) : ''}</div>
+    </div>`).join('');
+  } catch (e) {
+    holder.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Could not load scan jobs: ${e.message}</div>`;
+  }
+}
 
-  const saveState = (message, selector) => {
-    storage.setAdminState(state);
-    const notice = $(selector, app);
-    if (notice) notice.innerHTML = `<div class="notice">${message}</div>`;
-  };
-
-  $$('[data-application-save]', app).forEach(btn => btn.addEventListener('click', () => {
-    const index = Number(btn.dataset.applicationSave);
-    const entry = filteredApplications[index];
-    if (!entry) return;
-    const sourceIndex = state.applications.findIndex(item => item.id === entry.id);
-    if (sourceIndex === -1) return;
-    state.applications[sourceIndex].status = $(`[data-application-status="${index}"]`, app).value;
-    saveState(`Application status updated for ${entry.businessName}.`, '#admin-applications-notice');
-    renderAdminDashboardPage();
-  }));
-
-  $$('[data-create-subscription]', app).forEach(btn => btn.addEventListener('click', () => {
-    const index = Number(btn.dataset.createSubscription);
-    const entry = filteredApplications[index];
-    if (!entry) return;
-    const existing = state.subscriptions.find(sub => sub.businessName === entry.businessName);
-    if (!existing) {
-      const meta = adminPlanMeta(entry.planInterest, entry.listingType);
-      state.subscriptions.unshift({
-        id: `sub_${Date.now()}`,
-        businessName: entry.businessName,
-        listingType: entry.listingType,
-        plan: meta.name,
-        billing: 'Monthly',
-        amount: adminMoneyLabel(meta.slug, entry.listingType, 'Monthly'),
-        status: 'Trial',
-        renewal: new Date(Date.now() + 1000 * 60 * 60 * 24 * 14).toISOString().slice(0, 10),
-        addOns: entry.listingType === 'venue'
-          ? { featuredVenue: false, featuredEvent: false, bookingBoost: false }
-          : { featuredSupplier: false, featuredEvent: false, extraProducts: false },
-        invoiceStatus: 'Draft'
-      });
-    }
-    const sourceIndex = state.applications.findIndex(item => item.id === entry.id);
-    if (sourceIndex > -1) state.applications[sourceIndex].status = 'Approved';
-    saveState(`Subscription record created for ${entry.businessName}.`, '#admin-applications-notice');
-    renderAdminDashboardPage();
-  }));
-
-  $$('[data-subscription-save]', app).forEach(btn => btn.addEventListener('click', () => {
-    const index = Number(btn.dataset.subscriptionSave);
-    const sub = state.subscriptions[index];
-    if (!sub) return;
-    sub.plan = $(`[data-subscription-plan="${index}"]`, app).value;
-    sub.billing = $(`[data-subscription-billing="${index}"]`, app).value;
-    sub.status = $(`[data-subscription-status="${index}"]`, app).value;
-    sub.renewal = $(`[data-subscription-renewal="${index}"]`, app).value;
-    sub.amount = adminMoneyLabel(sub.plan, sub.listingType, sub.billing);
-    $$(`[data-subscription-addon="${index}"]`, app).forEach(input => {
-      sub.addOns ||= {};
-      sub.addOns[input.dataset.addonKey] = input.checked;
-    });
-    sub.invoiceStatus = sub.status === 'Past Due' ? 'Overdue' : sub.status === 'Cancelled' ? 'Closed' : 'Paid';
-    saveState(`Subscription updated for ${sub.businessName}.`, '#admin-subscriptions-notice');
-    renderAdminDashboardPage();
-  }));
-
-  $$('[data-placement-save]', app).forEach(btn => btn.addEventListener('click', () => {
-    const index = Number(btn.dataset.placementSave);
-    const slot = state.placements[index];
-    if (!slot) return;
-    slot.occupant = $(`[data-placement-occupant="${index}"]`, app).value;
-    slot.status = $(`[data-placement-status="${index}"]`, app).value;
-    slot.notes = $(`[data-placement-notes="${index}"]`, app).value;
-    saveState(`Featured placement updated: ${slot.slot}.`, '#admin-placements-notice');
-    renderAdminDashboardPage();
-  }));
-
-  $$('[data-moderation-save]', app).forEach(btn => btn.addEventListener('click', () => {
-    const index = Number(btn.dataset.moderationSave);
-    const item = state.moderation[index];
-    if (!item) return;
-    item.status = $(`[data-moderation-status="${index}"]`, app).value;
-    item.notes = $(`[data-moderation-notes="${index}"]`, app).value;
-    saveState(`Moderation updated for ${item.title}.`, '#admin-moderation-notice');
-    renderAdminDashboardPage();
-  }));
-
-  $$('[data-import-save]', app).forEach(btn => btn.addEventListener('click', () => {
-    const index = Number(btn.dataset.importSave);
-    const job = state.importJobs[index];
-    if (!job) return;
-    job.status = $(`[data-import-status="${index}"]`, app).value;
-    saveState(`Import job updated for ${job.businessName}.`, '#admin-imports-notice');
-    renderAdminDashboardPage();
-  }));
-
-  $$('[data-import-promote]', app).forEach(btn => btn.addEventListener('click', () => {
-    const index = Number(btn.dataset.importPromote);
-    const job = state.importJobs[index];
-    if (!job) return;
-    if (!state.applications.some(entry => entry.businessName === job.businessName)) {
-      state.applications.unshift({
-        id: `app_${Date.now()}`,
-        businessName: job.businessName,
-        listingType: 'merchant',
-        planInterest: 'merchant-enhanced',
-        contactName: job.businessName,
-        email: job.email,
-        district: 'Hong Kong',
-        source: 'import-queue',
-        status: 'Reviewing',
-        priority: 'Medium',
-        submittedAt: new Date().toISOString(),
-        notes: `Created from ${job.method.toLowerCase()} import workflow.`
-      });
-    }
-    job.status = 'Needs Review';
-    saveState(`Listing task created from import queue for ${job.businessName}.`, '#admin-imports-notice');
-    renderAdminDashboardPage();
-  }));
+async function loadAdminSnapshot() {
+  try {
+    const [leads, subs, drinksRes, scans] = await Promise.all([
+      fetchAllLeads(),
+      fetchSubscriptions(),
+      sb.from('drinks').select('id').eq('status', 'pending'),
+      fetchScanJobs()
+    ]);
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    set('snap-leads', (leads || []).length);
+    set('snap-subs', (subs || []).filter(s => s.status === 'active' || s.status === 'trialing').length);
+    set('snap-drinks', (drinksRes.data || []).length);
+    set('snap-scans', (scans || []).filter(j => j.status === 'queued' || j.status === 'running').length);
+  } catch (e) { console.warn('Snapshot failed:', e); }
 }
 
 function setupAnchorSpy() {
@@ -3463,6 +3120,7 @@ async function renderBlogAdminPage() {
 
 document.addEventListener('DOMContentLoaded', async () => {
   await hydrateCurrentUser();
+  await hydrateSavedItems();
   const page = document.body.dataset.page;
   const activeMap = {
     home: 'Home',
