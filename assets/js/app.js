@@ -182,9 +182,20 @@ async function consumePendingSave() {
 }
 
 function finishAuthFlow(defaultTarget = 'account.html') {
+  const hadPendingSave = !!storage.getPendingSave();
   consumePendingSave();
   const redirect = storage.getPostAuthRedirect();
   storage.clearPostAuthRedirect();
+  const user = storage.getCurrentUser();
+  const resumingCheckout = !!localStorage.getItem('ds_pending_plan');
+  // Business accounts land on their dashboard. The lead form sets a post-auth
+  // redirect for EVERY anonymous visitor, which would otherwise bounce a
+  // signed-in merchant/venue back to "list your business" instead of their
+  // dashboard. Only an explicit save/checkout return overrides this.
+  if (user && (user.role === 'merchant' || user.role === 'venue') && !hadPendingSave && !resumingCheckout) {
+    window.location.href = 'dashboard.html?role=' + user.role;
+    return;
+  }
   window.location.href = redirect || defaultTarget;
 }
 
