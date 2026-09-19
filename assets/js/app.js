@@ -1861,6 +1861,46 @@ async function renderBusinessDashboardPage() {
     const listingLimit = (state.listingLimit != null) ? state.listingLimit : 10;
     const listingsUsed = (state.listingCount != null) ? state.listingCount : 0;
     const atListingLimit = role === 'merchant' && listingsUsed >= listingLimit;
+    const tierRank = { standard: 0, enhanced: 1, featured: 2 };
+    const currentRank = tierRank[state.directoryTier] || 0;
+    const allUpgrades = role === 'merchant'
+      ? [
+          { name: 'Merchant Enhanced', price: 'HK$380', was: 'HK$980', listings: '100 listings', tier: 'Enhanced', rank: 1, founding: true, checkout: 'merchant_enhanced', benefits: ['Everything in Starter', '100 product listings', 'Events + Website scan', 'Enhanced directory placement', 'Homepage featured eligibility'] },
+          { name: 'Merchant Premium', price: 'HK$2,480', was: '', listings: 'Unlimited listings', tier: 'Featured', rank: 2, founding: false, checkout: '', waitlist: 'list-your-business.html?type=merchant&plan=merchant-premium', benefits: ['Everything in Enhanced', 'Unlimited listings', 'Featured directory placement', 'Homepage premium block'] }
+        ]
+      : [
+          { name: 'Venue Enhanced', price: 'HK$300', was: 'HK$980', listings: '', tier: 'Enhanced', rank: 1, founding: true, checkout: 'venue_enhanced', benefits: ['Everything in Starter', 'Enhanced venue page', 'Direct booking link', 'Image-led listing card'] },
+          { name: 'Venue Enhanced + Events', price: 'HK$480', was: 'HK$1,480', listings: '', tier: 'Featured', rank: 2, founding: true, checkout: 'venue_enhanced_events', benefits: ['Everything in Venue Enhanced', 'Unlimited event listings', 'Always-on event promotion'] }
+        ];
+    const upgrades = allUpgrades.filter(t => t.rank > currentRank);
+    const upgradeBlock = upgrades.length ? `
+        <section class="section-tight">
+          <div class="container">
+            <div class="panel">
+              <span class="eyebrow">Upgrade options</span>
+              <h2 style="margin:14px 0;">Get more from your listing.</h2>
+              <p class="muted" style="margin-bottom:20px;">Compare what each plan unlocks and upgrade in a couple of clicks.</p>
+              <div class="grid grid-2" style="gap:16px;">
+                ${upgrades.map(u => `
+                <div class="panel" style="border:1px solid var(--border);">
+                  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
+                    <h3 style="margin:0;">${u.name}</h3>
+                    ${u.founding ? '<span class="badge gold">Founding offer</span>' : '<span class="badge pink">Premium</span>'}
+                  </div>
+                  <div style="font-family:var(--serif);font-size:1.5rem;margin:12px 0 2px;">${u.price}<small class="muted" style="font-size:.8rem;">/ month</small></div>
+                  ${u.was ? `<div class="muted" style="font-size:.82rem;"><s>${u.was}</s> · founding price, locked for life</div>` : ''}
+                  <div class="muted" style="font-size:.85rem;margin-top:4px;">${u.listings ? u.listings + ' · ' : ''}${u.tier} directory placement</div>
+                  <ul style="margin:14px 0 0 18px;padding:0;font-size:.9rem;color:var(--muted-foreground);">
+                    ${u.benefits.map(b => `<li style="margin:4px 0;">${b}</li>`).join('')}
+                  </ul>
+                  ${u.checkout
+                    ? `<button class="btn btn-primary btn-block" type="button" style="margin-top:18px;" onclick="startCheckout('${u.checkout}')">Upgrade to ${u.name}</button>`
+                    : `<a class="btn btn-secondary btn-block" style="margin-top:18px;" href="${u.waitlist}">Join waitlist</a>`}
+                </div>`).join('')}
+              </div>
+            </div>
+          </div>
+        </section>` : '';
     const html = `
       <div class="dashboard-shell">
         <section class="hero" style="min-height:52vh;">
@@ -1948,7 +1988,7 @@ async function renderBusinessDashboardPage() {
           </div>
         </section>
 
-        </section>
+        ${upgradeBlock}
 
         ${role === 'merchant' ? `
         <section class="section-tight">
