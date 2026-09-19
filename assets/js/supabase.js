@@ -485,6 +485,29 @@ async function fetchMyLeads(email) {
   return data || [];
 }
 
+// --- Ecommerce scan (website import) ---
+async function queueScan(payload) {
+  const { data, error } = await sb.rpc('queue_scan', {
+    p_site_url: payload.siteUrl || '',
+    p_platform: payload.platform || 'auto',
+    p_notes: payload.notes || ''
+  });
+  if (error) throw error;
+  return data;
+}
+
+async function invokeScan(jobId) {
+  const { data, error } = await sb.functions.invoke('scan-catalog', { body: { job_id: jobId } });
+  if (error) throw error;
+  return data;
+}
+
+async function fetchScanJobs() {
+  const { data, error } = await sb.from('scan_jobs').select('*').order('created_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
 // --- Events (business dashboard + admin) ---
 async function insertEvent(ev, status) {
   const user = await getCurrentUser();

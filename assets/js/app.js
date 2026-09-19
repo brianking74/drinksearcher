@@ -2076,8 +2076,9 @@ async function renderBusinessDashboardPage() {
               <label class="dashboard-field"><span>Platform type</span><select class="select" id="scan-site-platform" ${isEnhanced ? '' : 'disabled'}><option value="Mixed">Mixed</option><option value="Shopify">Shopify</option><option value="WooCommerce">WooCommerce</option><option value="Custom">Custom</option></select></label>
               <label class="dashboard-field"><span>Founder note</span><textarea class="input" rows="4" id="scan-site-notes" placeholder="Optional notes about collections, categories, or important product pages" ${isEnhanced ? '' : 'disabled'}></textarea></label>
               <div class="admin-inline"><button class="btn btn-secondary" id="scan-site-btn" type="button" ${isEnhanced ? '' : 'disabled'}>Queue scan request</button></div>
-              <div class="small-note">Website scan requests are queued into Founder Admin for review. Shopify, WooCommerce, sitemap, feed, and structured-data connectors can be added as the next production step.</div>
+              <div class="small-note">Scans your Shopify store now (WooCommerce / sitemap connectors to follow). Imported products go live in your catalogue immediately.</div>
               <div id="scan-site-notice"></div>
+              <div id="scan-history"></div>
             </div>
           </div>
         <section class="section-tight">
@@ -2135,6 +2136,44 @@ async function renderBusinessDashboardPage() {
         </section>
       </div>`;
     app.innerHTML = html;
+
+    // Ecommerce scan: queue a scan, run it, and show this supplier's history
+    const scanBtn = $('#scan-site-btn', app);
+    const loadScanHistory = async () => {
+      const holder = $('#scan-history', app);
+      if (!holder) return;
+      try {
+        const jobs = await fetchScanJobs();
+        const mine = jobs.filter(j => (j.supplier_name || '').toLowerCase() === (config.listingName || '').toLowerCase());
+        holder.innerHTML = mine.length
+          ? `<div class="muted" style="display:grid; gap:8px; margin-top:16px; font-size:.85rem;">${mine.map(j => `<span>${j.site_url} — <strong style="color:var(--gold)">${j.status}</strong>${j.items_imported ? ` · ${j.items_imported} imported` : ''}${j.error ? ` · ${j.error}` : ''}</span>`).join('')}</div>`
+          : '';
+      } catch { /* scan history is best-effort */ }
+    };
+    if (scanBtn) scanBtn.addEventListener('click', async () => {
+      const url = ($('#scan-site-url', app).value || '').trim();
+      const platform = $('#scan-site-platform', app).value;
+      const notes = ($('#scan-site-notes', app).value || '').trim();
+      const notice = $('#scan-site-notice', app);
+      if (!url) {
+        notice.innerHTML = '<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Enter your shop URL first.</div>';
+        return;
+      }
+      scanBtn.disabled = true;
+      scanBtn.textContent = 'Scanning…';
+      try {
+        const job = await queueScan({ siteUrl: url, platform, notes });
+        await invokeScan(job.job_id);
+        notice.innerHTML = '<div class="notice">Scan complete — your products are now live in the catalogue.</div>';
+      } catch (err) {
+        notice.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Scan failed: ${err.message || err}</div>`;
+      } finally {
+        scanBtn.disabled = false;
+        scanBtn.textContent = 'Queue scan request';
+        loadScanHistory();
+      }
+    });
+    loadScanHistory();
 
     // Sync item statuses from Supabase
     if (user.email) {
