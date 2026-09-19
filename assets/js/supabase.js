@@ -551,9 +551,24 @@ async function queueScan(payload) {
 }
 
 async function invokeScan(jobId) {
-  const { data, error } = await sb.functions.invoke('scan-catalog', { body: { job_id: jobId } });
-  if (error) throw error;
-  return data;
+  const { data: sessionData } = await sb.auth.getSession();
+  const token = (sessionData && sessionData.session && sessionData.session.access_token) || SUPABASE_ANON_KEY;
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/scan-catalog`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': SUPABASE_ANON_KEY,
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({ job_id: jobId })
+  });
+  if (!res.ok) {
+    let msg = '';
+    try { const j = await res.json(); msg = j.message || j.error || JSON.stringify(j); }
+    catch { try { msg = await res.text(); } catch {} }
+    throw new Error(msg || `Scan failed (HTTP ${res.status})`);
+  }
+  return await res.json();
 }
 
 async function fetchScanJobs() {
