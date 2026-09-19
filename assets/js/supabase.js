@@ -121,15 +121,9 @@ async function fetchDrinks(filters = {}) {
       if (filters.area && filters.area !== 'all') rows = rows.filter(d => d.area === filters.area);
       return rows;
     }
-  } catch { /* fall through to local fallback */ }
+  } catch { /* fall through to empty result */ }
 
-  let rows = typeof drinksInventory !== 'undefined' ? drinksInventory.slice() : [];
-  if (filters.search) {
-    const q = String(filters.search).toLowerCase();
-    rows = rows.filter(d => [d.name, d.supplier, d.type].some(v => String(v || '').toLowerCase().includes(q)));
-  }
-  if (filters.area && filters.area !== 'all') rows = rows.filter(d => d.area === filters.area);
-  return rows;
+  return [];
 }
 
 // --- Suppliers ---
