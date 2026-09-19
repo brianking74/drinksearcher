@@ -13,6 +13,20 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY)
 
+// CORS: the dashboard calls this from drinksearcher.net (cross-origin).
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Authorization, apikey, Content-Type',
+  'Access-Control-Max-Age': '86400',
+}
+
+const json = (data, status = 200) =>
+  new Response(JSON.stringify(data), {
+    status,
+    headers: { 'Content-Type': 'application/json', ...corsHeaders },
+  })
+
 // Scanned products are the supplier's own catalog. They land as 'pending' so
 // the admin can review/approve them in the moderation queue (product manager /
 // pending inventory), which is now Supabase-backed.
@@ -65,17 +79,20 @@ async function fetchShopifyProducts(baseUrl) {
 }
 
 Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders })
+  }
   let job_id = null
   try {
     const body = await req.json()
     job_id = body.job_id
     if (!job_id) {
-      return Response.json({ error: 'job_id required' }, { status: 400 })
+      return json({ error: 'job_id required' }, 400)
     }
 
     const { data: job, error: jerr } = await admin.from('scan_jobs').select('*').eq('id', job_id).single()
-    if (jerr || !job) return Response.json({ error: 'job not found' }, { status: 404 })
-    if (job.status !== 'queued') return Response.json({ skipped: true, status: job.status })
+    if (jerr || !job) return json({ error: 'job not found' }, 404)
+    if (job.status !== 'queued') return json({ skipped: true, status: job.status })
 
     await admin.from('scan_jobs')
       .update({ status: 'running', updated_at: new Date().toISOString() })
@@ -133,7 +150,7 @@ Deno.serve(async (req) => {
       updated_at: new Date().toISOString()
     }).eq('id', job_id)
 
-    return Response.json({ ok: true, found: products.length, imported })
+    return json({ ok: true, found: products.length, imported })
   } catch (e) {
     const msg = String((e && e.message) || e)
     if (job_id) {
@@ -145,6 +162,6 @@ Deno.serve(async (req) => {
         }).eq('id', job_id)
       } catch (_) { /* ignore */ }
     }
-    return Response.json({ error: msg }, { status: 500 })
+    return json({ error: msg }, 500)
   }
 })
