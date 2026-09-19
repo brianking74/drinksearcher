@@ -2035,8 +2035,11 @@ async function renderBusinessDashboardPage() {
       scanBtn.textContent = 'Scanning…';
       try {
         const job = await queueScan({ siteUrl: url, platform, notes });
-        await invokeScan(job.job_id);
-        notice.innerHTML = '<div class="notice">Scan complete — your products are now live in the catalogue.</div>';
+        const result = await invokeScan(job.job_id);
+        const n = (result && result.imported) || 0;
+        notice.innerHTML = n > 0
+          ? `<div class="notice">Scan complete — ${n} product${n === 1 ? '' : 's'} imported and sent for admin review. They'll go live once approved.</div>`
+          : '<div class="notice">Scan complete — no new products (everything is already in your catalogue).</div>';
       } catch (err) {
         notice.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Scan failed: ${err.message || err}</div>`;
       } finally {
