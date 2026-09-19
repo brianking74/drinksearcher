@@ -13,6 +13,9 @@ function safe(v) {
 // In-memory current-user cache, hydrated from Supabase (dsAuth) on page load
 // and refreshed on sign-in/sign-up. Every other helper reads this cache.
 let _currentUser = null;
+// Listing-cap snapshot for the dashboard (limit + live server count), refreshed
+// on every dashboard render so the "add another row" guard reflects reality.
+let _listingCap = { limit: 10, count: 0 };
 
 async function hydrateCurrentUser() {
   try { _currentUser = await dsAuth.getCurrentUser(); } catch { _currentUser = null; }
@@ -1641,6 +1644,12 @@ function addDashboardItem() {
   if (!s) return;
   var c = s[s.activeRole || 'merchant'];
   if (!c) return;
+  // Listing-limit guard: a disabled button is the UX, this is the backstop for
+  // anyone who re-enables it in devtools.
+  if ((s.activeRole || 'merchant') === 'merchant' && _listingCap.count >= _listingCap.limit) {
+    renderBusinessDashboardPage();
+    return;
+  }
   c.items.push({ id: s.activeRole + '_' + Date.now(), name: 'New product', price: 'HK$0', status: 'Pending' });
   storage.setDashboardState(s);
   renderBusinessDashboardPage();
@@ -1829,9 +1838,14 @@ async function renderBusinessDashboardPage() {
     const sub = await fetchMySubscription();
     state.directoryTier = (sub && sub.directory_tier) || state.directoryTier || 'standard';
     if (sub && sub.plan) state.plan = sub.plan;
+    state.listingLimit = (sub && sub.listing_limit != null) ? sub.listing_limit : 10;
+    state.listingCount = await countMyListings();
   } catch (e) {
     state.directoryTier = state.directoryTier || 'standard';
+    if (state.listingLimit == null) state.listingLimit = 10;
+    if (state.listingCount == null) state.listingCount = 0;
   }
+  _listingCap = { limit: state.listingLimit, count: state.listingCount };
 
   const roleLocked = !!(roleQuery === 'merchant' || roleQuery === 'venue');
   const renderRole = (role) => {
@@ -1844,6 +1858,9 @@ async function renderBusinessDashboardPage() {
     const isEnhanced = state.directoryTier === 'enhanced' || state.directoryTier === 'featured';
     const planNames = { merchant_starter: 'Merchant Starter', merchant_enhanced: 'Merchant Enhanced', merchant_premium: 'Merchant Premium', venue_starter: 'Venue Starter', venue_enhanced: 'Venue Enhanced', venue_enhanced_events: 'Venue Enhanced + Events' };
     const planName = planNames[state.plan] || (role === 'venue' ? 'Venue Starter' : 'Merchant Starter');
+    const listingLimit = (state.listingLimit != null) ? state.listingLimit : 10;
+    const listingsUsed = (state.listingCount != null) ? state.listingCount : 0;
+    const atListingLimit = role === 'merchant' && listingsUsed >= listingLimit;
     const html = `
       <div class="dashboard-shell">
         <section class="hero" style="min-height:52vh;">
@@ -1978,7 +1995,10 @@ async function renderBusinessDashboardPage() {
                 </div>`).join('')}</div>
               <div class="inline-actions" style="padding:20px; border-top:1px solid rgba(255,255,255,.06);">
                 <button class="btn btn-primary" type="button" onclick="saveDashboardItems()">Save pricing & availability</button>
-                <button class="btn btn-ghost" type="button" onclick="addDashboardItem()">Add another row</button>
+                ${role === 'merchant' ? `<span class="muted" style="font-size:.82rem;">${listingsUsed} of ${listingLimit} listings used</span>` : ''}
+                ${atListingLimit
+                  ? `<button class="btn btn-ghost" type="button" disabled style="opacity:.55;cursor:not-allowed;">🔒 Add another row</button><div class="notice" style="margin-top:12px;background:rgba(255,193,7,.08);border-color:rgba(255,193,7,.18);color:#ffd27d;">You've reached your ${listingLimit}-item limit. <a class="text-gold" href="pricing.html">Upgrade</a> to add more items.</div>`
+                  : `<button class="btn btn-ghost" type="button" onclick="addDashboardItem()">Add another row</button>`}
               </div>
             </div>
           </div>
@@ -2134,6 +2154,7 @@ async function renderBusinessDashboardPage() {
       const activeRole = state.activeRole || 'merchant';
       const c = state[activeRole];
       if (!c) return;
+      if (activeRole === 'merchant' && _listingCap.count >= _listingCap.limit) { renderBusinessDashboardPage(); return; }
       c.items.push({ id: `${activeRole}_${Date.now()}`, name: activeRole === 'merchant' ? 'New product' : 'New venue offer', price: 'HK$0', status: 'Approved' });
       renderBusinessDashboardPage();
     });
@@ -2153,6 +2174,11 @@ async function renderBusinessDashboardPage() {
           const text = await loadImportSourceText(source);
           const imported = importItemsFromCSV(text);
           if (!imported.length) throw new Error('No inventory rows were detected.');
+          const remaining = Math.max(0, _listingCap.limit - _listingCap.count);
+          if (imported.length > remaining) {
+            holder.innerHTML = `<div class="notice" style="background:rgba(255,193,7,.08);border-color:rgba(255,193,7,.18);color:#ffd27d;">Your plan allows ${_listingCap.limit} listings (${remaining} left), but this import adds ${imported.length}. <a class="text-gold" href="pricing.html">Upgrade</a> to add more items.</div>`;
+            return;
+          }
           config.items = mode === 'replace' ? imported : [...config.items, ...imported];
           persist();
           
