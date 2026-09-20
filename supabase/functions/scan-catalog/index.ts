@@ -80,6 +80,45 @@ async function fetchShopifyProducts(baseUrl) {
   return out
 }
 
+// Upload a remote image to Cloudinary (unsigned preset) and return the managed
+// URL. Falls back to the original URL on any failure so a product is never lost
+// because its image upload failed.
+async function uploadImageToCloudinary(remoteUrl) {
+  if (!remoteUrl || !/^https?:\/\//i.test(remoteUrl)) return remoteUrl || ''
+  try {
+    const body = new URLSearchParams({
+      file: remoteUrl,
+      upload_preset: 'drinksearcher',
+      transformation: 'c_pad,w_800,h_800,bg_white,f_auto,q_auto',
+    })
+    const res = await fetch('https://api.cloudinary.com/v1_1/rqokncht/image/upload', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body.toString(),
+    })
+    if (!res.ok) return remoteUrl
+    const data = await res.json()
+    return (data && data.secure_url) || remoteUrl
+  } catch {
+    return remoteUrl
+  }
+}
+
+async function uploadAllImages(rows) {
+  const tasks = rows.filter((r) => r.image && /^https?:\/\//i.test(r.image)).map((r) => () => uploadImageToCloudinary(r.image).then((url) => { r.image = url }))
+  const CONCURRENCY = 8
+  const workers = []
+  for (let i = 0; i < CONCURRENCY; i++) {
+    workers.push((async () => {
+      while (tasks.length) {
+        const t = tasks.shift()
+        if (t) await t()
+      }
+    })())
+  }
+  await Promise.all(workers)
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -137,6 +176,8 @@ Deno.serve(async (req) => {
       })
       existingNames.add(name.toLowerCase())
     }
+
+    await uploadAllImages(rows)
 
     let imported = 0
     for (let i = 0; i < rows.length; i += 100) {

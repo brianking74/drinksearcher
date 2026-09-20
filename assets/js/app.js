@@ -30,6 +30,24 @@ function dsImage(url, mode = 'bottle') {
   return src;
 }
 
+// Upload a remote image to Cloudinary via the unsigned preset (no secret needed)
+// and return the managed URL. Falls back to the original on any failure.
+async function dsUploadImage(url) {
+  const src = String(url || '').trim();
+  if (!src || !/^https?:\/\//i.test(src)) return src;
+  try {
+    const body = new URLSearchParams({ file: src, upload_preset: 'drinksearcher', transformation: 'c_pad,w_800,h_800,bg_white,f_auto,q_auto' });
+    const res = await fetch('https://api.cloudinary.com/v1_1/rqokncht/image/upload', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body.toString()
+    });
+    if (!res.ok) return src;
+    const data = await res.json();
+    return (data && data.secure_url) || src;
+  } catch { return src; }
+}
+
 // Best-effort transactional email — never blocks the action on email failure.
 async function sendEmail(payload) {
   try {
@@ -1774,7 +1792,7 @@ function saveDashboardProfile() {
 
 function fillSampleTemplate() {
   var el = document.getElementById('sheet-import-source');
-  if (el) el.value = 'Name,Type,Varietal,Origin,Price,Availability\nChardonnay Reserve,White Wine,Chardonnay,Burgundy France,188,In stock\nSmall Batch Gin,Spirit,,London,420,Low stock\nBarolo Riserva,Red Wine,Nebbiolo,Piedmont Italy,688,In stock';
+  if (el) el.value = 'Name,Type,Varietal,Origin,Price,Availability,Image\nChardonnay Reserve,White Wine,Chardonnay,Burgundy France,188,In stock,https://example.com/chardonnay.jpg\nSmall Batch Gin,Spirit,,London,420,Low stock,https://example.com/gin.jpg\nBarolo Riserva,Red Wine,Nebbiolo,Piedmont Italy,688,In stock,https://example.com/barolo.jpg';
 }
 
 async function importInventory() {
@@ -1797,8 +1815,9 @@ async function importInventory() {
     let supabaseCount = 0;
     const { data: authData } = await sb.auth.getUser().catch(() => ({}));
     const userId = authData?.user?.id || null;
+    await Promise.all(items.map(async item => { if (item.image) item.image = await dsUploadImage(item.image); }));
     for (const item of items) {
-      const { error } = await sb.from('drinks').insert({ name: item.name, price: item.price, availability: item.availability || 'In stock', status: 'pending', submitted_by: userId, supplier_name: config.listingName || user.name || '', type: item.type || 'Wine', varietal: item.varietal || '', origin: item.origin || '' });
+      const { error } = await sb.from('drinks').insert({ name: item.name, price: item.price, availability: item.availability || 'In stock', status: 'pending', submitted_by: userId, supplier_name: config.listingName || user.name || '', type: item.type || 'Wine', varietal: item.varietal || '', origin: item.origin || '', image: item.image || '' });
       if (!error) supabaseCount++;
     }
     if (holder) holder.innerHTML = '<div class="notice">Imported <strong>' + items.length + '</strong> rows. <strong>' + supabaseCount + '</strong> submitted for review.</div>';
@@ -2274,6 +2293,7 @@ async function renderBusinessDashboardPage() {
           // Submit to Supabase for admin review
           const supplierSlug = slugify(config.listingName || user.name || user.email);
           let supabaseCount = 0;
+          await Promise.all(imported.map(async item => { if (item.image) item.image = await dsUploadImage(item.image); }));
           for (const item of imported) {
             const { error } = await sb.from('drinks').insert({
               name: item.name,
@@ -2284,7 +2304,8 @@ async function renderBusinessDashboardPage() {
               supplier_name: config.listingName || user.name || '',
               type: item.type || (role === 'venue' ? 'Venue offer' : 'Wine'),
               varietal: item.varietal || '',
-              origin: item.origin || ''
+              origin: item.origin || '',
+              image: item.image || ''
             });
             if (!error) supabaseCount++;
           }
@@ -2485,6 +2506,7 @@ function importItemsFromCSV(text) {
   const typeIndex = inventoryColumnIndex(headers, ['type', 'category', 'style', 'wine type']);
   const varietalIndex = inventoryColumnIndex(headers, ['varietal', 'grape', 'grapes', 'grape variety']);
   const originIndex = inventoryColumnIndex(headers, ['origin', 'region', 'country', 'appellation']);
+  const imageIndex = inventoryColumnIndex(headers, ['image', 'image url', 'photo', 'img', 'image_url']);
   const items = rows.slice(1).map((row, index) => {
     const name = row[nameIndex] || row[0];
     if (!name) return null;
@@ -2496,6 +2518,7 @@ function importItemsFromCSV(text) {
       type: (row[typeIndex] || '').trim(),
       varietal: (row[varietalIndex] || '').trim(),
       origin: (row[originIndex] || '').trim(),
+      image: (row[imageIndex] || '').trim(),
       status: 'Pending'
     };
   }).filter(Boolean);
