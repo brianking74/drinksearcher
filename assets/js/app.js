@@ -10,6 +10,33 @@ function safe(v) {
   });
 }
 
+// Best-effort transactional email — never blocks the action on email failure.
+async function sendEmail(payload) {
+  try {
+    await fetch('https://kktlbznmhxaortogqspy.supabase.co/functions/v1/send-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+  } catch (e) { /* email is best-effort */ }
+}
+
+async function sendDrinkStatusEmail(drinkId, status) {
+  try {
+    const { data: d } = await sb.from('drinks').select('name, submitted_by, supplier_id').eq('id', drinkId).single();
+    if (!d) return;
+    await sendEmail({ template: 'drink_status', data: { drinkName: d.name, status }, userId: d.submitted_by || null, supplierId: d.supplier_id || null });
+  } catch (e) { /* best-effort */ }
+}
+
+async function sendEventStatusEmail(eventId, status) {
+  try {
+    const { data: e } = await sb.from('events').select('name, submitted_by').eq('id', eventId).single();
+    if (!e) return;
+    await sendEmail({ template: 'event_status', data: { eventName: e.name, status }, userId: e.submitted_by || null });
+  } catch (e) { /* best-effort */ }
+}
+
 // In-memory current-user cache, hydrated from Supabase (dsAuth) on page load
 // and refreshed on sign-in/sign-up. Every other helper reads this cache.
 let _currentUser = null;
@@ -2509,6 +2536,8 @@ async function moderateItem(id, status, index) {
     const { error } = await sb.from('drinks').update(updates).eq('id', id);
     if (error) throw error;
 
+    sendDrinkStatusEmail(id, status);
+
     // If approving with a new image, propagate to all rows with the same drink name
     if (status === 'approved' && imageUrl) {
       const { data: row } = await sb.from('drinks').select('name').eq('id', id).single();
@@ -2590,6 +2619,7 @@ async function productManagerAction(id, action) {
     } else if (action === 'approve' || action === 'reject') {
       const { error } = await sb.from('drinks').update({ status: action === 'approve' ? 'approved' : 'rejected' }).eq('id', id);
       if (error) throw error;
+      sendDrinkStatusEmail(id, action === 'approve' ? 'approved' : 'rejected');
       if (notice) notice.innerHTML = '<div class="notice">Status updated.</div>';
     }
     loadProductManager();
@@ -2776,6 +2806,7 @@ async function moderateEvent(id, status) {
   try {
     if (status === 'approved') await approveEvent(id);
     else await rejectEvent(id);
+    sendEventStatusEmail(id, status);
     if (notice) notice.innerHTML = `<div class="notice">Event ${status === 'approved' ? 'approved ✓' : 'rejected'}.</div>`;
     setTimeout(() => loadPendingEvents(), 400);
   } catch (e) {
@@ -2836,9 +2867,16 @@ async function setLeadStatus(id) {
   const notice = $('#admin-leads-notice');
   const select = document.querySelector(`[data-lead-status="${id}"]`);
   if (!select) return;
+  const status = select.value;
   try {
-    await updateLeadStatus(id, select.value);
+    await updateLeadStatus(id, status);
     if (notice) notice.innerHTML = '<div class="notice">Lead status updated.</div>';
+    if (status === 'rejected') {
+      const { data: lead } = await sb.from('leads').select('email, account_email, business_name, listing_type').eq('id', id).single().catch(() => ({ data: null }));
+      if (lead && (lead.account_email || lead.email)) {
+        sendEmail({ to: lead.account_email || lead.email, template: 'application_rejected', data: { businessName: lead.business_name || '', listingType: lead.listing_type || 'merchant' } });
+      }
+    }
     setTimeout(() => loadAdminLeads(), 400);
   } catch (e) {
     if (notice) notice.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Failed: ${e.message}</div>`;
@@ -2848,9 +2886,13 @@ async function setLeadStatus(id) {
 async function provisionLead(id) {
   const notice = $('#admin-leads-notice');
   try {
+    const { data: lead } = await sb.from('leads').select('email, account_email, business_name, listing_type').eq('id', id).single().catch(() => ({ data: null }));
     const result = await provisionBusiness(id);
     const verb = result.matched_existing ? 'Linked to existing listing' : 'Created new listing';
     if (notice) notice.innerHTML = `<div class="notice">${verb}: <strong>${result.business_name || 'business'}</strong> (${result.plan}). ✓</div>`;
+    if (lead && (lead.account_email || lead.email)) {
+      sendEmail({ to: lead.account_email || lead.email, template: 'application_approved', data: { businessName: result.business_name || lead.business_name || '', listingType: lead.listing_type || 'merchant', matched_existing: !!result.matched_existing } });
+    }
     setTimeout(() => { loadAdminLeads(); }, 500);
   } catch (e) {
     if (notice) notice.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Provision failed: ${e.message}</div>`;

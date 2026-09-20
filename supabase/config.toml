@@ -394,6 +394,13 @@ deno_version = 2
 [functions.stripe-webhook]
 verify_jwt = false
 
+# send-email is called by the browser (signup welcome, admin approvals) without
+# a Supabase session. Recipient resolution happens server-side in the function
+# (userId/supplierId/leadId → email via service role), so a free-text `to` is
+# not exposed to abuse.
+[functions.send-email]
+verify_jwt = false
+
 # create-checkout MUST keep JWT verification on (default): it is called by the
 # signed-in user's browser and reads their session to key the subscription.
 
