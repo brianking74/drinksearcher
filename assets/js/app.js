@@ -10,6 +10,26 @@ function safe(v) {
   });
 }
 
+// Normalise any image URL through Cloudinary so every image renders at a
+// consistent size/aspect regardless of source: managed uploads get the standard
+// transform injected, remote URLs are auto-fetched + transformed on first load.
+function dsImage(url, mode = 'bottle') {
+  const src = String(url || '').trim();
+  if (!src || src.startsWith('data:') || src.startsWith('assets/') || src.startsWith('/')) return src;
+  const transforms = mode === 'scene'
+    ? 'c_fill,w_800,h_800,g_center,f_auto,q_auto'
+    : 'c_pad,w_800,h_800,bg_white,f_auto,q_auto';
+  if (src.includes('res.cloudinary.com')) {
+    const m = src.match(/\/image\/upload\/([^/]+)/);
+    if (m && !m[1].includes('_')) return src.replace('/image/upload/', `/image/upload/${transforms}/`);
+    return src;
+  }
+  if (/^https?:\/\//i.test(src)) {
+    return `https://res.cloudinary.com/rqokncht/image/fetch/${transforms}/${encodeURIComponent(src)}`;
+  }
+  return src;
+}
+
 // Best-effort transactional email — never blocks the action on email failure.
 async function sendEmail(payload) {
   try {
@@ -432,7 +452,7 @@ function renderCard(item, options = {}) {
   return `
     <article class="${cardClasses}">
       <div class="${imageClass}">
-        <img src="${item.image || 'assets/images/bottle-placeholder.svg'}" alt="${item.name}" onerror="this.src='assets/images/bottle-placeholder.svg'" />
+        <img src="${dsImage(item.image, (type === 'supplier' || type === 'venue' || type === 'event') ? 'scene' : 'bottle') || 'assets/images/bottle-placeholder.svg'}" alt="${item.name}" onerror="this.src='assets/images/bottle-placeholder.svg'" />
         <div class="card-overlay"></div>
         <div class="badge-row">${topBadges}</div>
       </div>
@@ -819,7 +839,7 @@ async function renderBottleDetail() {
       <div class="container">
         <div class="bottle-hero-grid">
           <div class="bottle-hero-media">
-            <img src="${drink.image || 'assets/images/bottle-placeholder.svg'}" alt="${drink.name}" class="bottle-hero-img" onerror="this.src='assets/images/bottle-placeholder.svg'">
+            <img src="${dsImage(drink.image) || 'assets/images/bottle-placeholder.svg'}" alt="${drink.name}" class="bottle-hero-img" onerror="this.src='assets/images/bottle-placeholder.svg'">
           </div>
           <div class="bottle-hero-info">
             <span class="kicker">${drink.type || ''}</span>
