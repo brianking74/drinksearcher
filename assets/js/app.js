@@ -2283,10 +2283,11 @@ async function renderBusinessDashboardPage() {
           const imported = importItemsFromCSV(text);
           if (!imported.length) throw new Error('No inventory rows were detected.');
           const userIdNow = (await sb.auth.getUser())?.data?.user?.id || null;
+          const normName = s => String(s || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
           const { data: existingRows } = userIdNow ? await sb.from('drinks').select('id,name').eq('submitted_by', userIdNow) : { data: [] };
           const existingByName = {};
-          (existingRows || []).forEach(r => { existingByName[String(r.name || '').trim().toLowerCase()] = r.id; });
-          const newItems = imported.filter(it => !existingByName[String(it.name || '').trim().toLowerCase()]);
+          (existingRows || []).forEach(r => { existingByName[normName(r.name)] = r.id; });
+          const newItems = imported.filter(it => !existingByName[normName(it.name)]);
           const remaining = Math.max(0, _listingCap.limit - _listingCap.count);
           if (newItems.length > remaining) {
             holder.innerHTML = `<div class="notice" style="background:rgba(255,193,7,.08);border-color:rgba(255,193,7,.18);color:#ffd27d;">Your plan allows ${_listingCap.limit} listings (${remaining} left), but this import adds ${newItems.length} new item(s). Re-importing existing products updates them without counting against your limit. <a class="text-gold" href="pricing.html">Upgrade</a> to add more items.</div>`;
@@ -2296,10 +2297,15 @@ async function renderBusinessDashboardPage() {
           persist();
           
           // Submit to Supabase: update existing items by name, insert only new ones.
-          let insertedCount = 0, updatedCount = 0;
-          await Promise.all(imported.map(async item => { if (item.image) item.image = await dsUploadImage(item.image); }));
+          let insertedCount = 0, updatedCount = 0, imgOk = 0, imgFail = 0;
           for (const item of imported) {
-            const existingId = existingByName[String(item.name || '').trim().toLowerCase()];
+            if (item.image && !/res\.cloudinary\.com/.test(item.image)) {
+              const uploaded = await dsUploadImage(item.image);
+              if (uploaded && uploaded !== item.image) imgOk++;
+              else imgFail++;
+              item.image = uploaded;
+            }
+            const existingId = existingByName[normName(item.name)];
             const base = {
               price: item.price,
               availability: item.availability || 'In stock',
@@ -2324,7 +2330,10 @@ async function renderBusinessDashboardPage() {
             }
           }
           
-          holder.innerHTML = `<div class="notice">Imported <strong>${imported.length}</strong> rows. <strong>${insertedCount}</strong> submitted to admin for review${updatedCount ? `, <strong>${updatedCount}</strong> existing updated` : ''}.</div>`;
+          const withImg = imported.filter(it => it.image).length;
+          const imgNote = !withImg ? ' · no image URLs detected (check the Image column header & cells)'
+            : (imgFail ? ` · ${imgFail}/${withImg} image upload(s) failed` : ` · ${imgOk}/${withImg} image(s) uploaded to Cloudinary`);
+          holder.innerHTML = `<div class="notice">Imported <strong>${imported.length}</strong> rows — <strong>${updatedCount}</strong> updated, <strong>${insertedCount}</strong> new${imgNote}.</div>`;
           setTimeout(() => renderBusinessDashboardPage(), 300);
         } catch (error) {
           holder.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">${error.message || 'Import failed. Try using pasted CSV rows or a public CSV URL.'}</div>`;
