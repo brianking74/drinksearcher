@@ -2282,35 +2282,49 @@ async function renderBusinessDashboardPage() {
           const text = await loadImportSourceText(source);
           const imported = importItemsFromCSV(text);
           if (!imported.length) throw new Error('No inventory rows were detected.');
+          const userIdNow = (await sb.auth.getUser())?.data?.user?.id || null;
+          const { data: existingRows } = userIdNow ? await sb.from('drinks').select('id,name').eq('submitted_by', userIdNow) : { data: [] };
+          const existingByName = {};
+          (existingRows || []).forEach(r => { existingByName[String(r.name || '').trim().toLowerCase()] = r.id; });
+          const newItems = imported.filter(it => !existingByName[String(it.name || '').trim().toLowerCase()]);
           const remaining = Math.max(0, _listingCap.limit - _listingCap.count);
-          if (imported.length > remaining) {
-            holder.innerHTML = `<div class="notice" style="background:rgba(255,193,7,.08);border-color:rgba(255,193,7,.18);color:#ffd27d;">Your plan allows ${_listingCap.limit} listings (${remaining} left), but this import adds ${imported.length}. <a class="text-gold" href="pricing.html">Upgrade</a> to add more items.</div>`;
+          if (newItems.length > remaining) {
+            holder.innerHTML = `<div class="notice" style="background:rgba(255,193,7,.08);border-color:rgba(255,193,7,.18);color:#ffd27d;">Your plan allows ${_listingCap.limit} listings (${remaining} left), but this import adds ${newItems.length} new item(s). Re-importing existing products updates them without counting against your limit. <a class="text-gold" href="pricing.html">Upgrade</a> to add more items.</div>`;
             return;
           }
           config.items = mode === 'replace' ? imported : [...config.items, ...imported];
           persist();
           
-          // Submit to Supabase for admin review
-          const supplierSlug = slugify(config.listingName || user.name || user.email);
-          let supabaseCount = 0;
+          // Submit to Supabase: update existing items by name, insert only new ones.
+          let insertedCount = 0, updatedCount = 0;
           await Promise.all(imported.map(async item => { if (item.image) item.image = await dsUploadImage(item.image); }));
           for (const item of imported) {
-            const { error } = await sb.from('drinks').insert({
-              name: item.name,
+            const existingId = existingByName[String(item.name || '').trim().toLowerCase()];
+            const base = {
               price: item.price,
               availability: item.availability || 'In stock',
-              status: 'pending',
-              submitted_by: (await sb.auth.getUser())?.data?.user?.id || null,
-              supplier_name: config.listingName || user.name || '',
               type: item.type || (role === 'venue' ? 'Venue offer' : 'Wine'),
               varietal: item.varietal || '',
               origin: item.origin || '',
               image: item.image || ''
-            });
-            if (!error) supabaseCount++;
+            };
+            let error;
+            if (existingId) {
+              ({ error } = await sb.from('drinks').update(base).eq('id', existingId));
+              if (!error) updatedCount++;
+            } else {
+              ({ error } = await sb.from('drinks').insert({
+                name: item.name,
+                ...base,
+                status: 'pending',
+                submitted_by: userIdNow,
+                supplier_name: config.listingName || user.name || ''
+              }));
+              if (!error) insertedCount++;
+            }
           }
           
-          holder.innerHTML = `<div class="notice">Imported <strong>${imported.length}</strong> rows. <strong>${supabaseCount}</strong> submitted to admin for review.</div>`;
+          holder.innerHTML = `<div class="notice">Imported <strong>${imported.length}</strong> rows. <strong>${insertedCount}</strong> submitted to admin for review${updatedCount ? `, <strong>${updatedCount}</strong> existing updated` : ''}.</div>`;
           setTimeout(() => renderBusinessDashboardPage(), 300);
         } catch (error) {
           holder.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">${error.message || 'Import failed. Try using pasted CSV rows or a public CSV URL.'}</div>`;
