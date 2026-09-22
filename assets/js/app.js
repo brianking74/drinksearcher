@@ -1806,31 +1806,71 @@ async function importInventory() {
   const source = document.getElementById('sheet-import-source')?.value?.trim();
   const mode = document.getElementById('sheet-import-mode')?.value || 'append';
   const holder = document.getElementById('sheet-import-notice');
+  const setNotice = (html) => { if (holder) holder.innerHTML = html; sessionStorage.setItem('ds_import_notice', html || ''); };
   if (!source) {
-    if (holder) holder.innerHTML = '<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Add CSV data first.</div>';
+    setNotice('<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Add a Google Sheet CSV URL or paste CSV rows first.</div>');
     return;
   }
+  setNotice('<div class="notice">Importing…</div>');
   try {
     const text = /^https?:\/\//i.test(source) ? await (await fetch(source)).text() : source;
     const items = importItemsFromCSV(text);
-    if (!items.length) throw new Error('No inventory rows detected.');
+    if (!items.length) throw new Error('No inventory rows detected — check the column headers (Name, Price, Image…).');
     const state = storage.getDashboardState();
     const user = storage.getCurrentUser();
-    const config = state[state.activeRole || 'merchant'];
-    config.items = mode === 'replace' ? items : [...config.items, ...items];
-    storage.setDashboardState(state);
-    let supabaseCount = 0;
-    const { data: authData } = await sb.auth.getUser().catch(() => ({}));
-    const userId = authData?.user?.id || null;
-    await Promise.all(items.map(async item => { if (item.image) item.image = await dsUploadImage(item.image); }));
-    for (const item of items) {
-      const { error } = await sb.from('drinks').insert({ name: item.name, price: item.price, availability: item.availability || 'In stock', status: 'pending', submitted_by: userId, supplier_name: config.listingName || user.name || '', type: item.type || 'Wine', varietal: item.varietal || '', origin: item.origin || '', image: item.image || '' });
-      if (!error) supabaseCount++;
+    const role = state.activeRole || 'merchant';
+    const config = state[role] || (state[role] = { items: [] });
+    const userId = (await sb.auth.getUser().catch(() => null))?.data?.user?.id || null;
+    const normName = s => String(s || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
+    const existingByName = {};
+    if (userId) {
+      const { data: existingRows } = await sb.from('drinks').select('id,name').eq('submitted_by', userId);
+      (existingRows || []).forEach(r => { existingByName[normName(r.name)] = r.id; });
     }
-    if (holder) holder.innerHTML = '<div class="notice">Imported <strong>' + items.length + '</strong> rows. <strong>' + supabaseCount + '</strong> submitted for review.</div>';
-    setTimeout(() => location.reload(), 500);
-  } catch(e) {
-    if (holder) holder.innerHTML = '<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">' + (e.message || 'Import failed') + '</div>';
+    // Listing cap applies to NEW items only (re-imports of existing names update, not add).
+    const newItems = items.filter(it => !existingByName[normName(it.name)]);
+    const limit = (state.listingLimit != null) ? state.listingLimit : 10;
+    const used = (state.listingCount != null) ? state.listingCount : (config.items || []).length;
+    if (newItems.length > Math.max(0, limit - used)) {
+      setNotice(`<div class="notice" style="background:rgba(255,193,7,.08);border-color:rgba(255,193,7,.18);color:#ffd27d;">Your plan allows ${limit} listings (${Math.max(0, limit - used)} left), but this import adds ${newItems.length} new item(s). Re-importing existing products updates them without counting against your limit. <a class="text-gold" href="pricing.html">Upgrade</a> to add more items.</div>`);
+      return;
+    }
+    // Upload images first so item.image holds the managed Cloudinary URL before writing.
+    let imgOk = 0, imgFail = 0;
+    for (const item of items) {
+      if (item.image && !/res\.cloudinary\.com/.test(item.image)) {
+        const uploaded = await dsUploadImage(item.image);
+        if (uploaded && uploaded !== item.image) imgOk++; else imgFail++;
+        item.image = uploaded;
+      }
+    }
+    // Update existing rows by name, insert only new ones. Track failures honestly.
+    let updated = 0, inserted = 0, failed = 0;
+    for (const item of items) {
+      const existingId = existingByName[normName(item.name)];
+      const base = { price: item.price, availability: item.availability || 'In stock', type: item.type || 'Wine', varietal: item.varietal || '', origin: item.origin || '', image: item.image || '' };
+      let error;
+      if (existingId) {
+        ({ error } = await sb.from('drinks').update(base).eq('id', existingId));
+        if (error) failed++; else updated++;
+      } else {
+        ({ error } = await sb.from('drinks').insert({ name: item.name, ...base, status: 'pending', submitted_by: userId, supplier_name: config.listingName || user.name || '' }));
+        if (error) failed++; else inserted++;
+      }
+    }
+    // Merge into local items WITHOUT duplicating (keyed by normalized name).
+    const merged = {};
+    ((config.items || []).concat(items)).forEach(it => { merged[normName(it.name)] = it; });
+    config.items = Object.values(merged);
+    storage.setDashboardState(state);
+    const withImg = items.filter(it => it.image).length;
+    const imgNote = !withImg ? ' · no image URLs detected (check the Image column)'
+      : (imgFail ? ` · ${imgFail} image upload(s) failed` : ` · ${imgOk} image(s) uploaded to Cloudinary`);
+    const failNote = failed ? ` · <strong style="color:#ffd0e2;">${failed} write(s) failed</strong>` : '';
+    setNotice(`<div class="notice">Imported <strong>${items.length}</strong> rows — <strong>${updated}</strong> updated, <strong>${inserted}</strong> new${imgNote}${failNote}.</div>`);
+    setTimeout(() => { if (typeof renderBusinessDashboardPage === 'function') renderBusinessDashboardPage(); }, 600);
+  } catch (e) {
+    setNotice(`<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">${e.message || 'Import failed'}</div>`);
   }
 }
 
@@ -2074,7 +2114,7 @@ async function renderBusinessDashboardPage() {
               <p class="muted">Paste a published CSV URL from Google Sheets or paste CSV rows directly. This is the fastest path for suppliers who already manage stock in a spreadsheet.</p>
               <label class="dashboard-field"><span>Google Sheet CSV URL or pasted CSV</span><textarea class="input" rows="6" id="sheet-import-source" placeholder="https://docs.google.com/.../export?format=csv or pasted CSV rows"></textarea></label>
               <label class="dashboard-field"><span>Import mode</span><select class="select" id="sheet-import-mode"><option value="append">Append to current inventory</option><option value="replace">Replace current inventory</option></select></label>
-              <div class="admin-inline"><button class="btn btn-primary" id="sheet-import-btn" type="button">Import inventory</button><button class="btn btn-ghost" id="sheet-template-btn" type="button" onclick="fillSampleTemplate()">Insert sample template</button></div>
+              <div class="admin-inline"><button class="btn btn-primary" id="sheet-import-btn" type="button" onclick="importInventory()">Import inventory</button><button class="btn btn-ghost" id="sheet-template-btn" type="button" onclick="fillSampleTemplate()">Insert sample template</button></div>
               <div class="small-note">Recommended columns: Name, Price, Availability. You can extend the mapping later for SKU, size, pack, ABV, and product URL.</div>
               <div id="sheet-import-notice">${takeImportNotice()}</div>
             </div>
@@ -2273,7 +2313,7 @@ async function renderBusinessDashboardPage() {
       c.items.push({ id: `${activeRole}_${Date.now()}`, name: activeRole === 'merchant' ? 'New product' : 'New venue offer', price: 'HK$0', status: 'Approved' });
       renderBusinessDashboardPage();
     });
-    if (role === 'merchant' && $('#sheet-template-btn', app)) {
+    if (false && $('#sheet-template-btn', app)) {
       $('#sheet-template-btn', app).addEventListener('click', () => {
         $('#sheet-import-source', app).value = 'Name,Price,Availability\nChardonnay Reserve,188,In stock\nSmall Batch Gin,420,Low stock\nZero-Proof Spritz,98,Pre-order';
       });
