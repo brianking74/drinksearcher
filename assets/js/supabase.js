@@ -578,6 +578,29 @@ async function fetchScanJobs() {
   return data || [];
 }
 
+// Fetch + upload a product page's primary image (og:image) via the
+// fetch-product-image Edge Function. Returns the managed Cloudinary URL.
+async function fetchProductImage(productUrl) {
+  const { data: sessionData } = await sb.auth.getSession();
+  const token = (sessionData && sessionData.session && sessionData.session.access_token) || SUPABASE_ANON_KEY;
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/fetch-product-image`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': SUPABASE_ANON_KEY,
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({ url: productUrl })
+  });
+  if (!res.ok) {
+    let msg = '';
+    try { const j = await res.json(); msg = j.message || j.error || JSON.stringify(j); }
+    catch { try { msg = await res.text(); } catch {} }
+    throw new Error(msg || `Image fetch failed (HTTP ${res.status})`);
+  }
+  return await res.json();
+}
+
 // --- Events (business dashboard + admin) ---
 async function insertEvent(ev, status) {
   const user = await getCurrentUser();

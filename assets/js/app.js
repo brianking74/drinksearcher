@@ -2608,23 +2608,31 @@ async function loadProductManager() {
     const { data: items, error } = await sb.from('drinks').select('*').order('name');
     if (error) throw error;
     const all = items || [];
-    const counts = { all: all.length, approved: 0, pending: 0, rejected: 0 };
-    all.forEach(r => { counts[r.status] = (counts[r.status] || 0) + 1; });
-    const filtered = filter === 'all' ? all : all.filter(r => r.status === filter);
+    const counts = { all: all.length, approved: 0, pending: 0, rejected: 0, noimage: 0 };
+    all.forEach(r => {
+      counts[r.status] = (counts[r.status] || 0) + 1;
+      if (!r.image) counts.noimage++;
+    });
+    const missing = all.filter(r => !r.image && r.buy_url);
+    const filtered = filter === 'all' ? all
+      : filter === 'noimage' ? all.filter(r => !r.image)
+      : all.filter(r => r.status === filter);
 
     holder.innerHTML = `
-      <div class="admin-toolbar" style="margin-bottom:14px;">
+      <div class="admin-toolbar" style="margin-bottom:14px;flex-wrap:wrap;">
         <button class="toggle-pill ${filter==='all'?'active':''}" onclick="location.search='?pm=all'">All (${counts.all})</button>
         <button class="toggle-pill ${filter==='approved'?'active':''}" onclick="location.search='?pm=approved'">Approved (${counts.approved})</button>
         <button class="toggle-pill ${filter==='pending'?'active':''}" onclick="location.search='?pm=pending'">Pending (${counts.pending})</button>
         <button class="toggle-pill ${filter==='rejected'?'active':''}" onclick="location.search='?pm=rejected'">Rejected (${counts.rejected})</button>
+        <button class="toggle-pill ${filter==='noimage'?'active':''}" onclick="location.search='?pm=noimage'">No image (${counts.noimage})</button>
+        ${missing.length ? `<button class="btn btn-primary btn-small" style="margin-left:auto;" onclick="fetchMissingImages()">Fetch images (${missing.length})</button>` : ''}
       </div>
       ${!filtered.length ? '<div class="notice">No products match this filter.</div>' : `
       <div class="admin-table">
         <div class="admin-table-head" style="grid-template-columns:2fr 1fr 110px 90px 96px;"><div>Product</div><div>Supplier</div><div>Price</div><div>Status</div><div></div></div>
         ${filtered.map(item => `
           <div class="admin-table-row" style="grid-template-columns:2fr 1fr 110px 90px 96px;">
-            <div><strong>${safe(item.name)}</strong>${(item.type || item.varietal) ? `<div class="muted" style="font-size:.78rem;">${[item.type, item.varietal].filter(Boolean).map(safe).join(' · ')}</div>` : ''}</div>
+            <div><strong>${safe(item.name)}</strong>${(!item.image) ? ' <span class="status-badge status-pending" style="font-size:.66rem;">no image</span>' : ''}${(item.type || item.varietal) ? `<div class="muted" style="font-size:.78rem;">${[item.type, item.varietal].filter(Boolean).map(safe).join(' · ')}</div>` : ''}</div>
             <div>${safe(item.supplier_name || '—')}</div>
             <div>${safe(item.price || '—')}</div>
             <div><span class="status-badge status-${(item.status||'pending').toLowerCase()}">${item.status||'Pending'}</span></div>
@@ -2634,6 +2642,7 @@ async function loadProductManager() {
                 <option value="approve">Approve</option>
                 <option value="reject">Reject</option>
                 <option value="edit">Edit details</option>
+                ${(!item.image && item.buy_url) ? '<option value="fetchimage">Fetch image</option>' : ''}
                 <option value="delete">Delete</option>
               </select>
             </div>
@@ -2651,6 +2660,7 @@ async function productManagerAction(id, action) {
     if (notice) notice.innerHTML = '<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Admin access required.</div>';
     return;
   }
+  if (action === 'fetchimage') { fetchProductImageForRow(id); return; }
   if (action === 'edit') { openProductEdit(id); return; }
   const notice = $('#admin-pm-notice');
   try {
@@ -2669,6 +2679,57 @@ async function productManagerAction(id, action) {
   } catch (e) {
     if (notice) notice.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Failed: ${safe(e.message)}</div>`;
   }
+}
+
+async function fetchProductImageForRow(id) {
+  const notice = $('#admin-pm-notice');
+  if (!storage.isAdmin()) {
+    if (notice) notice.innerHTML = '<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Admin access required.</div>';
+    return;
+  }
+  if (notice) notice.innerHTML = '<div class="notice">Fetching image…</div>';
+  try {
+    const { data: item, error } = await sb.from('drinks').select('*').eq('id', id).single();
+    if (error) throw error;
+    if (!item.buy_url) throw new Error('This product has no Buy URL to fetch from.');
+    const result = await fetchProductImage(item.buy_url);
+    if (!result || !result.image) throw new Error('No image returned.');
+    const { error: upErr } = await sb.from('drinks').update({ image: result.image }).eq('id', id);
+    if (upErr) throw upErr;
+    if (notice) notice.innerHTML = '<div class="notice">Image fetched and saved.</div>';
+    loadProductManager();
+  } catch (e) {
+    if (notice) notice.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Failed: ${safe(e.message)}</div>`;
+  }
+}
+
+async function fetchMissingImages() {
+  const notice = $('#admin-pm-notice');
+  if (!storage.isAdmin()) {
+    if (notice) notice.innerHTML = '<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Admin access required.</div>';
+    return;
+  }
+  const { data: items, error } = await sb.from('drinks').select('*');
+  if (error) { if (notice) notice.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">${safe(error.message)}</div>`; return; }
+  const missing = (items || []).filter(r => !r.image && r.buy_url);
+  if (!missing.length) {
+    if (notice) notice.innerHTML = '<div class="notice">No products are missing images (with a Buy URL).</div>';
+    return;
+  }
+  if (!confirm(`Fetch images for ${missing.length} product(s)? This may take a moment.`)) return;
+  let ok = 0, failed = 0;
+  for (const item of missing) {
+    try {
+      const result = await fetchProductImage(item.buy_url);
+      if (result && result.image) {
+        await sb.from('drinks').update({ image: result.image }).eq('id', item.id);
+        ok++;
+      } else { failed++; }
+    } catch { failed++; }
+    if (notice) notice.innerHTML = `<div class="notice">Fetching images… ${ok + failed}/${missing.length}</div>`;
+  }
+  if (notice) notice.innerHTML = `<div class="notice">Done: ${ok} image(s) fetched, ${failed} failed.</div>`;
+  loadProductManager();
 }
 
 async function openProductEdit(id) {
