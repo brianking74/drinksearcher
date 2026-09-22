@@ -48,6 +48,13 @@ async function dsUploadImage(url) {
   } catch { return src; }
 }
 
+// Re-display a one-shot dashboard notice that survives the post-import re-render.
+function takeImportNotice() {
+  const m = sessionStorage.getItem('ds_import_notice');
+  sessionStorage.removeItem('ds_import_notice');
+  return m || '';
+}
+
 // Best-effort transactional email — never blocks the action on email failure.
 async function sendEmail(payload) {
   try {
@@ -2067,9 +2074,9 @@ async function renderBusinessDashboardPage() {
               <p class="muted">Paste a published CSV URL from Google Sheets or paste CSV rows directly. This is the fastest path for suppliers who already manage stock in a spreadsheet.</p>
               <label class="dashboard-field"><span>Google Sheet CSV URL or pasted CSV</span><textarea class="input" rows="6" id="sheet-import-source" placeholder="https://docs.google.com/.../export?format=csv or pasted CSV rows"></textarea></label>
               <label class="dashboard-field"><span>Import mode</span><select class="select" id="sheet-import-mode"><option value="append">Append to current inventory</option><option value="replace">Replace current inventory</option></select></label>
-              <div class="admin-inline"><button class="btn btn-primary" id="sheet-import-btn" type="button" onclick="importInventory()">Import inventory</button><button class="btn btn-ghost" id="sheet-template-btn" type="button" onclick="fillSampleTemplate()">Insert sample template</button></div>
+              <div class="admin-inline"><button class="btn btn-primary" id="sheet-import-btn" type="button">Import inventory</button><button class="btn btn-ghost" id="sheet-template-btn" type="button" onclick="fillSampleTemplate()">Insert sample template</button></div>
               <div class="small-note">Recommended columns: Name, Price, Availability. You can extend the mapping later for SKU, size, pack, ABV, and product URL.</div>
-              <div id="sheet-import-notice"></div>
+              <div id="sheet-import-notice">${takeImportNotice()}</div>
             </div>
             <div class="panel admin-stack">
               <span class="eyebrow">Website scan</span>
@@ -2334,6 +2341,7 @@ async function renderBusinessDashboardPage() {
           const imgNote = !withImg ? ' · no image URLs detected (check the Image column header & cells)'
             : (imgFail ? ` · ${imgFail}/${withImg} image upload(s) failed` : ` · ${imgOk}/${withImg} image(s) uploaded to Cloudinary`);
           holder.innerHTML = `<div class="notice">Imported <strong>${imported.length}</strong> rows — <strong>${updatedCount}</strong> updated, <strong>${insertedCount}</strong> new${imgNote}.</div>`;
+          sessionStorage.setItem('ds_import_notice', holder.innerHTML);
           setTimeout(() => renderBusinessDashboardPage(), 300);
         } catch (error) {
           holder.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">${error.message || 'Import failed. Try using pasted CSV rows or a public CSV URL.'}</div>`;
@@ -2529,7 +2537,8 @@ function importItemsFromCSV(text) {
   const typeIndex = inventoryColumnIndex(headers, ['type', 'category', 'style', 'wine type']);
   const varietalIndex = inventoryColumnIndex(headers, ['varietal', 'grape', 'grapes', 'grape variety']);
   const originIndex = inventoryColumnIndex(headers, ['origin', 'region', 'country', 'appellation']);
-  const imageIndex = inventoryColumnIndex(headers, ['image', 'image url', 'photo', 'img', 'image_url']);
+  let imageIndex = inventoryColumnIndex(headers, ['image', 'image url', 'photo', 'img', 'image_url']);
+  if (imageIndex === -1) imageIndex = headers.findIndex(h => /image|photo|img|picture|thumbnail/.test(h));
   const items = rows.slice(1).map((row, index) => {
     const name = row[nameIndex] || row[0];
     if (!name) return null;
