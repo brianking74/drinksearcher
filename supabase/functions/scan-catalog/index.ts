@@ -89,7 +89,6 @@ async function uploadImageToCloudinary(remoteUrl) {
     const body = new URLSearchParams({
       file: remoteUrl,
       upload_preset: 'drinksearcher',
-      transformation: 'c_pad,w_800,h_800,bg_white,f_auto,q_auto',
     })
     const res = await fetch('https://api.cloudinary.com/v1_1/rqokncht/image/upload', {
       method: 'POST',

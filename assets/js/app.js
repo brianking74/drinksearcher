@@ -18,7 +18,7 @@ function dsImage(url, mode = 'bottle') {
   if (!src || src.startsWith('data:') || src.startsWith('assets/') || src.startsWith('/')) return src;
   const transforms = mode === 'scene'
     ? 'c_fill,w_800,h_800,g_center,f_auto,q_auto'
-    : 'c_pad,w_800,h_800,bg_white,f_auto,q_auto';
+    : 'c_pad,w_800,h_800,b_white,f_auto,q_auto';
   if (src.includes('res.cloudinary.com')) {
     const m = src.match(/\/image\/upload\/([^/]+)/);
     if (m && !m[1].includes('_')) return src.replace('/image/upload/', `/image/upload/${transforms}/`);
@@ -36,7 +36,7 @@ async function dsUploadImage(url) {
   const src = String(url || '').trim();
   if (!src || !/^https?:\/\//i.test(src)) return src;
   try {
-    const body = new URLSearchParams({ file: src, upload_preset: 'drinksearcher', transformation: 'c_pad,w_800,h_800,bg_white,f_auto,q_auto' });
+    const body = new URLSearchParams({ file: src, upload_preset: 'drinksearcher' });
     const res = await fetch('https://api.cloudinary.com/v1_1/rqokncht/image/upload', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
