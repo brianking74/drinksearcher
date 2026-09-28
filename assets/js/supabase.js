@@ -89,7 +89,11 @@ function slugify(text) {
 // drinksInventory only if Supabase returns nothing.
 async function fetchDrinks(filters = {}) {
   try {
-    const { data, error } = await sb.from('drinks').select('*').eq('status', 'approved').order('name').limit(2000);
+    const [{ data, error }, { data: supRows }] = await Promise.all([
+      sb.from('drinks').select('*').eq('status', 'approved').order('name').limit(2000),
+      sb.from('suppliers').select('name, area')
+    ]);
+    const areaByName = new Map((supRows || []).map(s => [s.name, s.area || '']));
     if (!error && Array.isArray(data) && data.length) {
       // Dedupe by name — prefer the row with a Cloudinary image.
       const byName = new Map();
@@ -104,7 +108,7 @@ async function fetchDrinks(filters = {}) {
         name: r.name,
         supplier: r.supplier_name || '',
         supplierSlug: slugify(r.supplier_name || ''),
-        area: r.area || '',
+        area: areaByName.get(r.supplier_name) || '',
         type: r.type || '',
         price: r.price || '—',
         image: r.image || '',
