@@ -9,7 +9,10 @@ UPDATE drinks SET type = 'Red Wine' WHERE type = 'Red';
 -- 2. 'White' -> 'White Wine'
 UPDATE drinks SET type = 'White Wine' WHERE type = 'White';
 
--- 3. 'Rosé' -> 'Rosé Wine'
+-- 3. 'Rosé' -> correct type. The only 'Rosé' row is the Château La Tour de Mons Margaux 2022,
+--    which is a red Bordeaux (Margaux AOC is red), so it maps to 'Red Wine'.
+--    Any genuine rosé would map to 'Rosé Wine' below.
+UPDATE drinks SET type = 'Red Wine' WHERE type = 'Rosé' AND name ILIKE '%Margaux%';
 UPDATE drinks SET type = 'Rosé Wine' WHERE type = 'Rosé';
 
 -- 4. 'Wine' -> correct type per product.
