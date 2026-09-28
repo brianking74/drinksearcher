@@ -408,7 +408,7 @@ async function toggleAlert(itemName, kind) {
 
 // --- Subscriptions (admin) ---
 async function fetchSubscriptions() {
-  const { data, error } = await sb.from('subscriptions').select('*, profiles(email, business_name)').order('created_at', { ascending: false });
+  const { data, error } = await sb.from('subscriptions').select('*, profiles!subscriptions_user_id_fkey(email, business_name)').order('created_at', { ascending: false });
   if (error) throw error;
   return data || [];
 }
