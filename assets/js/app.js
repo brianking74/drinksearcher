@@ -3048,7 +3048,7 @@ async function setLeadStatus(id) {
     await updateLeadStatus(id, status);
     if (notice) notice.innerHTML = '<div class="notice">Lead status updated.</div>';
     if (status === 'rejected') {
-      const { data: lead } = await sb.from('leads').select('email, account_email, business_name, listing_type').eq('id', id).single().catch(() => ({ data: null }));
+      const { data: lead } = await sb.from('leads').select('email, account_email, business_name, listing_type').eq('id', id).maybeSingle();
       if (lead && (lead.account_email || lead.email)) {
         sendEmail({ to: lead.account_email || lead.email, template: 'application_rejected', data: { businessName: lead.business_name || '', listingType: lead.listing_type || 'merchant' } });
       }
@@ -3062,7 +3062,7 @@ async function setLeadStatus(id) {
 async function provisionLead(id) {
   const notice = $('#admin-leads-notice');
   try {
-    const { data: lead } = await sb.from('leads').select('email, account_email, business_name, listing_type').eq('id', id).single().catch(() => ({ data: null }));
+    const { data: lead } = await sb.from('leads').select('email, account_email, business_name, listing_type').eq('id', id).maybeSingle();
     const result = await provisionBusiness(id);
     const verb = result.matched_existing ? 'Linked to existing listing' : 'Created new listing';
     if (notice) notice.innerHTML = `<div class="notice">${verb}: <strong>${result.business_name || 'business'}</strong> (${result.plan}). ✓</div>`;
