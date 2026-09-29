@@ -23,6 +23,7 @@ function loadVenueImages() {
       return '<div class="admin-table-row" style="grid-template-columns:2fr 1fr;align-items:start;padding:14px;border:1px solid var(--border);border-radius:6px;margin-bottom:10px;">' +
         '<div><strong>' + esc(v.name) + '</strong><div class="muted" style="font-size:.78rem;">' + v.slug + '</div></div>' +
         '<div><label class="dashboard-field"><span>Hero image URL</span><input class="input" id="v-hero-' + v.slug + '" value="' + esc(heroVal) + '" style="font-size:.78rem;width:100%;" /></label>' +
+        '<label class="dashboard-field" style="margin-top:6px;"><span>Logo image URL</span><input class="input" id="v-logo-' + v.slug + '" value="' + esc(v.image || '') + '" placeholder="Image URL" style="font-size:.78rem;width:100%;" /></label>' +
         '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:6px;">' +
         [0,1,2].map(function(i) {
           return '<label class="dashboard-field"><span>Gallery ' + (i+1) + '</span><input class="input" id="v-gal-' + v.slug + '-' + i + '" value="' + esc(gallery[i] || '') + '" placeholder="Image URL" style="font-size:.7rem;width:100%;" /></label>';
@@ -36,6 +37,7 @@ function loadVenueImages() {
 
 function saveVenueImages(slug) {
   var hero = document.getElementById('v-hero-' + slug)?.value?.trim() || '';
+  var logo = document.getElementById('v-logo-' + slug)?.value?.trim() || '';
   var gallery = [];
   for (var i = 0; i < 3; i++) {
     gallery.push(document.getElementById('v-gal-' + slug + '-' + i)?.value?.trim() || '');
@@ -47,6 +49,7 @@ function saveVenueImages(slug) {
   var updates = {};
   if (hero) updates.hero_image = hero;
   else updates.hero_image = '';
+  updates.image = logo;
   // Filter empty gallery entries
   updates.gallery_images = gallery.filter(Boolean);
 
