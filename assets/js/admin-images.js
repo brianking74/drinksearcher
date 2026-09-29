@@ -62,56 +62,41 @@ function saveVenueImages(slug) {
   });
 }
 
-// Supplier image manager
+// Supplier image manager — reads/writes the `suppliers` table (hero_image + image).
+// (No supplier gallery column exists on `suppliers`; galleries are a future enhancement.)
 function loadSupplierImages() {
   var container = document.getElementById('admin-supplier-images');
   if (!container) return;
   container.innerHTML = '<div class="muted">Loading suppliers...</div>';
-
-  sb.from('supplier_profiles').select('slug,hero_image,gallery_images').limit(200).then(function(spResult) {
-    var spMap = {};
-    (spResult.data || []).forEach(function(r) { spMap[r.slug] = r; });
-
-    if (typeof supplierProfiles === 'undefined') {
-      container.innerHTML = '<div class="notice">Supplier data not loaded.</div>';
-      return;
-    }
-    var slugs = Object.keys(supplierProfiles);
-    if (!slugs.length) { container.innerHTML = '<div class="notice">No suppliers found.</div>'; return; }
-
-    container.innerHTML = slugs.map(function(slug) {
-      var profile = supplierProfiles[slug];
-      var sup = spMap[slug] || {};
-      var heroVal = sup.hero_image || profile.hero || '';
-      var gallery = sup.gallery_images || ['', '', ''];
+  sb.from('suppliers').select('slug,name,image,hero_image').order('name').limit(200).then(function(result) {
+    if (result.error) { container.innerHTML = '<div class="notice" style="background:rgba(255,46,126,.08);color:#ffd0e2;">' + result.error.message + '</div>'; return; }
+    var suppliers = result.data || [];
+    if (!suppliers.length) { container.innerHTML = '<div class="notice">No suppliers found.</div>'; return; }
+    container.innerHTML = suppliers.map(function(s) {
+      var heroVal = s.hero_image || s.image || '';
       return '<div class="admin-table-row" style="grid-template-columns:2fr 1fr;align-items:start;padding:14px;border:1px solid var(--border);border-radius:6px;margin-bottom:10px;">' +
-        '<div><strong>' + esc(profile.name) + '</strong><div class="muted" style="font-size:.78rem;">' + slug + '</div></div>' +
-        '<div><label class="dashboard-field"><span>Hero image URL</span><input class="input" id="s-hero-' + slug + '" value="' + esc(heroVal) + '" style="font-size:.78rem;width:100%;" /></label>' +
-        '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:6px;">' +
-        [0,1,2].map(function(i) {
-          return '<label class="dashboard-field"><span>Gallery ' + (i+1) + '</span><input class="input" id="s-gal-' + slug + '-' + i + '" value="' + esc(gallery[i] || '') + '" placeholder="Image URL" style="font-size:.7rem;width:100%;" /></label>';
-        }).join('') +
-        '</div>' +
-        '<button class="btn btn-primary btn-small" style="margin-top:8px;" onclick="adminImages.saveSupplierImages(\'' + slug + '\')">Save to server</button>' +
-        '<div id="s-notice-' + slug + '"></div></div></div>';
+        '<div><strong>' + esc(s.name) + '</strong><div class="muted" style="font-size:.78rem;">' + s.slug + '</div></div>' +
+        '<div><label class="dashboard-field"><span>Hero image URL</span><input class="input" id="s-hero-' + s.slug + '" value="' + esc(heroVal) + '" style="font-size:.78rem;width:100%;" /></label>' +
+        '<label class="dashboard-field" style="margin-top:6px;"><span>Logo image URL</span><input class="input" id="s-logo-' + s.slug + '" value="' + esc(s.image || '') + '" placeholder="Image URL" style="font-size:.78rem;width:100%;" /></label>' +
+        '<button class="btn btn-primary btn-small" style="margin-top:8px;" onclick="adminImages.saveSupplierImages(\'' + s.slug + '\')">Save to server</button>' +
+        '<div id="s-notice-' + s.slug + '"></div></div></div>';
     }).join('');
   });
 }
 
 function saveSupplierImages(slug) {
   var hero = document.getElementById('s-hero-' + slug)?.value?.trim() || '';
-  var gallery = [];
-  for (var i = 0; i < 3; i++) {
-    gallery.push(document.getElementById('s-gal-' + slug + '-' + i)?.value?.trim() || '');
-  }
+  var logo = document.getElementById('s-logo-' + slug)?.value?.trim() || '';
   var notice = document.getElementById('s-notice-' + slug);
   if (!notice) return;
   notice.innerHTML = '<div class="muted" style="font-size:.78rem;">Saving...</div>';
 
-  var data = { slug: slug, hero_image: hero, gallery_images: gallery.filter(Boolean), updated_at: new Date().toISOString() };
+  var updates = {};
+  if (hero) updates.hero_image = hero;
+  else updates.hero_image = '';
+  updates.image = logo;
 
-  // Upsert: try insert, on conflict update
-  sb.from('supplier_profiles').upsert(data, { onConflict: 'slug' }).then(function(result) {
+  sb.from('suppliers').update(updates).eq('slug', slug).then(function(result) {
     if (result.error) {
       notice.innerHTML = '<div class="notice" style="background:rgba(255,46,126,.08);color:#ffd0e2;font-size:.78rem;padding:6px 10px;">Failed: ' + result.error.message + '</div>';
       return;
