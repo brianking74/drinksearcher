@@ -126,7 +126,7 @@ observer.observe(document.getElementById('app') || document.body, { childList: t
 
 function injectImageSections() {
   if (document.getElementById('admin-venue-images')) return;
-  var el = document.querySelector('#admin-placements');
+  var el = document.querySelector('#admin-guides') || document.querySelector('#admin-product-manager');
   if (!el) return;
   var parent = el.closest('.section-tight');
   if (!parent) return;
@@ -138,7 +138,7 @@ function injectImageSections() {
 
   var ss = document.createElement('section');
   ss.className = 'section-tight';
-  ss.innerHTML = '<div class="container"><div class="panel"><span class="eyebrow">Supplier images</span><h2 style="margin:14px 0;">Supplier photos</h2><p class="muted" style="margin-bottom:16px;">Set the hero image and up to 3 gallery images for each supplier.</p><div id="admin-supplier-images"><div class="notice">Loading suppliers...</div></div></div></div>';
+  ss.innerHTML = '<div class="container"><div class="panel"><span class="eyebrow">Supplier images</span><h2 style="margin:14px 0;">Supplier photos</h2><p class="muted" style="margin-bottom:16px;">Set the hero image and logo for each supplier. Saved to server — visible to all visitors.</p><div id="admin-supplier-images"><div class="notice">Loading suppliers...</div></div></div></div>';
   parent.parentNode.insertBefore(ss, parent);
 }
 
