@@ -38,7 +38,10 @@ function loadVenueImages() {
           return '<label class="dashboard-field"><span>Gallery ' + (i+1) + '</span><input class="input" id="v-gal-' + v.slug + '-' + i + '" value="' + esc(gallery[i] || '') + '" placeholder="Image URL" style="font-size:.7rem;width:100%;" /></label>';
         }).join('') +
         '</div>' +
-        '<button class="btn btn-primary btn-small" style="margin-top:10px;" onclick="adminImages.saveVenueImages(\'' + v.slug + '\')">Save to server</button>' +
+        '<div style="display:flex;gap:8px;margin-top:10px;">' +
+          '<button class="btn btn-primary btn-small" onclick="adminImages.saveVenueImages(\'' + v.slug + '\')">Save to server</button>' +
+          '<button class="btn btn-ghost btn-small" style="color:#ff9db8;border-color:rgba(255,46,126,.35);" onclick="adminImages.deleteVenue(\'' + v.slug + '\')">Delete</button>' +
+        '</div>' +
         '<div id="v-notice-' + v.slug + '"></div></div>';
     }).join('');
   });
@@ -82,6 +85,59 @@ function saveVenueImages(slug) {
       return;
     }
     notice.innerHTML = '<div class="notice" style="background:rgba(135,168,148,.11);border-color:rgba(135,168,148,.2);color:#87a894;font-size:.78rem;padding:6px 10px;">Saved to server. Visible to all visitors.</div>';
+  });
+}
+
+function slugify(s) { return String(s || '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''); }
+
+function deleteVenue(slug) {
+  var nameEl = document.getElementById('v-name-' + slug);
+  var name = nameEl ? nameEl.value.trim() : slug;
+  if (!confirm('Delete "' + name + '"? This cannot be undone.')) return;
+  var notice = document.getElementById('v-notice-' + slug);
+  if (notice) notice.innerHTML = '<div class="muted" style="font-size:.78rem;">Deleting...</div>';
+  sb.from('venues').delete().eq('slug', slug).then(function(result) {
+    if (result.error) {
+      if (notice) notice.innerHTML = '<div class="notice" style="background:rgba(255,46,126,.08);color:#ffd0e2;font-size:.78rem;padding:6px 10px;">Failed: ' + result.error.message + '</div>';
+      return;
+    }
+    loadVenueImages();
+  });
+}
+
+function addVenue() {
+  function val(id) { var e = document.getElementById(id); return e ? e.value.trim() : ''; }
+  var name = val('new-v-name');
+  var notice = document.getElementById('new-v-notice');
+  if (!name) { if (notice) notice.innerHTML = '<div class="notice" style="background:rgba(255,46,126,.08);color:#ffd0e2;font-size:.78rem;padding:6px 10px;">Venue name is required.</div>'; return; }
+
+  var base = slugify(name) || ('venue-' + Date.now().toString(36));
+  var data = {
+    name: name,
+    area: val('new-v-area'),
+    phone: val('new-v-phone'),
+    website: val('new-v-website'),
+    cuisine: val('new-v-cuisine'),
+    specialty: val('new-v-specialty'),
+    summary: val('new-v-summary'),
+    tier: 'standard'
+  };
+
+  if (notice) notice.innerHTML = '<div class="muted" style="font-size:.78rem;">Adding...</div>';
+
+  sb.from('venues').select('slug').eq('slug', base).then(function(check) {
+    var slug = base;
+    if (check.data && check.data.length) slug = base + '-' + Date.now().toString(36);
+    data.slug = slug;
+    sb.from('venues').insert(data).then(function(result) {
+      if (result.error) {
+        if (notice) notice.innerHTML = '<div class="notice" style="background:rgba(255,46,126,.08);color:#ffd0e2;font-size:.78rem;padding:6px 10px;">Failed: ' + result.error.message + '</div>';
+        return;
+      }
+      ['new-v-name','new-v-area','new-v-phone','new-v-website','new-v-cuisine','new-v-specialty','new-v-summary'].forEach(function(id){ var e = document.getElementById(id); if (e) e.value = ''; });
+      if (notice) notice.innerHTML = '<div class="notice" style="background:rgba(135,168,148,.11);border-color:rgba(135,168,148,.2);color:#87a894;font-size:.78rem;padding:6px 10px;">Venue added. Visible to all visitors.</div>';
+      loadVenueImages();
+    });
   });
 }
 
@@ -133,6 +189,8 @@ function esc(s) { return String(s || '').replace(/&/g,'&amp;').replace(/\"/g,'&q
 window.adminImages = {
   loadVenueImages: loadVenueImages,
   saveVenueImages: saveVenueImages,
+  deleteVenue: deleteVenue,
+  addVenue: addVenue,
   loadSupplierImages: loadSupplierImages,
   saveSupplierImages: saveSupplierImages
 };
@@ -156,7 +214,22 @@ function injectImageSections() {
 
   var vs = document.createElement('section');
   vs.className = 'section-tight';
-  vs.innerHTML = '<div class="container"><div class="panel"><span class="eyebrow">Venue management</span><h2 style="margin:14px 0;">Venue listings</h2><p class="muted" style="margin-bottom:16px;">Edit each venue\'s name, details, summary and images. Saved to server — visible to all visitors.</p><div id="admin-venue-images"><div class="notice">Loading venues...</div></div></div></div>';
+  vs.innerHTML = '<div class="container"><div class="panel"><span class="eyebrow">Venue management</span><h2 style="margin:14px 0;">Venue listings</h2><p class="muted" style="margin-bottom:16px;">Edit, add or delete venues. New listings are unverified (no "Verified Listing" badge) until the owner claims them. Saved to server — visible to all visitors.</p>' +
+    '<div style="border:1px solid var(--border);border-radius:6px;padding:14px;margin-bottom:20px;background:var(--surface);">' +
+      '<strong>Add a new venue</strong><div class="muted" style="font-size:.78rem;margin:4px 0 10px;">Unverified — no "Verified Listing" badge until claimed.</div>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">' +
+        '<label class="dashboard-field"><span>Venue name *</span><input class="input" id="new-v-name" placeholder="e.g. The Dispensary" style="font-size:.78rem;width:100%;" /></label>' +
+        '<label class="dashboard-field"><span>Area</span><input class="input" id="new-v-area" placeholder="Central" style="font-size:.78rem;width:100%;" /></label>' +
+        '<label class="dashboard-field"><span>Phone</span><input class="input" id="new-v-phone" style="font-size:.78rem;width:100%;" /></label>' +
+        '<label class="dashboard-field"><span>Website</span><input class="input" id="new-v-website" placeholder="https://..." style="font-size:.78rem;width:100%;" /></label>' +
+        '<label class="dashboard-field"><span>Cuisine</span><input class="input" id="new-v-cuisine" placeholder="Cocktail Bar" style="font-size:.78rem;width:100%;" /></label>' +
+        '<label class="dashboard-field"><span>Specialty</span><input class="input" id="new-v-specialty" style="font-size:.78rem;width:100%;" /></label>' +
+      '</div>' +
+      '<label class="dashboard-field" style="margin-top:6px;"><span>Summary</span><textarea class="input" id="new-v-summary" rows="2" style="font-size:.78rem;width:100%;resize:vertical;"></textarea></label>' +
+      '<button class="btn btn-primary btn-small" style="margin-top:10px;" onclick="adminImages.addVenue()">Add venue</button>' +
+      '<div id="new-v-notice"></div>' +
+    '</div>' +
+    '<div id="admin-venue-images"><div class="notice">Loading venues...</div></div></div></div>';
   parent.parentNode.insertBefore(vs, parent);
 
   var ss = document.createElement('section');
