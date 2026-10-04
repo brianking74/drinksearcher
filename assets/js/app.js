@@ -1053,7 +1053,18 @@ async function startCheckout(planSlug) {
     const { data, error } = await sb.functions.invoke('create-checkout', {
       body: { plan: planSlug, successUrl, cancelUrl }
     });
-    if (error) throw new Error(error.message || error);
+    if (error) {
+      // Surface the function's actual error — the generic Supabase message hides
+      // the real cause (e.g. missing price, wrong Stripe key, or auth failure).
+      let detail = error.message || 'Unknown error';
+      try {
+        if (error.context && typeof error.context.json === 'function') {
+          const ctx = await error.context.json();
+          if (ctx && (ctx.error || ctx.message)) detail = ctx.error || ctx.message;
+        }
+      } catch (e2) { /* keep generic detail */ }
+      throw new Error(detail);
+    }
     if (!data || !data.url) throw new Error('No checkout URL returned');
     location.href = data.url;
   } catch (e) {
