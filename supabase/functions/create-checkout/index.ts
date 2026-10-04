@@ -33,7 +33,7 @@ const AVAILABLE = new Set(Object.keys(PRICE_ENV));
 function cors(res: Response): Response {
   res.headers.set("Access-Control-Allow-Origin", "*");
   res.headers.set("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization, apikey");
   return res;
 }
 
