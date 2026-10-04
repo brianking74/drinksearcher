@@ -256,7 +256,6 @@ const COPY_PHRASES = [
   'Find somewhere worth going tonight',
   'Buy locally, with fewer dead ends',
   'Make your next drink a date',
-  'Turn local discovery into measurable demand',
   'Price & restock alerts',
   'Choose your level of visibility',
 ];

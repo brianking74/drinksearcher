@@ -1077,23 +1077,13 @@ async function startCheckout(planSlug) {
 async function renderPricingPage() {
   const app = $('#app');
   app.innerHTML = `
-    <section class="hero" style="min-height:64vh;">
-      <div class="hero-media" style="background-image:url('${siteImages.hero}')"></div>
-      <div class="container hero-grid">
-        <div class="hero-copy">
-          <span class="kicker">Membership pricing</span>
-          <h1>Clear pricing for <span class="text-jade">merchants</span> and <span class="text-pink">bars</span>.</h1>
-          <p class="lead">Simple memberships for suppliers and venues that want better visibility, direct enquiries, and stronger placement on drinksearcher.net.</p>
-          <div class="hero-actions">
-            <a class="btn btn-primary" href="suppliers.html">See supplier examples</a>
-            <a class="btn btn-secondary" href="bars-restaurants.html">See venue examples</a>
-          </div>
-        </div>
-        <div class="search-shell">
-          <span class="eyebrow">Founding offer</span>
-          <div class="notice" style="margin-top:16px;">Founding members lock today's lower price for life. Standard rates return once the launch window closes.</div>
-          <div class="notice" style="margin-top:10px;">Paid plans are billed securely via Stripe. Start free and upgrade whenever you're ready.</div>
-        </div>
+    <section class="pricing-page-head">
+      <div class="container">
+        <span class="kicker">Business memberships</span>
+        <h1>Turn local discovery into measurable demand.</h1>
+        <p class="lead">Plans for Hong Kong suppliers and venues that want credible profiles, direct customer actions and better visibility.</p>
+        <div class="pricing-toggle" style="margin-top:28px"><span class="badge jade">Founding offer</span></div>
+        <p class="muted" style="margin-top:12px">Founding members lock today's lower price for life — standard rates return once the launch window closes. Most approved profiles can be ready in 2–5 working days after content and verification are complete.</p>
       </div>
     </section>
 
