@@ -1050,21 +1050,20 @@ async function startCheckout(planSlug) {
   const originalLabel = btn ? btn.textContent : '';
   if (btn) { btn.disabled = true; btn.textContent = 'Redirecting to Stripe…'; }
   try {
-    const { data, error } = await sb.functions.invoke('create-checkout', {
-      body: { plan: planSlug, successUrl, cancelUrl }
+    const { data: sessionData } = await sb.auth.getSession();
+    const token = (sessionData && sessionData.session && sessionData.session.access_token) || '';
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/create-checkout`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ plan: planSlug, successUrl, cancelUrl })
     });
-    if (error) {
-      // Surface the function's actual error — the generic Supabase message hides
-      // the real cause (e.g. missing price, wrong Stripe key, or auth failure).
-      let detail = error.message || 'Unknown error';
-      try {
-        if (error.context && typeof error.context.json === 'function') {
-          const ctx = await error.context.json();
-          if (ctx && (ctx.error || ctx.message)) detail = ctx.error || ctx.message;
-        }
-      } catch (e2) { /* keep generic detail */ }
-      throw new Error(detail);
-    }
+    let data = null;
+    try { data = await res.json(); } catch (e2) { data = null; }
+    if (!res.ok) throw new Error((data && data.error) || `Checkout request failed (${res.status})`);
     if (!data || !data.url) throw new Error('No checkout URL returned');
     location.href = data.url;
   } catch (e) {
