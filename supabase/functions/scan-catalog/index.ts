@@ -165,7 +165,7 @@ Deno.serve(async (req) => {
         price: v.price ? `HK$${formatPrice(v.price)}` : '',
         image: (p.images && p.images[0] && p.images[0].src) || '',
         buy_url: p.handle ? `${origin}/products/${p.handle}` : '',
-        description: stripHtml(body).slice(0, 800) || name,
+        description: '', // descriptions intentionally not imported (user preference)
         origin: extractField(body, 'Region') || extractField(body, 'Country') || '',
         varietal: extractField(body, 'Grapes') || extractField(body, 'Varietal') || '',
         abv: extractField(body, 'Alcohol') || '',
