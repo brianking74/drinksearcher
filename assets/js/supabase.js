@@ -339,18 +339,6 @@ async function countMyListings() {
   return count || 0;
 }
 
-async function createSubscription(sub) {
-  const { data, error } = await sb.from('subscriptions').insert(sub).select().single();
-  if (error) throw error;
-  return data;
-}
-
-async function fetchAllSubscriptions() {
-  const { data, error } = await sb.from('subscriptions').select('*').order('created_at', { ascending: false });
-  if (error) throw error;
-  return data || [];
-}
-
 // --- Saved Items ---
 async function fetchSavedItems() {
   const user = await getCurrentUser();
