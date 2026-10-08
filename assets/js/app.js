@@ -262,12 +262,21 @@ function finishAuthFlow(defaultTarget = 'account.html') {
   const redirect = storage.getPostAuthRedirect();
   storage.clearPostAuthRedirect();
   const user = storage.getCurrentUser();
-  const resumingCheckout = !!localStorage.getItem('ds_pending_plan');
+  const pendingPlan = localStorage.getItem('ds_pending_plan');
+  // A pending plan only means "resume a checkout" when we're actually heading to
+  // the pricing page to resume it. A leftover flag must never bounce a business
+  // account onto the payment page.
+  const resumingCheckout = !!pendingPlan && (redirect || '').indexOf('pricing') === 0;
+  if (resumingCheckout) {
+    window.location.href = redirect; // pricing — the resume block there clears ds_pending_plan
+    return;
+  }
+  if (pendingPlan) localStorage.removeItem('ds_pending_plan'); // stale — clear
   // Business accounts land on their dashboard. The lead form sets a post-auth
   // redirect for EVERY anonymous visitor, which would otherwise bounce a
   // signed-in merchant/venue back to "list your business" instead of their
-  // dashboard. Only an explicit save/checkout return overrides this.
-  if (user && (user.role === 'merchant' || user.role === 'venue') && !hadPendingSave && !resumingCheckout) {
+  // dashboard. Only an explicit save return overrides this.
+  if (user && (user.role === 'merchant' || user.role === 'venue') && !hadPendingSave) {
     window.location.href = 'dashboard.html?role=' + user.role;
     return;
   }
@@ -1882,6 +1891,12 @@ async function renderBusinessDashboardPage() {
     app.innerHTML = `<div class="auth-form" style="min-height:calc(100vh - 72px)"><div class="auth-card"><span class="eyebrow">Business dashboard</span><h2>Sign in to manage your listing.</h2><p class="lead">Your application was submitted. Sign in or create an account to track verification progress and manage your profile.</p><div class="inline-actions" style="margin-top:28px"><a class="btn btn-primary" href="signin.html">Sign in</a><a class="btn btn-ghost" href="signup.html">Create account</a></div><p class="muted" style="margin-top:18px"><a href="index.html" class="text-gold">Return to homepage</a></p></div></div>`;
     storage.setPostAuthRedirect(location.pathname + location.search);
     return;
+  }
+  // A completed Stripe checkout lands here with ?checkout=success — clear any
+  // interrupted-checkout flag so a later login never re-opens the payment page.
+  if (location.search.indexOf('checkout=success') !== -1) {
+    try { localStorage.removeItem('ds_pending_plan'); } catch (e) { /* noop */ }
+    try { localStorage.removeItem('ds_post_auth_redirect'); } catch (e) { /* noop */ }
   }
   let state = storage.getDashboardState();
   if (!state) { state = storage.defaultDashboardState(user); }
