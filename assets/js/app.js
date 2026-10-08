@@ -1974,6 +1974,10 @@ async function renderBusinessDashboardPage() {
     if (state.listingLimit == null) state.listingLimit = 10;
     if (state.listingCount == null) state.listingCount = 0;
   }
+  // Persist the entitlement-derived fields so other readers (e.g. the sheet
+  // import, which re-reads storage.getDashboardState()) see the paid listing
+  // limit, not the stale starter default.
+  storage.setDashboardState(state);
   _listingCap = { limit: state.listingLimit, count: state.listingCount };
 
   const roleLocked = !!(roleQuery === 'merchant' || roleQuery === 'venue');
