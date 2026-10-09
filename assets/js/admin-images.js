@@ -24,7 +24,7 @@ function loadVenueImages() {
         '<div class="muted" style="font-size:.72rem;margin-bottom:8px;">' + esc(v.slug) + '</div>' +
         '<label class="dashboard-field"><span>Venue name</span><input class="input" id="v-name-' + v.slug + '" value="' + esc(v.name) + '" style="font-size:.82rem;width:100%;" /></label>' +
         '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px;">' +
-          '<label class="dashboard-field"><span>Area</span><input class="input" id="v-area-' + v.slug + '" value="' + esc(v.area || '') + '" style="font-size:.78rem;width:100%;" /></label>' +
+          '<label class="dashboard-field"><span>Area</span><select class="select" id="v-area-' + v.slug + '" style="font-size:.78rem;width:100%;">' + districtOptions(v.area || '') + '</select></label>' +
           '<label class="dashboard-field"><span>Phone</span><input class="input" id="v-phone-' + v.slug + '" value="' + esc(v.phone || '') + '" style="font-size:.78rem;width:100%;" /></label>' +
           '<label class="dashboard-field"><span>Cuisine</span><input class="input" id="v-cuisine-' + v.slug + '" value="' + esc(v.cuisine || '') + '" style="font-size:.78rem;width:100%;" /></label>' +
           '<label class="dashboard-field"><span>Specialty</span><input class="input" id="v-specialty-' + v.slug + '" value="' + esc(v.specialty || '') + '" style="font-size:.78rem;width:100%;" /></label>' +

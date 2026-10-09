@@ -2070,7 +2070,7 @@ async function renderBusinessDashboardPage() {
                 <input class="input" name="website" value="${config.website}" placeholder="Website or booking URL" />
                 <input class="input" name="contactEmail" value="${config.contactEmail}" placeholder="Contact email" />
                 <input class="input" name="phone" value="${config.phone}" placeholder="Phone" />
-                <input class="input" name="district" value="${config.district}" placeholder="District" />
+                <select class="select" name="district">${districtOptions(config.district)}</select>
                 ${role === 'merchant' ? `<select class="select" name="deliveryTime"><option value="">Delivery time…</option><option value="Same day" ${config.deliveryTime === 'Same day' ? 'selected' : ''}>Same day</option><option value="Next day" ${config.deliveryTime === 'Next day' ? 'selected' : ''}>Next day</option><option value="48 hours" ${config.deliveryTime === '48 hours' ? 'selected' : ''}>48 hours</option><option value="3-5 days" ${config.deliveryTime === '3-5 days' ? 'selected' : ''}>3-5 days</option></select><input class="input" name="minOrder" value="${config.minOrder || ''}" placeholder="Minimum order value (e.g. HK$500)" />` : ''}
                 ${role === 'venue' ? `<input class="input" name="instagram" value="${config.instagram || ''}" placeholder="Instagram handle (e.g. @quinaryhk)" />` : ''}
                 <textarea class="input full" name="notes" rows="4" placeholder="Tell us about your business (max 50 words)">${config.notes}</textarea>
@@ -3153,7 +3153,7 @@ async function renderAdminDashboardPage() {
           <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;">
             <label class="dashboard-field" style="grid-column:1/-1;"><span>Event name</span><input class="input" id="admin-ev-name" placeholder="e.g. Burgundy Grand Cru Masterclass" /></label>
             <label class="dashboard-field"><span>Venue</span><input class="input" id="admin-ev-venue" placeholder="Venue" /></label>
-            <label class="dashboard-field"><span>District</span><input class="input" id="admin-ev-area" placeholder="Central" /></label>
+            <label class="dashboard-field"><span>District</span><select class="select" id="admin-ev-area">${districtOptions('')}</select></label>
             <label class="dashboard-field"><span>Type</span><input class="input" id="admin-ev-type" placeholder="Tasting / Whisky / Wine…" /></label>
             <label class="dashboard-field"><span>Date</span><input class="input" id="admin-ev-date" type="date" /></label>
             <label class="dashboard-field"><span>Time</span><input class="input" id="admin-ev-time" placeholder="7:30 PM" /></label>

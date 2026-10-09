@@ -6,6 +6,29 @@ const siteImages = {
   event: 'assets/images/event-night.jpg'
 };
 
+// Canonical Hong Kong district list — the single source of truth for district
+// choices. Free-text district entry drifted (e.g. "central" vs "Central"), so
+// every district field must render from this list.
+const HK_DISTRICT_GROUPS = [
+  { label: 'Hong Kong Island', options: ['Admiralty','Ap Lei Chau','Causeway Bay','Central','Chai Wan','Happy Valley','Kennedy Town','Mid-Levels','North Point','Pok Fu Lam','Quarry Bay','Repulse Bay','Sai Ying Pun','Shek O','Sheung Wan','Soho','Stanley','Tai Hang','Taikoo Shing','The Peak','Wan Chai','Wong Chuk Hang'] },
+  { label: 'Kowloon', options: ['Cheung Sha Wan','Hung Hom','Jordan','Kowloon Bay','Kowloon City','Kwun Tong','Lai Chi Kok','Mong Kok','Ngau Tau Kok','Prince Edward','Sham Shui Po','Tai Kok Tsui','To Kwa Wan','Tsim Sha Tsui','West Kowloon','Wong Tai Sin','Yau Ma Tei','Yau Tong'] },
+  { label: 'New Territories & Islands', options: ['Clear Water Bay','Discovery Bay','Fanling','Kwai Chung','Lamma Island','Ma On Shan','Sai Kung','Sha Tin','Sheung Shui','Tai Po','Tin Shui Wai','Tseung Kwan O','Tsing Yi','Tsuen Wan','Tuen Mun','Tung Chung','Yuen Long'] },
+  { label: 'Other', options: ['Citywide','Online','Multiple locations'] }
+];
+
+// Render <option>s for a district <select>, matching `current` case-insensitively
+// so legacy values like "central" still select "Central".
+function districtOptions(current) {
+  const cur = String(current || '').trim().toLowerCase();
+  let html = '<option value="">Select district…</option>';
+  HK_DISTRICT_GROUPS.forEach(function(g) {
+    html += '<optgroup label="' + g.label + '">' + g.options.map(function(d) {
+      return '<option value="' + d + '"' + (cur === d.toLowerCase() ? ' selected' : '') + '>' + d + '</option>';
+    }).join('') + '</optgroup>';
+  });
+  return html;
+}
+
 const venueListings = {
   enhanced: [
     {slug:'quinary', name:'Quinary', area:'Central', phone:'+852 2851 3223', cuisine:'Cocktail Bar', price:'$$$', rating:'4.6', booking:'SevenRooms', specialty:'Molecular Mixology', image:'assets/images/quinary.jpg', website:'https://www.quinary.hk/'},
