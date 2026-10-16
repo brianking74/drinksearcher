@@ -15,6 +15,16 @@ const EMAIL_FROM = 'drinksearcher.net <noreply@drinksearcher.net>'
 const ADMIN_EMAIL = 'brianking@sky.com'
 const SITE = 'https://drinksearcher.net'
 
+// HTML-escape every client-supplied data field before it lands in an email.
+// Without this, a caller could inject arbitrary HTML (fake "reset your
+// password" links, etc.) into drinksearcher-branded emails.
+const esc = (v) => String(v == null ? '' : v)
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;').replace(/'/g, '&#39;')
+
+// Per-IP rate-limit buckets (module scope — persists for the warm worker).
+const RATE_BUCKETS = new Map<string, { count: number, reset: number }>()
+
 // CORS: the client calls this from drinksearcher.net (cross-origin).
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -63,11 +73,11 @@ const shell = (kicker, title, body) => `
 const TEMPLATES = {
   // --- Welcome — consumer signup ---
   welcome_consumer: (data) => ({
-    subject: `Welcome to drinksearcher.net, ${data.name || 'friend'}`,
+    subject: `Welcome to drinksearcher.net, ${esc(data.name) || 'friend'}`,
     html: shell(
       'Your account is ready',
       `Welcome to <span style="color:#bda16f;">drinksearcher</span><span style="color:#fff;">.net</span>`,
-      `<p style="color:#c9d1d9;line-height:1.7;margin:0 0 20px;">Hi${data.name ? ` ${data.name.split(' ')[0]}` : ''}, your account is set up. You can now save bottles, follow bars, track events, and discover what's actually available in Hong Kong.</p>
+      `<p style="color:#c9d1d9;line-height:1.7;margin:0 0 20px;">Hi${data.name ? ` ${esc(data.name.split(' ')[0])}` : ''}, your account is set up. You can now save bottles, follow bars, track events, and discover what's actually available in Hong Kong.</p>
        <a href="${SITE}/account.html" style="display:inline-block;background:#bda16f;color:#000;padding:13px 30px;border-radius:6px;text-decoration:none;font-weight:600;">Explore your account →</a>`
     )
   }),
@@ -77,12 +87,12 @@ const TEMPLATES = {
     subject: `Welcome to drinksearcher.net — let's get your ${data.listingType === 'venue' ? 'venue' : 'supplier'} listing live`,
     html: shell(
       'Application received',
-      `${data.businessName || data.name}, welcome to <span style="color:#bda16f;">drinksearcher</span><span style="color:#fff;">.net</span>`,
+      `${esc(data.businessName) || data.name}, welcome to <span style="color:#bda16f;">drinksearcher</span><span style="color:#fff;">.net</span>`,
       `<p style="color:#c9d1d9;line-height:1.7;margin:0 0 20px;">We've received your ${data.listingType === 'venue' ? 'venue claim' : 'supplier application'} and will review it within 24–48 hours. Once approved, your business will appear across the directory.</p>
        <div style="background:rgba(189,161,111,.06);border-left:3px solid #bda16f;padding:14px 18px;border-radius:0 6px 6px 0;margin:0 0 24px;">
          <p style="color:#c9d1d9;font-size:.88rem;line-height:1.6;margin:0;"><strong style="color:#bda16f;">Next steps:</strong> while we review, you can open your dashboard to add listings and update your profile.</p>
        </div>
-       <a href="${SITE}/dashboard.html?role=${data.listingType}" style="display:inline-block;background:#bda16f;color:#000;padding:13px 30px;border-radius:6px;text-decoration:none;font-weight:600;">Open your dashboard →</a>`
+       <a href="${SITE}/dashboard.html?role=${esc(data.listingType)}" style="display:inline-block;background:#bda16f;color:#000;padding:13px 30px;border-radius:6px;text-decoration:none;font-weight:600;">Open your dashboard →</a>`
     )
   }),
 
@@ -91,10 +101,10 @@ const TEMPLATES = {
     subject: `✓ Your ${data.listingType === 'venue' ? 'venue' : 'supplier'} listing is live on drinksearcher.net`,
     html: shell(
       'Application approved',
-      `You're live, ${data.businessName || 'friend'} 🎉`,
-      `<p style="color:#c9d1d9;line-height:1.7;margin:0 0 20px;">Good news — your ${data.listingType === 'venue' ? 'venue' : 'supplier'} listing <strong style="color:#fff;">${data.businessName || ''}</strong> is now live in the drinksearcher.net directory${data.matched_existing ? ' (linked to your existing listing)' : ''}.</p>
+      `You're live, ${esc(data.businessName) || 'friend'} 🎉`,
+      `<p style="color:#c9d1d9;line-height:1.7;margin:0 0 20px;">Good news — your ${data.listingType === 'venue' ? 'venue' : 'supplier'} listing <strong style="color:#fff;">${esc(data.businessName) || ''}</strong> is now live in the drinksearcher.net directory${data.matched_existing ? ' (linked to your existing listing)' : ''}.</p>
        <p style="color:#c9d1d9;line-height:1.7;margin:0 0 20px;">Now's the time to add ${data.listingType === 'venue' ? 'events and booking links' : 'your product catalogue'}, upload imagery, and make your profile stand out.</p>
-       <a href="${SITE}/dashboard.html?role=${data.listingType}" style="display:inline-block;background:#bda16f;color:#000;padding:13px 30px;border-radius:6px;text-decoration:none;font-weight:600;">Open your dashboard →</a>`
+       <a href="${SITE}/dashboard.html?role=${esc(data.listingType)}" style="display:inline-block;background:#bda16f;color:#000;padding:13px 30px;border-radius:6px;text-decoration:none;font-weight:600;">Open your dashboard →</a>`
     )
   }),
 
@@ -103,7 +113,7 @@ const TEMPLATES = {
     subject: `Update on your drinksearcher.net application`,
     html: shell(
       'Application update',
-      `Regarding ${data.businessName || 'your application'}`,
+      `Regarding ${esc(data.businessName) || 'your application'}`,
       `<p style="color:#c9d1d9;line-height:1.7;margin:0 0 20px;">Thanks for your interest in listing on drinksearcher.net. We weren't able to approve your ${data.listingType === 'venue' ? 'venue' : 'supplier'} application at this time.</p>
        <p style="color:#c9d1d9;line-height:1.7;margin:0;">If you'd like to discuss this or provide more details, just reply to this email — we're happy to take another look.</p>`
     )
@@ -112,11 +122,11 @@ const TEMPLATES = {
   // --- Drink status — approved or rejected ---
   drink_status: (data) => ({
     subject: data.status === 'approved'
-      ? `✓ Your drink "${data.drinkName}" is now live on drinksearcher.net`
-      : `Update needed for "${data.drinkName}" — drinksearcher.net`,
+      ? `✓ Your drink "${esc(data.drinkName)}" is now live on drinksearcher.net`
+      : `Update needed for "${esc(data.drinkName)}" — drinksearcher.net`,
     html: shell(
       data.status === 'approved' ? 'Drink approved' : 'Updates needed',
-      `${data.status === 'approved' ? '✓' : '!'} ${data.drinkName}`,
+      `${data.status === 'approved' ? '✓' : '!'} ${esc(data.drinkName)}`,
       `<p style="color:#c9d1d9;line-height:1.7;margin:0 0 20px;">${data.status === 'approved'
         ? 'Your drink is now live. Customers can discover it, compare prices, and click through to your store.'
         : 'Your drink submission needs a few changes before it can go live. Check your dashboard for what needs updating.'}</p>
@@ -127,11 +137,11 @@ const TEMPLATES = {
   // --- Event status — approved or rejected ---
   event_status: (data) => ({
     subject: data.status === 'approved'
-      ? `✓ Your event "${data.eventName}" is live on drinksearcher.net`
-      : `Update needed for "${data.eventName}" — drinksearcher.net`,
+      ? `✓ Your event "${esc(data.eventName)}" is live on drinksearcher.net`
+      : `Update needed for "${esc(data.eventName)}" — drinksearcher.net`,
     html: shell(
       data.status === 'approved' ? 'Event approved' : 'Updates needed',
-      `${data.status === 'approved' ? '✓' : '!'} ${data.eventName}`,
+      `${data.status === 'approved' ? '✓' : '!'} ${esc(data.eventName)}`,
       `<p style="color:#c9d1d9;line-height:1.7;margin:0 0 20px;">${data.status === 'approved'
         ? 'Your event is now live in the events directory, so drink lovers can discover and plan around it.'
         : 'Your event submission needs a few changes before it can go live. Check your dashboard for what needs updating.'}</p>
@@ -141,15 +151,15 @@ const TEMPLATES = {
 
   // --- Admin notification — new business lead ---
   admin_new_lead: (data) => ({
-    subject: `New ${data.listingType} lead: ${data.businessName}`,
+    subject: `New ${esc(data.listingType)} lead: ${esc(data.businessName)}`,
     html: shell(
       'New business lead',
       data.businessName || 'New lead',
       `<table style="width:100%;border-collapse:collapse;">
-        <tr style="border-bottom:1px solid rgba(255,255,255,.04);"><td style="padding:10px 0;color:#8b949e;width:90px;">Business</td><td style="padding:10px 0;color:#c9d1d9;">${data.businessName || '—'}</td></tr>
+        <tr style="border-bottom:1px solid rgba(255,255,255,.04);"><td style="padding:10px 0;color:#8b949e;width:90px;">Business</td><td style="padding:10px 0;color:#c9d1d9;">${esc(data.businessName) || '—'}</td></tr>
         <tr style="border-bottom:1px solid rgba(255,255,255,.04);"><td style="padding:10px 0;color:#8b949e;">Type</td><td style="padding:10px 0;color:#c9d1d9;">${data.listingType === 'venue' ? 'Bar / Restaurant / Venue' : 'Supplier / Merchant'}</td></tr>
-        <tr style="border-bottom:1px solid rgba(255,255,255,.04);"><td style="padding:10px 0;color:#8b949e;">Contact</td><td style="padding:10px 0;color:#c9d1d9;">${data.contactName || '—'}</td></tr>
-        <tr><td style="padding:10px 0;color:#8b949e;">Email</td><td style="padding:10px 0;color:#bda16f;">${data.email || '—'}</td></tr>
+        <tr style="border-bottom:1px solid rgba(255,255,255,.04);"><td style="padding:10px 0;color:#8b949e;">Contact</td><td style="padding:10px 0;color:#c9d1d9;">${esc(data.contactName) || '—'}</td></tr>
+        <tr><td style="padding:10px 0;color:#8b949e;">Email</td><td style="padding:10px 0;color:#bda16f;">${esc(data.email) || '—'}</td></tr>
       </table>
       <a href="${SITE}/admin.html" style="display:inline-block;background:#bda16f;color:#000;padding:12px 28px;border-radius:6px;text-decoration:none;font-weight:600;margin-top:24px;">View in admin panel →</a>`
     )
@@ -157,14 +167,14 @@ const TEMPLATES = {
 
   // --- Admin notification — new event pending review ---
   admin_new_event: (data) => ({
-    subject: `New event pending review: ${data.eventName}`,
+    subject: `New event pending review: ${esc(data.eventName)}`,
     html: shell(
       'New event pending',
       data.eventName || 'New event',
       `<table style="width:100%;border-collapse:collapse;">
-        <tr style="border-bottom:1px solid rgba(255,255,255,.04);"><td style="padding:10px 0;color:#8b949e;width:90px;">Event</td><td style="padding:10px 0;color:#c9d1d9;">${data.eventName || '—'}</td></tr>
-        <tr style="border-bottom:1px solid rgba(255,255,255,.04);"><td style="padding:10px 0;color:#8b949e;">Venue</td><td style="padding:10px 0;color:#c9d1d9;">${data.venue || '—'}</td></tr>
-        <tr><td style="padding:10px 0;color:#8b949e;">Date</td><td style="padding:10px 0;color:#c9d1d9;">${data.date || '—'}</td></tr>
+        <tr style="border-bottom:1px solid rgba(255,255,255,.04);"><td style="padding:10px 0;color:#8b949e;width:90px;">Event</td><td style="padding:10px 0;color:#c9d1d9;">${esc(data.eventName) || '—'}</td></tr>
+        <tr style="border-bottom:1px solid rgba(255,255,255,.04);"><td style="padding:10px 0;color:#8b949e;">Venue</td><td style="padding:10px 0;color:#c9d1d9;">${esc(data.venue) || '—'}</td></tr>
+        <tr><td style="padding:10px 0;color:#8b949e;">Date</td><td style="padding:10px 0;color:#c9d1d9;">${esc(data.date) || '—'}</td></tr>
       </table>
       <a href="${SITE}/admin.html" style="display:inline-block;background:#bda16f;color:#000;padding:12px 28px;border-radius:6px;text-decoration:none;font-weight:600;margin-top:24px;">Review in admin panel →</a>`
     )
@@ -188,8 +198,35 @@ Deno.serve(async (req) => {
   const renderer = TEMPLATES[template]
   if (!renderer) return json({ error: `Unknown template: ${template}`, available: Object.keys(TEMPLATES) }, 400)
 
-  // Resolve the recipient (admin notifications go to the hardcoded admin email).
+  // ---- Abuse controls ----
+  // 1) Simple per-IP rate limit: 10 emails / 5 minutes (edge functions are
+  //    stateless, so track the window in a module-level Map — good enough
+  //    per warm worker, and attackers get at most a few sends per worker).
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
+  const now = Date.now()
+  const WINDOW_MS = 5 * 60 * 1000
+  const bucket = RATE_BUCKETS.get(ip) || { count: 0, reset: now + WINDOW_MS }
+  if (now > bucket.reset) { bucket.count = 0; bucket.reset = now + WINDOW_MS }
+  bucket.count++
+  RATE_BUCKETS.set(ip, bucket)
+  if (bucket.count > 10) return json({ error: 'Too many requests. Try again later.' }, 429)
+
+  // 2) A free-text `to` is only accepted for admin-panel actions, where the
+  //    browser already holds admin-supplied lead emails. All other templates
+  //    must resolve the recipient server-side (userId/supplierId/leadId) so
+  //    this endpoint can't be used to mail arbitrary victims.
+  const ADMIN_PANEL_TEMPLATES = new Set([
+    'application_approved', 'application_rejected', 'admin_new_lead', 'admin_new_event'
+  ])
+  // 3) Welcome emails go to an address the user just signed up with — accept
+  //    `to` there as well (Supabase Auth already verified the address for
+  //    confirmed signups; the risk is bounded by the rate limit).
+  const SELF_SERVICE_TEMPLATES = new Set(['welcome_consumer', 'welcome_business'])
+
   let recipient = to || null
+  if (recipient && !ADMIN_PANEL_TEMPLATES.has(template) && !SELF_SERVICE_TEMPLATES.has(template)) {
+    return json({ error: 'This template does not accept a custom recipient.' }, 403)
+  }
   if (!recipient && (template === 'admin_new_lead' || template === 'admin_new_event')) recipient = ADMIN_EMAIL
   if (!recipient) recipient = await resolveEmail({ userId, supplierId, leadId })
   if (!recipient) return json({ error: 'Could not resolve a recipient email' }, 400)

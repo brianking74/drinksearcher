@@ -1271,7 +1271,7 @@ function renderLeadCapturePage() {
     ? `<div class="notice">Signed in as ${user.email}. Your details are prefilled and any submission will appear in your account dashboard.</div>`
     : `<div class="notice">Have an account already? <a class="text-jade" href="signin.html">Sign in</a> to prefill your details and track submissions.</div>`;
   app.innerHTML = `
-    <section class="hero" style="min-height:62vh;"><div class="hero-media" style="background-image:url('${requestedType === 'venue' ? siteImages.rooftop : siteImages.shop}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">List your business / Claim your venue</span><h1>${requestedType === 'venue' ? 'Claim your venue and start turning visibility into bookings.' : 'List your business and start turning discovery into sales.'}</h1><p class="lead">Tell us about your business and we'll help match you with the right listing, profile, and visibility options.</p><div class="hero-actions"><a class="btn btn-primary" href="pricing.html">Back to pricing</a><a class="btn btn-ghost" href="${user ? 'account.html' : 'signin.html'}">${user ? 'My account' : 'Sign in'}</a></div></div><div class="search-shell"><span class="eyebrow">Application form</span>${signedInNote}<div class="notice">Start with the right listing and we’ll organise the details you need for profile, visibility, and next-step setup.</div><form id="lead-form" class="form-grid" style="margin-top:14px;"><select class="select full" name="listingType"><option value="merchant" ${requestedType === 'merchant' ? 'selected' : ''}>Supplier / Merchant</option><option value="venue" ${requestedType === 'venue' ? 'selected' : ''}>Bar / Restaurant / Venue</option></select><input class="input" name="businessName" placeholder="Business name" required /><input class="input" name="contactName" placeholder="Contact name" value="${user?.name || ''}" required /><input class="input" name="email" type="email" placeholder="Email" value="${user?.email || ''}" required />${!user ? '<input class="input full" name="password" type="password" placeholder="Create password (required for new accounts)" required />' : ''}${!user ? '<div class="turnstile-mount" style="margin-top:12px;"></div>' : ''}<button class="btn btn-primary full" type="submit">Create Account</button></form><div id="lead-notice"></div></div></div></section>
+    <section class="hero" style="min-height:62vh;"><div class="hero-media" style="background-image:url('${requestedType === 'venue' ? siteImages.rooftop : siteImages.shop}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">List your business / Claim your venue</span><h1>${requestedType === 'venue' ? 'Claim your venue and start turning visibility into bookings.' : 'List your business and start turning discovery into sales.'}</h1><p class="lead">Tell us about your business and we'll help match you with the right listing, profile, and visibility options.</p><div class="hero-actions"><a class="btn btn-primary" href="pricing.html">Back to pricing</a><a class="btn btn-ghost" href="${user ? 'account.html' : 'signin.html'}">${user ? 'My account' : 'Sign in'}</a></div></div><div class="search-shell"><span class="eyebrow">Application form</span>${signedInNote}<div class="notice">Start with the right listing and we’ll organise the details you need for profile, visibility, and next-step setup.</div><form id="lead-form" class="form-grid" style="margin-top:14px;"><select class="select full" name="listingType"><option value="merchant" ${requestedType === 'merchant' ? 'selected' : ''}>Supplier / Merchant</option><option value="venue" ${requestedType === 'venue' ? 'selected' : ''}>Bar / Restaurant / Venue</option></select><input class="input" name="businessName" placeholder="Business name" required /><input class="input" name="contactName" placeholder="Contact name" value="${user?.name || ''}" required /><input class="input" name="email" type="email" placeholder="Email" value="${user?.email || ''}" required />${!user ? '<input class="input full" name="password" type="password" placeholder="Create password (required for new accounts)" required />' : ''}<div class="turnstile-mount" style="margin-top:12px;"></div><button class="btn btn-primary full" type="submit">Create Account</button></form><div id="lead-notice"></div></div></div></section>
     <section class="section"><div class="container grid grid-2"><div class="panel"><span class="eyebrow">What happens next</span><h2 style="margin:14px 0;">What happens next.</h2><div class="muted" style="display:grid; gap:12px;"><span>• We review your application and listing details.</span><span>• If you're signed in, your account information pre-fills automatically.</span><span>• We confirm the right plan, profile type, and any featured add-ons.</span><span>• Once approved, your business can appear across the directory, profile pages, and relevant discovery sections.</span></div></div><div class="panel"><span class="eyebrow">Why this matters</span><h2 style="margin:14px 0;">Why list on drinksearcher.net.</h2><p class="muted">This is where suppliers and venues move from browsing to joining — with a clear path into profiles, product visibility, featured placements, and direct customer discovery.</p><div class="inline-actions" style="margin-top:18px;"><a class="btn btn-ghost btn-small" href="suppliers.html">View directory</a><a class="btn btn-ghost btn-small" href="bars-restaurants.html">View directory</a></div></div></div></section>`;
 
   mountTurnstile(app);
@@ -1311,16 +1311,19 @@ function renderLeadCapturePage() {
     const contactName = form.get('contactName');
     const businessName = form.get('businessName');
 
+    // Every submission must clear the captcha — the submit-lead Edge Function
+    // verifies this token server-side (for signed-in users too).
+    const captchaToken = getCaptchaToken();
+    if (!captchaToken) {
+      leadNotice.innerHTML = '<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Please complete the security check before submitting.</div>';
+      return;
+    }
+
     // If not signed in, create a Supabase Auth account first
     if (!user) {
       const password = form.get('password');
-      if (!password || password.length < 6) {
-        leadNotice.innerHTML = '<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Password must be at least 6 characters.</div>';
-        return;
-      }
-      const captchaToken = getCaptchaToken();
-      if (!captchaToken) {
-        leadNotice.innerHTML = '<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Please complete the security check before submitting.</div>';
+      if (!password || password.length < 8) {
+        leadNotice.innerHTML = '<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Password must be at least 8 characters.</div>';
         return;
       }
       const signUpResult = await dsAuth.signUp({ name: contactName, city: '', email, password, role: listingType, captchaToken });
@@ -1344,6 +1347,7 @@ function renderLeadCapturePage() {
     try {
       lead = await submitLead(leadPayload);
     } catch (e) {
+      resetTurnstile();
       leadNotice.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Could not save your enquiry: ${e.message || 'Please try again.'}</div>`;
       return;
     }
@@ -1525,7 +1529,7 @@ async function renderSignInPage() {
   const recoveryType = hashParams.get('type') || queryParams.get('type');
   if ((recoveryType === 'recovery' || recoveryType === 'magiclink' || accessToken) && accessToken && refreshToken) {
     app.innerHTML = `
-      <section class="hero" style="min-height:52vh;"><div class="hero-media" style="background-image:url('${siteImages.hero}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Account</span><h1>Choose a new password.</h1><p class="lead">Enter a new password for your account.</p></div><div class="search-shell"><span class="eyebrow">Reset password</span><form id="recovery-form" class="form-grid" style="margin-top:14px;"><input class="input full" name="password" type="password" placeholder="New password" required minlength="6" /><input class="input full" name="confirm" type="password" placeholder="Confirm new password" required minlength="6" /><button class="btn btn-primary full" type="submit">Update password</button></form><div id="recovery-notice"></div><p class="muted" style="margin-top:16px;"><a class="text-jade" href="signin.html">Back to sign in</a></p></div></div></section>`;
+      <section class="hero" style="min-height:52vh;"><div class="hero-media" style="background-image:url('${siteImages.hero}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Account</span><h1>Choose a new password.</h1><p class="lead">Enter a new password for your account.</p></div><div class="search-shell"><span class="eyebrow">Reset password</span><form id="recovery-form" class="form-grid" style="margin-top:14px;"><input class="input full" name="password" type="password" placeholder="New password" required minlength="8" /><input class="input full" name="confirm" type="password" placeholder="Confirm new password" required minlength="8" /><button class="btn btn-primary full" type="submit">Update password</button></form><div id="recovery-notice"></div><p class="muted" style="margin-top:16px;"><a class="text-jade" href="signin.html">Back to sign in</a></p></div></div></section>`;
     const form = document.getElementById('recovery-form');
     if (form) {
       form.addEventListener('submit', async (e) => {
@@ -1534,8 +1538,8 @@ async function renderSignInPage() {
         const confirm = form.confirm.value.trim();
         const notice = document.getElementById('recovery-notice');
         if (!notice) return;
-        if (!password || password.length < 6) {
-          notice.innerHTML = '<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Password must be at least 6 characters.</div>';
+        if (!password || password.length < 8) {
+          notice.innerHTML = '<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Password must be at least 8 characters.</div>';
           return;
         }
         if (password !== confirm) {
@@ -1627,8 +1631,8 @@ async function renderSignUpPage() {
     const password = String(fd.get('password') || '');
     const name = String(fd.get('name') || '').trim();
     const city = String(fd.get('city') || '').trim();
-    if (!email || !name || !password || password.length < 6) {
-      notice.innerHTML = '<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Please fill in your name, a valid email, and a password of at least 6 characters.</div>';
+    if (!email || !name || !password || password.length < 8) {
+      notice.innerHTML = '<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Please fill in your name, a valid email, and a password of at least 8 characters.</div>';
       return;
     }
     const captchaToken = getCaptchaToken();

@@ -494,21 +494,31 @@ async function submitReview(reviewData) {
 
 // --- Leads ---
 async function submitLead(lead) {
-  const { data, error } = await sb.from('leads').insert({
-    account_email: lead.accountEmail || null,
-    listing_type: lead.listingType || '',
-    business_name: lead.businessName || '',
-    contact_name: lead.contactName || '',
-    email: lead.email || '',
-    phone: lead.phone || '',
-    district: lead.district || '',
-    website: lead.website || '',
-    notes: lead.notes || '',
-    source: lead.source || '',
-    claimed_slug: lead.claimedSlug || null
-  }).select().single();
-  if (error) throw error;
-  return data;
+  // Submissions go through the submit-lead Edge Function, which verifies the
+  // Turnstile captcha server-side before inserting (direct anon inserts
+  // bypassed the client-side captcha check).
+  const captchaToken = getCaptchaToken();
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/submit-lead`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
+    body: JSON.stringify({
+      captchaToken,
+      accountEmail: lead.accountEmail || '',
+      listingType: lead.listingType || '',
+      businessName: lead.businessName || '',
+      contactName: lead.contactName || '',
+      email: lead.email || '',
+      phone: lead.phone || '',
+      district: lead.district || '',
+      website: lead.website || '',
+      notes: lead.notes || '',
+      source: lead.source || '',
+      claimedSlug: lead.claimedSlug || ''
+    })
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error || `Submission failed (HTTP ${res.status})`);
+  return body.lead;
 }
 
 async function fetchMyLeads(email) {
