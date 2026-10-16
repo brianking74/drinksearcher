@@ -1332,6 +1332,25 @@ function renderLeadCapturePage() {
         leadNotice.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">${signUpResult.message}</div>`;
         return;
       }
+      // The signup consumed the captcha token (they're single-use). The lead
+      // submission needs a fresh one — reset the widget and wait for the new
+      // solve (invisible Turnstile re-solves automatically).
+      resetTurnstile();
+      const freshToken = await new Promise(resolve => {
+        let waited = 0;
+        const check = () => {
+          const t = getCaptchaToken();
+          if (t) return resolve(t);
+          if (waited >= 10000) return resolve('');
+          waited += 200;
+          setTimeout(check, 200);
+        };
+        check();
+      });
+      if (!freshToken) {
+        leadNotice.innerHTML = '<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Please complete the security check and submit again — your account was created.</div>';
+        return;
+      }
     }
 
     const leadPayload = {
