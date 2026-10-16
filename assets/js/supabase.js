@@ -173,7 +173,10 @@ async function fetchEvents() {
     const today = new Date().toISOString().slice(0, 10);
     const { data, error } = await sb.from('events').select('*').eq('status', 'approved').gte('date', today).order('date', { ascending: true }).limit(200);
     if (error) throw error;
-    return (data || []).map(e => ({ id: e.id, name: e.name, venue: e.venue || '', area: e.area || '', date: e.date || '', time: e.time || '', price: e.price || '', type: e.type || '', image: e.image || '', url: e.url || '' }));
+    const rows = (data || []).map(e => ({ id: e.id, name: e.name, venue: e.venue || '', area: e.area || '', date: e.date || '', time: e.time || '', price: e.price || '', type: e.type || '', image: e.image || '', url: e.url || '' }));
+    // Fall back to the bundled seed events when the calendar is EMPTY too,
+    // not just on error — an empty public events page reads as broken.
+    if (rows.length) return rows;
   } catch { /* fall through */ }
   return typeof eventsData !== 'undefined' ? eventsData.slice() : [];
 }
@@ -340,12 +343,8 @@ async function countMyListings() {
 }
 
 // --- Saved Items ---
-async function fetchSavedItems() {
-  const user = await getCurrentUser();
-  if (!user) return [];
-  const { data } = await sb.from('saved_items').select('*').eq('user_id', user.id);
-  return data || [];
-}
+// (Single definition — a previous duplicate was removed. This version maps
+// rows to the display shape the UI expects and handles errors.)
 
 async function addSavedItem(item) {
   const user = await getCurrentUser();

@@ -336,6 +336,8 @@ function navHTML(active = '', user) {
       <button class="mobile-toggle" aria-label="Toggle menu"><span></span><span></span><span></span></button>
       <nav class="nav-links">
         ${links.map(([href,label]) => `<a class="${active===label?'active':''}" href="${href}">${label}</a>`).join('')}
+        <a class="nav-mobile-auth" href="${user ? 'account.html' : 'signin.html'}">${user ? 'My Account' : 'Sign In / Create Account'}</a>
+        <a class="nav-mobile-auth" href="list-your-business.html?type=merchant">List your business</a>
       </nav>
       <div class="nav-actions">
         ${authActions}
@@ -465,36 +467,36 @@ function renderCard(item, options = {}) {
   const showDescription = options.showDescription !== false;
   const badgeTone = type === 'venue' ? 'pink' : type === 'event' ? 'jade' : 'gold';
   const topBadges = showBadge ? [
-    item.tierLabel ? `<span class="badge ${badgeTone}">${item.tierLabel}</span>` : '',
-    type === 'supplier' && primaryMeta ? `<span class="badge supplier-location-badge">${primaryMeta}</span>` : '',
-    type === 'venue' && primaryMeta ? `<span class="badge venue-location-badge">${primaryMeta}</span>` : '',
-    type === 'event' && item.date ? `<span class="badge event-date-badge">${item.date}</span>` : '',
-    type !== 'supplier' && type !== 'venue' && type !== 'event' && item.specialty ? `<span class="badge gold">${item.specialty}</span>` : ''
+    item.tierLabel ? `<span class="badge ${badgeTone}">${safe(item.tierLabel)}</span>` : '',
+    type === 'supplier' && primaryMeta ? `<span class="badge supplier-location-badge">${safe(primaryMeta)}</span>` : '',
+    type === 'venue' && primaryMeta ? `<span class="badge venue-location-badge">${safe(primaryMeta)}</span>` : '',
+    type === 'event' && item.date ? `<span class="badge event-date-badge">${safe(item.date)}</span>` : '',
+    type !== 'supplier' && type !== 'venue' && type !== 'event' && item.specialty ? `<span class="badge gold">${safe(item.specialty)}</span>` : ''
   ].filter(Boolean).join('') : '';
   const fallbackMeta = (item.price || item.phone || item.booking)
-    ? `<div class="meta">${item.price ? `<span>${item.price}</span>` : ''}${item.phone ? `<span>${item.phone}</span>` : ''}${item.booking ? `<span>${item.booking}</span>` : ''}</div>`
+    ? `<div class="meta">${item.price ? `<span>${safe(item.price)}</span>` : ''}${item.phone ? `<span>${safe(item.phone)}</span>` : ''}${item.booking ? `<span>${safe(item.booking)}</span>` : ''}</div>`
     : '';
   const inlineMeta = type === 'supplier'
-    ? `<div class="card-inline-meta">${secondaryMeta ? `<span class="info-pill subtle-pill">${secondaryMeta}</span>` : ''}<span class="info-pill subtle-pill">Shop direct</span></div>`
+    ? `<div class="card-inline-meta">${secondaryMeta ? `<span class="info-pill subtle-pill">${safe(secondaryMeta)}</span>` : ''}<span class="info-pill subtle-pill">Shop direct</span></div>`
     : type === 'venue'
-      ? `<div class="card-inline-meta">${item.rating ? `<span class="info-pill rating-pill">★ ${item.rating}</span>` : ''}${item.specialty ? `<span class="info-pill">${item.specialty}</span>` : ''}</div>`
+      ? `<div class="card-inline-meta">${item.rating ? `<span class="info-pill rating-pill">★ ${safe(item.rating)}</span>` : ''}${item.specialty ? `<span class="info-pill">${safe(item.specialty)}</span>` : ''}</div>`
       : type === 'event'
-        ? `${item.venue ? `<div class="card-inline-meta"><span class="info-pill subtle-pill">${item.venue}</span></div>` : ''}`
+        ? `${item.venue ? `<div class="card-inline-meta"><span class="info-pill subtle-pill">${safe(item.venue)}</span></div>` : ''}`
         : fallbackMeta;
 
   return `
     <article class="${cardClasses}">
       <div class="${imageClass}">
-        <img src="${dsImage(item.image, (type === 'supplier' || type === 'venue' || type === 'event') ? 'scene' : 'bottle') || 'assets/images/bottle-placeholder.svg'}" alt="${item.name}" onerror="this.src='assets/images/bottle-placeholder.svg'" />
+        <img src="${safe(dsImage(item.image, (type === 'supplier' || type === 'venue' || type === 'event') ? 'scene' : 'bottle') || 'assets/images/bottle-placeholder.svg')}" alt="${safe(item.name)}" onerror="this.src='assets/images/bottle-placeholder.svg'" />
         <div class="card-overlay"></div>
         <div class="badge-row">${topBadges}</div>
       </div>
       <div class="card-body">
-        ${overline ? `<div class="card-kicker">${overline}</div>` : ''}
-        ${type === 'generic' ? `<div class="meta">${item.area ? `<span>${item.area}</span>` : ''}${item.cuisine ? `<span>${item.cuisine}</span>` : ''}${item.rating ? `<span>★ ${item.rating}</span>` : ''}</div>` : ''}
-        <h3>${item.name}</h3>
-        ${showDescription && item.description ? `<p class="${type === 'supplier' ? 'muted supplier-card-copy' : type === 'venue' ? 'muted venue-card-copy' : type === 'event' ? 'muted event-card-copy' : 'muted'}">${item.description}</p>` : ''}
-        ${detailTags.length ? `<div class="card-tags">${detailTags.map(tag => `<span class="info-pill${type === 'supplier' || type === 'event' ? ' subtle-pill' : ''}">${tag}</span>`).join('')}</div>` : ''}
+        ${overline ? `<div class="card-kicker">${safe(overline)}</div>` : ''}
+        ${type === 'generic' ? `<div class="meta">${item.area ? `<span>${safe(item.area)}</span>` : ''}${item.cuisine ? `<span>${safe(item.cuisine)}</span>` : ''}${item.rating ? `<span>★ ${safe(item.rating)}</span>` : ''}</div>` : ''}
+        <h3>${safe(item.name)}</h3>
+        ${showDescription && item.description ? `<p class="${type === 'supplier' ? 'muted supplier-card-copy' : type === 'venue' ? 'muted venue-card-copy' : type === 'event' ? 'muted event-card-copy' : 'muted'}">${safe(item.description)}</p>` : ''}
+        ${detailTags.length ? `<div class="card-tags">${detailTags.map(tag => `<span class="info-pill${type === 'supplier' || type === 'event' ? ' subtle-pill' : ''}">${safe(tag)}</span>`).join('')}</div>` : ''}
         ${inlineMeta}
       </div>
       <div class="card-foot ${type === 'supplier' ? 'card-foot-stacked' : type === 'venue' ? 'venue-card-foot' : type === 'event' ? 'event-card-foot' : ''}">
@@ -847,7 +849,7 @@ async function renderBottleDetail() {
   const supplierRows = rows.filter(r => (r.supplier_name || '').trim() || (r.buy_url || '').trim() || (r.price || '').trim());
   const supplierCount = supplierRows.length;
   if (!supplierCount) {
-    app.innerHTML = `<div class="empty-state">Bottle not found: "${name}". <a href="drinks.html">Browse drinks →</a></div>`;
+    app.innerHTML = `<div class="empty-state">Bottle not found: "${safe(decodeURIComponent(name))}". <a href="drinks.html">Browse drinks →</a></div>`;
     return;
   }
   const drink = supplierRows[0];
@@ -865,25 +867,25 @@ async function renderBottleDetail() {
 
   app.innerHTML = `
     <nav class="breadcrumb"><div class="container">
-      <a href="index.html">Home</a> › <a href="drinks.html">Drinks</a>${drink.type ? ` › <a href="drinks.html?q=${encodeURIComponent(drink.type)}">${drink.type}</a>` : ''} › <span>${drink.name}</span>
+      <a href="index.html">Home</a> › <a href="drinks.html">Drinks</a>${drink.type ? ` › <a href="drinks.html?q=${encodeURIComponent(drink.type)}">${safe(drink.type)}</a>` : ''} › <span>${safe(drink.name)}</span>
     </div></nav>
 
     <section class="section bottle-hero">
       <div class="container">
         <div class="bottle-hero-grid">
           <div class="bottle-hero-media">
-            <img src="${dsImage(drink.image) || 'assets/images/bottle-placeholder.svg'}" alt="${drink.name}" class="bottle-hero-img" onerror="this.src='assets/images/bottle-placeholder.svg'">
+            <img src="${safe(dsImage(drink.image) || 'assets/images/bottle-placeholder.svg')}" alt="${safe(drink.name)}" class="bottle-hero-img" onerror="this.src='assets/images/bottle-placeholder.svg'">
           </div>
           <div class="bottle-hero-info">
-            <span class="kicker">${drink.type || ''}</span>
-            <h1>${drink.name}</h1>
+            <span class="kicker">${safe(drink.type || '')}</span>
+            <h1>${safe(drink.name)}</h1>
             <div class="bottle-meta">
-              ${drink.abv ? `<span class="meta-tag">${drink.abv} ABV</span>` : ''}
-              ${drink.origin ? `<span class="meta-tag">${drink.origin}</span>` : ''}
+              ${drink.abv ? `<span class="meta-tag">${safe(drink.abv)} ABV</span>` : ''}
+              ${drink.origin ? `<span class="meta-tag">${safe(drink.origin)}</span>` : ''}
               ${supplierCount > 1 ? `<span class="meta-tag meta-tag--suppliers">${supplierCount} suppliers</span>` : ''}
             </div>
-            <div class="bottle-price">${priceDisplay}</div>
-            ${drink.description ? `<p class="bottle-desc">${drink.description}</p>` : ''}
+            <div class="bottle-price">${safe(priceDisplay)}</div>
+            ${drink.description ? `<p class="bottle-desc">${safe(drink.description)}</p>` : ''}
             <div class="bottle-actions">
               ${saveButton({id: `drink:${slug}`, name: drink.name, kind: 'drink'})}
             </div>
@@ -896,13 +898,13 @@ async function renderBottleDetail() {
                 ${supplierRows.map((s, i) => `
                   <div class="supplier-row${i===0?' supplier-row--best':''}">
                     <div class="supplier-row__info">
-                      <span class="supplier-row__name">${s.supplier_name || 'Supplier'}</span>
-                      ${s.availability ? `<span class="supplier-row__stock ${s.availability.toLowerCase().includes('stock') ? 'in-stock' : ''}">${s.availability}</span>` : ''}
+                      <span class="supplier-row__name">${safe(s.supplier_name || 'Supplier')}</span>
+                      ${s.availability ? `<span class="supplier-row__stock ${s.availability.toLowerCase().includes('stock') ? 'in-stock' : ''}">${safe(s.availability)}</span>` : ''}
                     </div>
-                    <div class="supplier-row__price">${s.price}</div>
+                    <div class="supplier-row__price">${safe(s.price)}</div>
                     ${(i === 0 || s.buy_url) ? `<div class="supplier-row__actions">
                       ${i === 0 ? '<span class="best-price-badge">Best price</span>' : ''}
-                      ${s.buy_url ? `<a href="${s.buy_url}" target="_blank" rel="noreferrer" class="btn btn-primary btn-small" onclick="trackClick('${s.id}','${s.name.replace(/'/g, "\\'")}','${(s.supplier_name || '').replace(/'/g, "\\'")}')">Buy →</a>` : ''}
+                      ${s.buy_url ? `<a href="${safe(s.buy_url)}" target="_blank" rel="noreferrer" class="btn btn-primary btn-small" data-track-id="${safe(s.id)}" data-track-name="${safe(s.name)}" data-track-supplier="${safe(s.supplier_name || '')}">Buy →</a>` : ''}
                     </div>` : ''}
                   </div>
                 `).join('')}
@@ -919,23 +921,23 @@ async function renderBottleDetail() {
     <section class="section bottle-venues">
       <div class="container">
         <div class="section-head" style="margin-bottom:52px;">
-          <div><span class="eyebrow">Drink it here</span><h2 class="product-venue-title">Where to enjoy ${drink.name} in Hong Kong</h2></div>
+          <div><span class="eyebrow">Drink it here</span><h2 class="product-venue-title">Where to enjoy ${safe(drink.name)} in Hong Kong</h2></div>
         </div>
         <div class="grid grid-3">
           ${venues.map(v => `
             <article class="card venue-card">
               <div class="card-media">
-                <img src="${v.image || 'assets/images/cocktail-bar.jpg'}" alt="${v.name}" onerror="this.src='assets/images/cocktail-bar.jpg'">
+                <img src="${safe(v.image || 'assets/images/cocktail-bar.jpg')}" alt="${safe(v.name)}" onerror="this.src='assets/images/cocktail-bar.jpg'">
                 <span class="card-badge">${v.verified ? '✓ Verified' : 'Reported'}</span>
               </div>
               <div class="card-body">
-                <span class="card-kicker">${v.area || ''} · ${v.cuisine || ''}</span>
-                <h3 class="card-title">${v.name}</h3>
-                ${v.rating ? `<div class="card-rating">${starRating(parseFloat(v.rating))} ${v.rating}</div>` : ''}
-                ${v.specialty ? `<p class="card-subtitle">${v.specialty}</p>` : ''}
+                <span class="card-kicker">${safe(v.area || '')} · ${safe(v.cuisine || '')}</span>
+                <h3 class="card-title">${safe(v.name)}</h3>
+                ${v.rating ? `<div class="card-rating">${starRating(parseFloat(v.rating))} ${safe(v.rating)}</div>` : ''}
+                ${v.specialty ? `<p class="card-subtitle">${safe(v.specialty)}</p>` : ''}
                 <div class="card-actions">
                   <a class="btn btn-ghost btn-small" href="venue-profile.html?name=${slugify(v.name)}">View →</a>
-                  ${v.website && v.website !== '#' ? `<a class="btn btn-primary btn-small" href="${v.website}" target="_blank" rel="noreferrer">Book →</a>` : ''}
+                  ${v.website && v.website !== '#' ? `<a class="btn btn-primary btn-small" href="${safe(v.website)}" target="_blank" rel="noreferrer">Book →</a>` : ''}
                 </div>
               </div>
             </article>
@@ -957,18 +959,18 @@ async function renderBottleDetail() {
     <section class="section bottle-reviews">
       <div class="container">
         <div class="section-head">
-          <div><span class="eyebrow">What people say</span><h2>Reviews for ${drink.name.split(' ').slice(0, 3).join(' ')}</h2></div>
+          <div><span class="eyebrow">What people say</span><h2>Reviews for ${safe(drink.name.split(' ').slice(0, 3).join(' '))}</h2></div>
         </div>
         ${reviews.length ? `
           <div class="reviews-list">
             ${reviews.map(r => `
               <div class="review-card">
                 <div class="review-header">
-                  <span class="review-author">${r.author}</span>
+                  <span class="review-author">${safe(r.author)}</span>
                   ${r.rating ? starRating(r.rating) : ''}
                   <span class="review-date">${formatDate(r.createdAt)}</span>
                 </div>
-                <p class="review-content">${r.content}</p>
+                <p class="review-content">${safe(r.content)}</p>
               </div>
             `).join('')}
           </div>
@@ -997,6 +999,14 @@ async function renderBottleDetail() {
       </div>
     </section>
   `;
+
+  // Delegated click tracking for the Buy buttons (replaces inline onclick,
+  // which interpolated DB strings into an attribute — an XSS vector).
+  $('#app').querySelectorAll('[data-track-id]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      trackClick(btn.dataset.trackId, btn.dataset.trackName, btn.dataset.trackSupplier);
+    });
+  });
 
   // Wire up review form
   const user = await dsAuth.getCurrentUser().catch(() => null);
@@ -1411,12 +1421,12 @@ async function renderVenueProfile() {
   const summaryText = v.summary || ((v.specialty ? 'Known for ' + v.specialty.toLowerCase() + '.' : '') + ' A ' + (v.cuisine || 'bar') + (v.area ? ' in ' + v.area : '') + (v.price ? ' with ' + v.price.toLowerCase() + ' pricing' : '') + '.');
   
   app.innerHTML = `
-    <section class="profile-hero"><div class="hero-media" style="background-image:url('${heroBg}')"></div><div class="container profile-content"><div>${logo ? `<img src="${logo}" alt="Logo" style="width:80px;height:80px;object-fit:cover;border-radius:12px;border:1px solid rgba(255,255,255,.18);margin-bottom:16px;" />` : ''}<span class="kicker">${v.tier === 'enhanced' ? 'Featured venue' : 'Venue'}</span><h1>${v.name}</h1><p class="lead" style="margin-top:16px;">${v.specialty || v.cuisine || ''}${v.area ? ` in ${v.area}` : ''}</p>${summaryText ? `<p style="margin-top:14px;max-width:60ch;color:var(--muted);font-size:1.02rem;line-height:1.65;">${summaryText}</p>` : ''}<div class="info-strip">${v.area ? `<div class="info-chip"><div class="muted">Area</div><strong>${v.area}</strong></div>` : ''}<div class="info-chip"><div class="muted">Category</div><strong>${v.cuisine || 'Bar'}</strong></div>${v.rating ? `<div class="info-chip"><div class="muted">Rating</div><strong>★ ${v.rating}</strong></div>` : ''}<div class="info-chip"><div class="muted">Price</div><strong>${v.price || 'N/A'}</strong></div></div></div><div class="panel"><span class="eyebrow">Quick actions</span><div class="inline-actions" style="margin-top:16px;">${website !== '#' ? `<a class="btn btn-secondary" href="${website}" target="_blank" rel="noreferrer">${v.booking ? 'Book via ' + v.booking : 'Visit website'}</a>` : ''}${saveButton({id:`venue:${slug}`, name:v.name, kind:'venue', href:`venue-template.html?slug=${slug}`, meta:v.area})}</div>${v.phone ? `<hr class="sep"><div class="muted" style="display:grid; gap:8px;"><span>${v.phone}</span><span>${v.price || ''} · ${v.cuisine || ''}</span></div>` : ''}</div></div></section>
-    <section class="section-tight"><div class="container ${claimed ? '' : 'grid grid-2'}"><div class="panel"><span class="eyebrow">Contact & details</span><h3 style="margin:14px 0;">Plan your visit.</h3><div class="muted" style="display:grid; gap:10px;">${v.phone ? '<span>📞 ' + v.phone + '</span>' : ''}${v.area ? '<span>📍 ' + v.area + '</span>' : ''}${v.booking ? '<span>📅 Book via ' + v.booking + '</span>' : ''}</div></div>${claimed ? '' : '<div class="panel"><span class="eyebrow">Claim your venue</span><h3 style="margin:14px 0;">Own this venue?</h3><p class="muted">Add direct booking links, imagery, and promoted placement so guests find you first.</p><div class="inline-actions" style="margin-top:18px;"><a class="btn btn-primary" href="list-your-business.html?type=venue&claim=${slug}">Claim your venue</a></div></div>'}</div></section>
+    <section class="profile-hero"><div class="hero-media" style="background-image:url('${heroBg}')"></div><div class="container profile-content"><div>${logo ? `<img src="${safe(logo)}" alt="Logo" style="width:80px;height:80px;object-fit:cover;border-radius:12px;border:1px solid rgba(255,255,255,.18);margin-bottom:16px;" />` : ''}<span class="kicker">${v.tier === 'enhanced' ? 'Featured venue' : 'Venue'}</span><h1>${safe(v.name)}</h1><p class="lead" style="margin-top:16px;">${safe(v.specialty || v.cuisine || '')}${v.area ? ` in ${safe(v.area)}` : ''}</p>${summaryText ? `<p style="margin-top:14px;max-width:60ch;color:var(--muted);font-size:1.02rem;line-height:1.65;">${safe(summaryText)}</p>` : ''}<div class="info-strip">${v.area ? `<div class="info-chip"><div class="muted">Area</div><strong>${safe(v.area)}</strong></div>` : ''}<div class="info-chip"><div class="muted">Category</div><strong>${safe(v.cuisine || 'Bar')}</strong></div>${v.rating ? `<div class="info-chip"><div class="muted">Rating</div><strong>★ ${safe(v.rating)}</strong></div>` : ''}<div class="info-chip"><div class="muted">Price</div><strong>${safe(v.price || 'N/A')}</strong></div></div></div><div class="panel"><span class="eyebrow">Quick actions</span><div class="inline-actions" style="margin-top:16px;">${website !== '#' ? `<a class="btn btn-secondary" href="${safe(website)}" target="_blank" rel="noreferrer">${v.booking ? 'Book via ' + safe(v.booking) : 'Visit website'}</a>` : ''}${saveButton({id:`venue:${slug}`, name:v.name, kind:'venue', href:`venue-template.html?slug=${slug}`, meta:v.area})}</div>${v.phone ? `<hr class="sep"><div class="muted" style="display:grid; gap:8px;"><span>${safe(v.phone)}</span><span>${safe(v.price || '')} · ${safe(v.cuisine || '')}</span></div>` : ''}</div></div></section>
+    <section class="section-tight"><div class="container ${claimed ? '' : 'grid grid-2'}"><div class="panel"><span class="eyebrow">Contact & details</span><h3 style="margin:14px 0;">Plan your visit.</h3><div class="muted" style="display:grid; gap:10px;">${v.phone ? '<span>📞 ' + safe(v.phone) + '</span>' : ''}${v.area ? '<span>📍 ' + safe(v.area) + '</span>' : ''}${v.booking ? '<span>📅 Book via ' + safe(v.booking) + '</span>' : ''}</div></div>${claimed ? '' : `<div class="panel"><span class="eyebrow">Claim your venue</span><h3 style="margin:14px 0;">Own this venue?</h3><p class="muted">Add direct booking links, imagery, and promoted placement so guests find you first.</p><div class="inline-actions" style="margin-top:18px;"><a class="btn btn-primary" href="list-your-business.html?type=venue&claim=${encodeURIComponent(slug)}">Claim your venue</a></div></div>`}</div></section>
     ${v.tier === 'enhanced' && v.instagram_handle ? `
     <section class="section instagram-section">
       <div class="container">
-        <div class="section-head"><div><span class="eyebrow">Instagram</span><h2>Follow <span class="text-pink headline-script">@${v.instagram_handle.replace('@','')}</span></h2><p class="lead" style="margin-top:14px;">See what's happening at ${v.name} — real-time posts, events, and guest moments.</p></div><a class="btn btn-primary" href="https://instagram.com/${v.instagram_handle.replace('@','')}" target="_blank" rel="noreferrer">Follow on Instagram</a></div>
+        <div class="section-head"><div><span class="eyebrow">Instagram</span><h2>Follow <span class="text-pink headline-script">@${safe(v.instagram_handle.replace('@',''))}</span></h2><p class="lead" style="margin-top:14px;">See what's happening at ${safe(v.name)} — real-time posts, events, and guest moments.</p></div><a class="btn btn-primary" href="https://instagram.com/${safe(v.instagram_handle.replace('@',''))}" target="_blank" rel="noreferrer">Follow on Instagram</a></div>
         <div class="instagram-feed-grid">
           ${['','','','','',''].map((_,i) => `
           <div class="instagram-card">
@@ -1487,12 +1497,12 @@ async function renderSupplierProfile() {
     : '<div class="empty-state"><h3>No upcoming events.</h3><p class="muted">Check back soon for tastings and launches.</p></div>';
 
   app.innerHTML = `
-    <section class="profile-hero"><div class="hero-media" style="background-image:url('${heroBg}')"></div><div class="container profile-content"><div>${logo ? `<img src="${logo}" alt="Logo" style="width:80px;height:80px;object-fit:cover;border-radius:12px;border:1px solid rgba(255,255,255,.18);margin-bottom:16px;" />` : ''}<span class="kicker">${profile.tier === 'enhanced' ? 'Featured supplier' : 'Supplier'}</span><h1>${name}</h1>${summary ? `<p class="lead" style="margin-top:16px;">${summary}</p>` : ''}<div class="info-strip">${claimed ? `<div class="info-chip"><div class="muted">Area</div><strong>${area || 'Hong Kong'}</strong></div>` : ''}<div class="info-chip"><div class="muted">Specialty</div><strong>${specialty || 'Drinks'}</strong></div>${claimed ? `<div class="info-chip"><div class="muted">Website</div><strong>Online store</strong></div>` : ''}<div class="info-chip"><div class="muted">Listing</div><strong>${claimed ? 'Verified profile' : 'Unclaimed listing'}</strong></div></div></div><div class="panel"><span class="eyebrow">Quick actions</span><div class="inline-actions" style="margin-top:16px;">${claimed && website !== '#' ? `<a class="btn btn-primary" href="${website}" target="_blank" rel="noreferrer">Visit supplier website</a>` : ''}${saveButton({id:`supplier:${slug}`, name, kind:'supplier', href:`supplier-template.html?slug=${slug}`, meta:area})}</div>${claimed ? `<hr class="sep"><div class="muted" style="display:grid; gap:8px;">${phone ? `<span>${phone}</span>` : ''}<span>${specialty || ''}</span></div>` : `<hr class="sep"><p class="muted" style="font-size:.82rem;">This listing hasn't been claimed yet — contact details appear once the owner verifies their profile.</p>`}</div></div></section>
+    <section class="profile-hero"><div class="hero-media" style="background-image:url('${heroBg}')"></div><div class="container profile-content"><div>${logo ? `<img src="${safe(logo)}" alt="Logo" style="width:80px;height:80px;object-fit:cover;border-radius:12px;border:1px solid rgba(255,255,255,.18);margin-bottom:16px;" />` : ''}<span class="kicker">${profile.tier === 'enhanced' ? 'Featured supplier' : 'Supplier'}</span><h1>${safe(name)}</h1>${summary ? `<p class="lead" style="margin-top:16px;">${safe(summary)}</p>` : ''}<div class="info-strip">${claimed ? `<div class="info-chip"><div class="muted">Area</div><strong>${safe(area || 'Hong Kong')}</strong></div>` : ''}<div class="info-chip"><div class="muted">Specialty</div><strong>${safe(specialty || 'Drinks')}</strong></div>${claimed ? `<div class="info-chip"><div class="muted">Website</div><strong>Online store</strong></div>` : ''}<div class="info-chip"><div class="muted">Listing</div><strong>${claimed ? 'Verified profile' : 'Unclaimed listing'}</strong></div></div></div><div class="panel"><span class="eyebrow">Quick actions</span><div class="inline-actions" style="margin-top:16px;">${claimed && website !== '#' ? `<a class="btn btn-primary" href="${safe(website)}" target="_blank" rel="noreferrer">Visit supplier website</a>` : ''}${saveButton({id:`supplier:${slug}`, name, kind:'supplier', href:`supplier-template.html?slug=${slug}`, meta:area})}</div>${claimed ? `<hr class="sep"><div class="muted" style="display:grid; gap:8px;">${phone ? `<span>${safe(phone)}</span>` : ''}<span>${safe(specialty || '')}</span></div>` : `<hr class="sep"><p class="muted" style="font-size:.82rem;">This listing hasn't been claimed yet — contact details appear once the owner verifies their profile.</p>`}</div></div></section>
     <div class="anchor-nav"><div class="container"><a class="anchor-link active" href="#catalogue">Catalogue</a><a class="anchor-link" href="#overview">Overview</a><a class="anchor-link" href="#events">Events</a><a class="anchor-link" href="#contact">Contact</a></div></div>
     <section id="catalogue" class="section-tight"><div class="container"><div class="section-head"><div><span class="eyebrow">Catalogue</span><h2>Bottles and categories to start with.</h2><p class="lead" style="margin-top:14px;">Live products this supplier has listed with us.</p></div></div>${catalogueHTML}</div></section>
     <section id="overview" class="section"><div class="container split"><div><span class="eyebrow">Overview</span><h2>Why shoppers use this supplier.</h2><p class="lead" style="margin-top:16px;">Get a quick sense of what this merchant does best, the bottle categories they are known for, and the easiest route to browse or buy locally.</p></div><div class="panel"><div class="muted" style="display:grid; gap:12px;">${sellingPoints.length ? sellingPoints.map(i => `<span>• ${i}</span>`).join('') : '<span>• Hong Kong supplier</span><span>• Direct store links</span><span>• Local availability</span>'}</div></div></div></section>
     <section id="events" class="section"><div class="container"><div class="section-head"><div><span class="eyebrow">Supplier events</span><h2>Tastings and activations worth watching.</h2><p class="lead" style="margin-top:14px;">Supplier tastings and launches worth planning your calendar around.</p></div></div>${eventsHTML}</div></section>
-    <section id="contact" class="section"><div class="container ${claimed ? '' : 'grid grid-2'}"><div class="panel"><span class="eyebrow">Contact</span><h3 style="margin:14px 0;">Ready to browse or buy?</h3><div class="muted" style="display:grid; gap:10px;">${claimed ? `${phone ? `<span>${phone}</span>` : ''}<span>${area || 'Hong Kong'}</span><span><a href="${website}" target="_blank" rel="noreferrer">${website === '#' ? 'Visit website' : website}</a></span>` : `<span>Contact details are hidden until this listing is claimed. <a class="text-gold" href="list-your-business.html?type=merchant&claim=${slug}">Claim this listing</a> to add them.</span>`}</div></div>${claimed ? '' : '<div class="panel"><span class="eyebrow">Own this supplier listing?</span><h3 style="margin:14px 0;">Get your profile live</h3><p class="muted">Add your story, catalogue, and store links so shoppers can move from discovery to purchase more easily.</p><div class="inline-actions" style="margin-top:18px;"><a class="btn btn-primary btn-small" href="list-your-business.html?type=merchant&claim=${slug}">Claim this listing</a></div></div>'}</div></section>`;
+    <section id="contact" class="section"><div class="container ${claimed ? '' : 'grid grid-2'}"><div class="panel"><span class="eyebrow">Contact</span><h3 style="margin:14px 0;">Ready to browse or buy?</h3><div class="muted" style="display:grid; gap:10px;">${claimed ? `${phone ? `<span>${safe(phone)}</span>` : ''}<span>${safe(area || 'Hong Kong')}</span><span><a href="${safe(website)}" target="_blank" rel="noreferrer">${website === '#' ? 'Visit website' : safe(website)}</a></span>` : `<span>Contact details are hidden until this listing is claimed. <a class="text-gold" href="list-your-business.html?type=merchant&claim=${encodeURIComponent(slug)}">Claim this listing</a> to add them.</span>`}</div></div>${claimed ? '' : `<div class="panel"><span class="eyebrow">Own this supplier listing?</span><h3 style="margin:14px 0;">Get your profile live</h3><p class="muted">Add your story, catalogue, and store links so shoppers can move from discovery to purchase more easily.</p><div class="inline-actions" style="margin-top:18px;"><a class="btn btn-primary btn-small" href="list-your-business.html?type=merchant&claim=${encodeURIComponent(slug)}">Claim this listing</a></div></div>`}</div></section>`;
   bindSaveButtons(app);
 }
 
@@ -1692,7 +1702,7 @@ async function renderAccountSaved() {
   if (!holder) return;
   let saved = [];
   try { saved = await fetchSavedItems(); } catch { saved = []; }
-  holder.innerHTML = saved.length ? `<div class="saved-grid">${saved.map(item => `<div class="panel"><div class="eyebrow">${item.kind}</div><h3 style="margin:12px 0;">${item.name}</h3><div class="inline-actions" style="margin-top:16px;">${item.href ? ctaLink('Open', item.href, 'btn btn-ghost btn-small', 'Saved item') : ''}<button class="btn btn-secondary btn-small" data-remove="${item.id}">Remove</button></div></div>`).join('')}</div>` : '<div class="empty-state">You have not saved any drinks, events, suppliers, or venues yet.</div>';
+  holder.innerHTML = saved.length ? `<div class="saved-grid">${saved.map(item => `<div class="panel"><div class="eyebrow">${safe(item.kind)}</div><h3 style="margin:12px 0;">${safe(item.name)}</h3><div class="inline-actions" style="margin-top:16px;">${item.href ? ctaLink('Open', item.href, 'btn btn-ghost btn-small', 'Saved item') : ''}<button class="btn btn-secondary btn-small" data-remove="${safe(item.id)}">Remove</button></div></div>`).join('')}</div>` : '<div class="empty-state">You have not saved any drinks, events, suppliers, or venues yet.</div>';
   $$('[data-remove]', holder).forEach(btn => btn.addEventListener('click', async () => {
     try { await removeSavedItem(btn.dataset.remove); _savedItemIds.delete(btn.dataset.remove); } catch {}
     renderAccountSaved();
@@ -1707,7 +1717,7 @@ async function renderAccountLeads() {
   if (!user) { holder.innerHTML = '<div class="empty-state">Sign in to view your business enquiries.</div>'; return; }
   let leads = [];
   try { leads = await fetchMyLeads(user.email); } catch (e) { leads = []; }
-  holder.innerHTML = leads.length ? `<div class="grid grid-2">${leads.map(lead => `<div class="panel"><div class="eyebrow">${lead.listing_type === 'venue' ? 'Venue enquiry' : 'Merchant enquiry'}</div><h3 style="margin:12px 0;">${lead.business_name}</h3><p class="muted">${lead.listing_type} · ${lead.district}</p><div class="muted" style="display:grid; gap:8px; margin-top:14px;"><span>${lead.contact_name}</span><span>${lead.email}</span><span>${lead.phone}</span></div><div class="inline-actions" style="margin-top:16px;"><a class="btn btn-ghost btn-small" href="list-your-business.html?type=${lead.listing_type}">Edit / submit another</a><a class="btn btn-primary btn-small" href="dashboard.html?role=${lead.listing_type}">Open dashboard</a></div></div>`).join('')}</div>` : '<div class="empty-state">No business enquiries yet. Use the lead capture page to submit your first supplier or venue application.</div>';
+  holder.innerHTML = leads.length ? `<div class="grid grid-2">${leads.map(lead => `<div class="panel"><div class="eyebrow">${lead.listing_type === 'venue' ? 'Venue enquiry' : 'Merchant enquiry'}</div><h3 style="margin:12px 0;">${safe(lead.business_name)}</h3><p class="muted">${safe(lead.listing_type)} · ${safe(lead.district || '')}</p><div class="muted" style="display:grid; gap:8px; margin-top:14px;"><span>${safe(lead.contact_name)}</span><span>${safe(lead.email)}</span><span>${safe(lead.phone)}</span></div><div class="inline-actions" style="margin-top:16px;"><a class="btn btn-ghost btn-small" href="list-your-business.html?type=${safe(lead.listing_type)}">Edit / submit another</a><a class="btn btn-primary btn-small" href="dashboard.html?role=${safe(lead.listing_type)}">Open dashboard</a></div></div>`).join('')}</div>` : '<div class="empty-state">No business enquiries yet. Use the lead capture page to submit your first supplier or venue application.</div>';
 }
 
 
@@ -2158,9 +2168,9 @@ async function renderBusinessDashboardPage() {
               <div class="dashboard-table-head"><div>${listingLabels[0]}</div><div>${listingLabels[1]}</div><div>${listingLabels[2]}</div><div>${listingLabels[3]}</div></div>
               <div id="dashboard-items">${config.items.map((item, index) => `
                 <div class="dashboard-row">
-                  <input class="input" data-item-name="${index}" value="${item.name}" />
-                  <input class="input" data-item-price="${index}" value="${item.price}" />
-                  <span class="status-badge status-${(item.status || 'pending').toLowerCase()}">${item.status || 'Pending'}</span>
+                  <input class="input" data-item-name="${index}" value="${safe(item.name)}" />
+                  <input class="input" data-item-price="${index}" value="${safe(item.price)}" />
+                  <span class="status-badge status-${(item.status || 'pending').toLowerCase()}">${safe(item.status || 'Pending')}</span>
                   <button class="btn btn-ghost btn-small" type="button" title="Remove item" style="color:#ff6b9d;padding:3px 6px;font-size:1rem;" onclick="removeDashboardItem(${index})">✕</button>
                 </div>`).join('')}</div>
               <div class="inline-actions" style="padding:20px; border-top:1px solid rgba(255,255,255,.06);">
@@ -2633,13 +2643,17 @@ async function loadPendingItems() {
     }
     holder.innerHTML = items.map((item, index) => `
       <div class="admin-table-row" style="grid-template-columns:2fr 1fr 100px 120px 100px 1fr;" id="pending-row-${index}">
-        <div><strong>${item.name}</strong>${(item.type || item.varietal) ? `<div class="muted" style="font-size:.78rem;">${[item.type, item.varietal].filter(Boolean).join(' · ')}</div>` : ''}</div>
-        <div>${item.supplier_name || 'Unknown'}</div>
-        <div><input class="input" id="pending-img-${index}" placeholder="Image URL" value="${item.image || ''}" style="width:100%;font-size:.78rem;" /></div>
-        <div>${item.price || 'N/A'}</div>
+        <div><strong>${safe(item.name)}</strong>${(item.type || item.varietal) ? `<div class="muted" style="font-size:.78rem;">${[item.type, item.varietal].filter(Boolean).map(safe).join(' · ')}</div>` : ''}</div>
+        <div>${safe(item.supplier_name || 'Unknown')}</div>
+        <div><input class="input" id="pending-img-${index}" placeholder="Image URL" value="${safe(item.image || '')}" style="width:100%;font-size:.78rem;" /></div>
+        <div>${safe(item.price || 'N/A')}</div>
         <div><span class="status-badge status-pending">Pending</span></div>
-        <div><button class="btn btn-primary btn-small" type="button" onclick="moderateItem('${item.id}','approved',${index})">Approve</button> <button class="btn btn-ghost btn-small" type="button" onclick="moderateItem('${item.id}','rejected',${index})">Reject</button></div>
+        <div><button class="btn btn-primary btn-small" type="button" data-moderate="approved" data-moderate-id="${safe(item.id)}" data-moderate-index="${index}">Approve</button> <button class="btn btn-ghost btn-small" type="button" data-moderate="rejected" data-moderate-id="${safe(item.id)}" data-moderate-index="${index}">Reject</button></div>
       </div>`).join('');
+    // Bind moderation buttons (replaces inline onclick with DB-derived args).
+    $$('[data-moderate]', holder).forEach(btn => btn.addEventListener('click', () => {
+      moderateItem(btn.dataset.moderateId, btn.dataset.moderate, Number(btn.dataset.moderateIndex));
+    }));
   } catch (e) {
     holder.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Could not load pending items: ${e.message}</div>`;
   }
@@ -3029,26 +3043,31 @@ async function loadAdminLeads() {
       const chips = flags.map(f => {
         const [tone, label] = labels[f] || ['', f];
         const color = tone === 'jade' ? 'var(--jade)' : tone === 'pink' ? '#ff6b9d' : 'var(--muted)';
-        return `<span class="info-pill" style="color:${color};border-color:${color};">${label}</span>`;
+        return `<span class="info-pill" style="color:${color};border-color:${color};">${safe(label)}</span>`;
       }).join('');
       return `<br><span style="display:inline-flex;gap:4px;flex-wrap:wrap;margin-top:6px;">${chips}</span>`;
     };
     holder.innerHTML = leads.map(lead => `
-      <div class="admin-table-row" style="grid-template-columns:1.5fr 0.8fr 1fr 1.2fr 1fr 1fr;" id="admin-lead-row-${lead.id}">
-        <div><strong>${lead.business_name || '—'}</strong>${lead.claimed_slug ? `<br><span class="status-badge" style="background:rgba(200,170,110,.12);color:#e8d5a8;border-color:rgba(200,170,110,.3);">Claim → ${lead.claimed_name || lead.claimed_slug}</span>` : ''}${claimFlagsHTML(lead)}</div>
+      <div class="admin-table-row" style="grid-template-columns:1.5fr 0.8fr 1fr 1.2fr 1fr 1fr;" id="admin-lead-row-${safe(lead.id)}">
+        <div><strong>${safe(lead.business_name || '—')}</strong>${lead.claimed_slug ? `<br><span class="status-badge" style="background:rgba(200,170,110,.12);color:#e8d5a8;border-color:rgba(200,170,110,.3);">Claim → ${safe(lead.claimed_name || lead.claimed_slug)}</span>` : ''}${claimFlagsHTML(lead)}</div>
         <div>${lead.listing_type === 'venue' ? 'Venue' : 'Supplier'}</div>
-        <div>${lead.district || '—'}</div>
-        <div>${lead.contact_name || '—'}<br><span class="small-note">${lead.email || ''}</span></div>
-        <div><span class="status-badge status-${(lead.status || 'new').toLowerCase()}">${lead.status || 'New'}</span>
-          <select class="select admin-select" data-lead-status="${lead.id}" style="margin-top:6px;width:100%;">
+        <div>${safe(lead.district || '—')}</div>
+        <div>${safe(lead.contact_name || '—')}<br><span class="small-note">${safe(lead.email || '')}</span></div>
+        <div><span class="status-badge status-${(lead.status || 'new').toLowerCase()}">${safe(lead.status || 'New')}</span>
+          <select class="select admin-select" data-lead-status="${safe(lead.id)}" style="margin-top:6px;width:100%;">
             ${['new','reviewing','approved','rejected'].map(s => `<option value="${s}" ${lead.status === s ? 'selected' : ''}>${s}</option>`).join('')}
           </select>
         </div>
         <div style="display:flex;gap:4px;flex-wrap:wrap;">
-          <button class="btn btn-primary btn-small" type="button" onclick="setLeadStatus('${lead.id}')">Save</button>
-          <button class="btn btn-ghost btn-small" type="button" onclick="provisionLead('${lead.id}')" title="Create profile + starter plan + mark approved">Go live</button>
+          <button class="btn btn-primary btn-small" type="button" data-lead-action="save" data-lead-id="${safe(lead.id)}">Save</button>
+          <button class="btn btn-ghost btn-small" type="button" data-lead-action="provision" data-lead-id="${safe(lead.id)}" title="Create profile + starter plan + mark approved">Go live</button>
         </div>
       </div>`).join('');
+    // Bind lead action buttons (replaces inline onclick with DB-derived ids).
+    $$('[data-lead-action]', holder).forEach(btn => btn.addEventListener('click', () => {
+      if (btn.dataset.leadAction === 'save') setLeadStatus(btn.dataset.leadId);
+      else provisionLead(btn.dataset.leadId);
+    }));
   } catch (e) {
     holder.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Could not load leads: ${e.message}</div>`;
   }
@@ -3399,6 +3418,7 @@ async function renderBlogPostPage() {
       </div>
     </section>
   `;
+  // Blog bodies are admin-authored HTML by design (rich text), rendered as-is.
 }
 
 async function renderBlogAdminPage() {

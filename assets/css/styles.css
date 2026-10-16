@@ -1264,6 +1264,7 @@ hr.sep { border: 0; height: 1px; background: rgba(255,255,255,.06); margin: 18px
   }
   .nav-links.open { display: flex; }
   .mobile-toggle { display: inline-flex; }
+  .nav-mobile-auth { font-weight: 600; color: var(--gold); border-top: 1px solid var(--border); padding-top: 14px; margin-top: 6px; width: 100%; }
   .search-box, .filter-bar, .form-grid, .grid-3, .grid-4, .grid-5,
   .gallery-grid, .saved-grid, .table-head, .list-row,
   .dashboard-table-head, .dashboard-row { grid-template-columns: 1fr; }

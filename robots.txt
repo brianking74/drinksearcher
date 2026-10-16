@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+
+# Consumer pages
+Disallow: /admin.html
+Disallow: /admin
+Disallow: /dashboard.html
+Disallow: /dashboard
+
+Sitemap: https://drinksearcher.net/sitemap.xml

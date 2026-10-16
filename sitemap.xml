@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://drinksearcher.net/</loc><changefreq>daily</changefreq><priority>1.0</priority></url>
+  <url><loc>https://drinksearcher.net/drinks</loc><changefreq>daily</changefreq><priority>0.9</priority></url>
+  <url><loc>https://drinksearcher.net/bars-restaurants</loc><changefreq>daily</changefreq><priority>0.9</priority></url>
+  <url><loc>https://drinksearcher.net/events</loc><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://drinksearcher.net/suppliers</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://drinksearcher.net/blog</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://drinksearcher.net/pricing</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://drinksearcher.net/guide-rooftop-bars</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://drinksearcher.net/signin</loc><priority>0.3</priority></url>
+  <url><loc>https://drinksearcher.net/signup</loc><priority>0.3</priority></url>
+  <url><loc>https://drinksearcher.net/list-your-business</loc><priority>0.6</priority></url>
+</urlset>
