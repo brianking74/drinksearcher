@@ -1,19 +1,17 @@
 /**
- * dashboard-cloudinary.js
- * Supplier/venue-facing Cloudinary upload widget for the business dashboard.
- * Provides TWO upload slots on the "Listing controls" form:
+ * dashboard-cloudinary.js — business dashboard image upload (logo + header).
  *   - 'logo'   -> square profile image / logo   (suppliers.image / venues.image)
- *   - 'header' -> wide header/banner image      (suppliers.hero_image / venues.hero_image)
+ *   - 'header' -> wide header/banner image       (suppliers.hero_image / venues.hero_image)
  * Both are persisted via the save_business_profile RPC.
- * Uses the same unsigned upload preset as the admin (cloud rqokncht).
+ *
+ * Uploads go through the upload-image Edge Function (signed Cloudinary
+ * upload, server-side; requires a signed-in business account). The old
+ * Cloudinary unsigned-preset widget was retired — the open preset let
+ * anyone store images on the account.
  */
 (function () {
   'use strict';
   if (document.body.dataset.page !== 'dashboard') return;
-
-  const CLOUD_NAME = 'rqokncht';
-  const UPLOAD_PRESET = 'drinksearcher';
-  let widget = null;
 
   // slot: 'logo' | 'header'
   function showPreview(slot, url) {
@@ -31,53 +29,46 @@
     if (removeBtn) removeBtn.style.display = url ? '' : 'none';
   }
 
-  window.dsDashboardImageUpload = function (role, slot) {
+  window.dsDashboardImageUpload = async function (role, slot) {
     slot = slot || 'logo';
-    if (typeof cloudinary === 'undefined') {
-      alert('Image upload is still loading — please try again in a moment.');
-      return;
-    }
-    const folder = role === 'venue' ? 'venues' : 'suppliers';
-    widget = cloudinary.createUploadWidget(
-      {
-        cloudName: CLOUD_NAME,
-        uploadPreset: UPLOAD_PRESET,
-        folder: slot === 'header' ? folder + '/headers' : folder + '/logos',
-        sources: ['local', 'url', 'camera'],
-        multiple: false,
-        maxFiles: 1,
-        clientAllowedFormats: ['jpg', 'jpeg', 'png', 'webp'],
-        maxFileSize: 5000000,
-        ...(slot === 'logo'
-          ? { cropping: true, croppingAspectRatio: 1, showSkipCropButton: false, croppingShowDimensions: true }
-          : {}),
-        styles: {
-          palette: {
-            window: '#090a0b',
-            windowBorder: '#292d2f',
-            tabIcon: '#c8aa6e',
-            menuIcons: '#f4f0e7',
-            textDark: '#111315',
-            textLight: '#f4f0e7',
-            link: '#c8aa6e',
-            action: '#c8aa6e',
-            inactiveTabIcon: '#a6a39c',
-            error: '#ff5f56',
-            inProgress: '#c8aa6e',
-            complete: '#87a894',
-            sourceBg: '#111315',
-            video: '#c8aa6e'
-          }
-        }
-      },
-      function (error, result) {
-        if (error) return;
-        if (result && result.event === 'success') {
-          showPreview(slot, result.info.secure_url);
-        }
+    // File-picker + direct POST to the signed edge function.
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = 'image/png,image/jpeg,image/webp';
+    fileInput.style.display = 'none';
+    fileInput.onchange = async () => {
+      const file = fileInput.files && fileInput.files[0];
+      if (fileInput.parentNode) fileInput.parentNode.removeChild(fileInput);
+      if (!file) return;
+      if (file.size > 5 * 1024 * 1024) { alert('Image too large (max 5MB).'); return; }
+      try {
+        const dataUri = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+        const session = await sb.auth.getSession();
+        const token = session && session.data && session.data.session ? session.data.session.access_token : '';
+        if (!token) { alert('Please sign in again to upload images.'); return; }
+        const res = await fetch(`${SUPABASE_URL}/functions/v1/upload-image`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + token },
+          body: JSON.stringify({
+            slot: role === 'venue' ? 'venues' : 'suppliers',
+            sub: slot === 'header' ? 'headers' : 'logos',
+            file: dataUri
+          })
+        });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) { alert((body && body.error) || 'Upload failed. Please try again.'); return; }
+        showPreview(slot, body.url);
+      } catch (e) {
+        alert('Upload failed: ' + (e && e.message ? e.message : 'please try again.'));
       }
-    );
-    widget.open();
+    };
+    document.body.appendChild(fileInput);
+    fileInput.click();
   };
 
   window.dsDashboardImageRemove = function (slot) {

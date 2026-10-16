@@ -1,72 +1,40 @@
 /**
  * admin-cloudinary.js
- * Adds Cloudinary upload widget buttons and origin tagging to the admin.
- * Loaded only on the admin page. Uses unsigned upload preset.
+ * Adds image-upload buttons and origin tagging to the admin.
+ * Loaded only on the admin page. Uploads go through the upload-image Edge
+ * Function (signed, server-side; admin slot) — the unsigned preset is no
+ * longer used from the browser.
  */
 (function() {
 'use strict';
 
 if (document.body.dataset.page !== 'admin') return;
 
-const CLOUD_NAME = 'rqokncht';
-const UPLOAD_PRESET = 'drinksearcher';
 const FOLDER = 'drinks';
 
-let widget = null;
+async function uploadToEdge(file) {
+  const dataUri = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+  const session = await sb.auth.getSession();
+  const token = session && session.data && session.data.session ? session.data.session.access_token : '';
+  if (!token) throw new Error('Please sign in again.');
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/upload-image`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + token },
+    body: JSON.stringify({ slot: 'drinks', file: dataUri })
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error((body && body.error) || 'Upload failed');
+  return body.url;
+}
 
 function initWidget() {
-  if (widget) return widget;
-  if (typeof cloudinary === 'undefined') return null;
-  widget = cloudinary.createUploadWidget(
-    {
-      cloudName: CLOUD_NAME,
-      uploadPreset: UPLOAD_PRESET,
-      folder: FOLDER,
-      sources: ['local', 'url', 'camera'],
-      multiple: false,
-      maxFiles: 1,
-      clientAllowedFormats: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
-      maxFileSize: 10000000,
-      styles: {
-        palette: {
-          window: '#090a0b',
-          windowBorder: '#292d2f',
-          tabIcon: '#c8aa6e',
-          menuIcons: '#f4f0e7',
-          textDark: '#111315',
-          textLight: '#f4f0e7',
-          link: '#c8aa6e',
-          action: '#c8aa6e',
-          inactiveTabIcon: '#a6a39c',
-          error: '#ff5f56',
-          inProgress: '#c8aa6e',
-          complete: '#87a894',
-          sourceBg: '#111315',
-          video: '#c8aa6e',
-        }
-      }
-    },
-    function(error, result) {
-      if (error) return;
-      if (result.event === 'success') {
-        const url = result.info.secure_url;
-        const active = document.activeElement;
-        let field = null;
-        if (active && active.id && (active.id.includes('-img-') || active.placeholder === 'Image URL')) {
-          field = active;
-        }
-        if (!field) {
-          field = document.querySelector('input[placeholder="Image URL"]:not([value])') ||
-                  document.querySelector('input[id$="-img-"]:not([value])');
-        }
-        if (field) {
-          field.value = url;
-          field.dispatchEvent(new Event('input', { bubbles: true }));
-        }
-      }
-    }
-  );
-  return widget;
+  // Legacy entry point: replaced by the per-field file-picker in addButtons().
+  return null;
 }
 
 // Add upload buttons next to image URL fields
@@ -80,8 +48,30 @@ function addButtons() {
     btn.style.cssText = 'margin-left:6px;font-size:.65rem;padding:6px 10px;min-height:32px;flex-shrink:0;';
     btn.onclick = function(e) {
       e.preventDefault();
-      const w = initWidget();
-      if (w) w.open();
+      const fileInput = document.createElement('input');
+      fileInput.type = 'file';
+      fileInput.accept = 'image/png,image/jpeg,image/webp,image/gif';
+      fileInput.style.display = 'none';
+      fileInput.onchange = async () => {
+        const file = fileInput.files && fileInput.files[0];
+        if (fileInput.parentNode) fileInput.parentNode.removeChild(fileInput);
+        if (!file) return;
+        if (file.size > 10 * 1024 * 1024) { alert('Image too large (max 10MB).'); return; }
+        btn.disabled = true;
+        btn.textContent = 'Uploading…';
+        try {
+          const url = await uploadToEdge(file);
+          input.value = url;
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+        } catch (err) {
+          alert(err.message || 'Upload failed.');
+        } finally {
+          btn.disabled = false;
+          btn.textContent = 'Upload';
+        }
+      };
+      document.body.appendChild(fileInput);
+      fileInput.click();
     };
     input.style.cssText = (input.getAttribute('style') || '') + ';flex:1;min-width:0;';
     input.parentElement.style.display = 'flex';

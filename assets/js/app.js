@@ -30,21 +30,24 @@ function dsImage(url, mode = 'bottle') {
   return src;
 }
 
-// Upload a remote image to Cloudinary via the unsigned preset (no secret needed)
-// and return the managed URL. Falls back to the original on any failure.
+// Rehost a remote image on Cloudinary via the upload-image Edge Function
+// (signed, server-side; requires a signed-in admin for the rehost slot).
+// Falls back to the original URL on any failure.
 async function dsUploadImage(url) {
   const src = String(url || '').trim();
   if (!src || !/^https?:\/\//i.test(src)) return src;
   try {
-    const body = new URLSearchParams({ file: src, upload_preset: 'drinksearcher' });
-    const res = await fetch('https://api.cloudinary.com/v1_1/rqokncht/image/upload', {
+    const session = await sb.auth.getSession();
+    const token = session.data?.session?.access_token;
+    if (!token) return src; // not signed in — leave the original URL
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/upload-image`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: body.toString()
+      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ slot: 'rehost', file: src })
     });
     if (!res.ok) return src;
     const data = await res.json();
-    return (data && data.secure_url) || src;
+    return (data && data.url) || src;
   } catch { return src; }
 }
 
