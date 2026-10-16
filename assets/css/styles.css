@@ -1595,8 +1595,9 @@ hr.sep { border: 0; height: 1px; background: rgba(255,255,255,.06); margin: 18px
   flex: 1;
   min-width: 0;
   display: flex;
-  align-items: center;
-  gap: 10px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
 }
 .supplier-row__name {
   font-weight: 600;
@@ -1604,6 +1605,24 @@ hr.sep { border: 0; height: 1px; background: rgba(255,255,255,.06); margin: 18px
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: 100%;
+}
+.supplier-row__meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.supplier-row__area,
+.supplier-row__moq {
+  font-size: .76rem;
+  color: var(--text-secondary, rgba(255,255,255,.55));
+  white-space: nowrap;
+}
+.supplier-row__moq {
+  padding: 1px 7px;
+  border-radius: 4px;
+  background: rgba(255,255,255,.05);
 }
 .supplier-row__stock {
   font-size: .78rem;
@@ -1660,6 +1679,20 @@ hr.sep { border: 0; height: 1px; background: rgba(255,255,255,.06); margin: 18px
   }
   .bottle-price {
     font-size: 1.5rem;
+  }
+  /* Supplier compare rows stack: info / price / actions */
+  .supplier-row {
+    flex-wrap: wrap;
+    row-gap: 10px;
+  }
+  .supplier-row__price {
+    min-width: 0;
+    text-align: left;
+  }
+  .supplier-row__actions {
+    margin-left: 0;
+    width: 100%;
+    justify-content: flex-start;
   }
 }
 @media (max-width: 640px) {

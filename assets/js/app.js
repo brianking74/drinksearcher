@@ -851,6 +851,24 @@ async function renderBottleDetail() {
   }
   const supplierRows = rows.filter(r => (r.supplier_name || '').trim() || (r.buy_url || '').trim() || (r.price || '').trim());
   const supplierCount = supplierRows.length;
+
+  // Enrich each supplier row with the supplier's DIRECTORY PROFILE (area,
+  // min_order, tier, website) so the compare table can show location, MOQ
+  // and the enhanced-tier Buy now CTA.
+  const supplierNames = [...new Set(supplierRows.map(r => (r.supplier_name || '').trim()).filter(Boolean))];
+  const supplierProfileByName = new Map();
+  if (supplierNames.length) {
+    const { data: supProfiles } = await sb.from('suppliers')
+      .select('name, area, min_order, tier, website')
+      .in('name', supplierNames);
+    (supProfiles || []).forEach(p => supplierProfileByName.set(p.name, p));
+  }
+  supplierRows.forEach(r => {
+    const p = supplierProfileByName.get((r.supplier_name || '').trim());
+    r.supplier_area = p ? (p.area || '') : '';
+    r.supplier_min_order = p ? (p.min_order || '') : '';
+    r.supplier_tier = p ? (p.tier || 'standard') : 'standard';
+  });
   if (!supplierCount) {
     app.innerHTML = `<div class="empty-state">Bottle not found: "${safe(decodeURIComponent(name))}". <a href="drinks.html">Browse drinks →</a></div>`;
     return;
@@ -883,12 +901,17 @@ async function renderBottleDetail() {
             <span class="kicker">${safe(drink.type || '')}</span>
             <h1>${safe(drink.name)}</h1>
             <div class="bottle-meta">
+              ${drink.origin ? `<span class="meta-tag">📍 ${safe(drink.origin)}</span>` : ''}
               ${drink.abv ? `<span class="meta-tag">${safe(drink.abv)} ABV</span>` : ''}
-              ${drink.origin ? `<span class="meta-tag">${safe(drink.origin)}</span>` : ''}
               ${supplierCount > 1 ? `<span class="meta-tag meta-tag--suppliers">${supplierCount} suppliers</span>` : ''}
             </div>
             <div class="bottle-price">${safe(priceDisplay)}</div>
             ${drink.description ? `<p class="bottle-desc">${safe(drink.description)}</p>` : ''}
+            ${!drink.description && (drink.origin || drink.abv) ? `<p class="bottle-desc muted">${[
+              drink.type ? `${safe(drink.type)}` : '',
+              drink.origin ? `from ${safe(drink.origin)}` : '',
+              drink.abv ? `${safe(drink.abv)} ABV` : ''
+            ].filter(Boolean).join(' · ')}</p>` : ''}
             <div class="bottle-actions">
               ${saveButton({id: `drink:${slug}`, name: drink.name, kind: 'drink'})}
             </div>
@@ -902,12 +925,16 @@ async function renderBottleDetail() {
                   <div class="supplier-row${i===0?' supplier-row--best':''}">
                     <div class="supplier-row__info">
                       <span class="supplier-row__name">${safe(s.supplier_name || 'Supplier')}</span>
+                      <span class="supplier-row__meta">
+                        ${s.supplier_area ? `<span class="supplier-row__area">📍 ${safe(s.supplier_area)}</span>` : ''}
+                        ${s.supplier_min_order ? `<span class="supplier-row__moq">MOQ ${safe(s.supplier_min_order)}</span>` : ''}
+                      </span>
                       ${s.availability ? `<span class="supplier-row__stock ${s.availability.toLowerCase().includes('stock') ? 'in-stock' : ''}">${safe(s.availability)}</span>` : ''}
                     </div>
                     <div class="supplier-row__price">${safe(s.price)}</div>
-                    ${(i === 0 || s.buy_url) ? `<div class="supplier-row__actions">
+                    ${(i === 0 || s.buy_url || s.supplier_tier === 'enhanced' || s.supplier_tier === 'featured') ? `<div class="supplier-row__actions">
                       ${i === 0 ? '<span class="best-price-badge">Best price</span>' : ''}
-                      ${s.buy_url ? `<a href="${safe(s.buy_url)}" target="_blank" rel="noreferrer" class="btn btn-primary btn-small" data-track-id="${safe(s.id)}" data-track-name="${safe(s.name)}" data-track-supplier="${safe(s.supplier_name || '')}">Buy →</a>` : ''}
+                      ${s.buy_url ? `<a href="${safe(s.buy_url)}" target="_blank" rel="noreferrer" class="btn btn-primary btn-small" data-track-id="${safe(s.id)}" data-track-name="${safe(s.name)}" data-track-supplier="${safe(s.supplier_name || '')}">Buy now →</a>` : (s.supplier_tier === 'enhanced' || s.supplier_tier === 'featured') ? `<a href="supplier-template.html?slug=${safe(slugify(s.supplier_name || ''))}" class="btn btn-ghost btn-small">View supplier</a>` : ''}
                     </div>` : ''}
                   </div>
                 `).join('')}
