@@ -67,7 +67,14 @@ h1,h2,h3,h4{font-family:var(--serif);font-weight:400;letter-spacing:-.025em;colo
 .hero.pricing-hero .hero-copy{padding-top:clamp(56px,8vh,104px);padding-bottom:clamp(48px,7vh,88px);max-width:min(1000px,100%)}
 /* .hero-media is absolutely positioned, so the copy only paints above it when
    its wrapper is positioned — the other heroes get this from .hero-grid. */
-.hero.pricing-hero .container{position:relative;z-index:2}
+.hero.pricing-hero .container{position:relative;z-index:2;min-width:0}
+.hero.pricing-hero .hero-copy{min-width:0}
+/* Phones: the hero headline runs to the viewport edge and clips, so size it to
+   fit rather than trusting the inherited clamp(). */
+@media (max-width:700px){
+  .hero.pricing-hero .hero-copy{max-width:100%}
+  .hero.pricing-hero .pricing-hero-title{font-size:clamp(1.9rem,7.2vw,2.6rem)}
+}
 .hero.pricing-hero .hero-copy .lead{max-width:54ch}
 .hero.pricing-hero .muted{max-width:76ch}
 /* Two lines, not four: the old .pricing-page-head capped the h1 at 12ch. */
