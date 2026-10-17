@@ -1772,14 +1772,29 @@ async function renderAccountLeads() {
 }
 
 
-function removeDashboardItem(idx) {
+async function removeDashboardItem(idx) {
   var s = storage.getDashboardState();
   if (!s) return;
-  var c = s[s.activeRole || 'merchant'];
-  if (!c) return;
+  var role = s.activeRole || 'merchant';
+  var c = s[role];
+  if (!c || !Array.isArray(c.items)) return;
+  var item = c.items[idx];
+  if (!item) return;
+  // Real catalogue rows carry a UUID (RLS: "Users can delete own drinks").
+  // Anything else is a local-only draft row.
+  var isDbRow = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(item.id || ''));
+  if (isDbRow) {
+    if (!confirm('Remove "' + (item.name || 'this product') + '" from your catalogue?\n\nThis deletes the listing permanently.')) return;
+    var res = await sb.from('drinks').delete().eq('id', item.id);
+    if (res.error) {
+      alert('Could not remove this listing: ' + res.error.message);
+      return;
+    }
+  }
   c.items.splice(idx, 1);
   storage.setDashboardState(s);
-  renderBusinessDashboardPage();
+  // Re-read from the database so the table always reflects what is really there.
+  if (typeof renderBusinessDashboardPage === 'function') renderBusinessDashboardPage();
 }
 
 function addDashboardItem() {
@@ -2069,6 +2084,7 @@ async function renderBusinessDashboardPage() {
   // in another browser (or after clearing site data) vanish from the dashboard
   // even though they are live. Supplier rows are readable under the
   // "Users can see their own pending drinks" policy (auth.uid() = submitted_by).
+  let catalogueLoadNote = '';
   try {
     const mine = await fetchMyDrinks();
     const merchantCfg = state.merchant || (state.merchant = { items: [] });
@@ -2089,8 +2105,12 @@ async function renderBusinessDashboardPage() {
       };
     });
     merchantCfg.items = Object.values(merged);
+    if (!(mine || []).length && (state.listingCount || 0) > 0) {
+      catalogueLoadNote = `<div class="notice" style="background:rgba(255,193,7,.08);border-color:rgba(255,193,7,.18);color:#ffd27d;">Your plan shows <strong>${state.listingCount}</strong> listing(s) but none were returned for this login. They were most likely submitted under a different account — contact us and we will re-link them to your profile.</div>`;
+    }
   } catch (e) {
     console.warn('Could not load your catalogue from the database:', e && e.message);
+    catalogueLoadNote = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">We could not load your catalogue from the database. Please reload the page; if it persists, contact us.</div>`;
   }
 
   // Persist the entitlement-derived fields so other readers (e.g. the sheet
@@ -2274,6 +2294,7 @@ async function renderBusinessDashboardPage() {
         <section class="section-tight">
           <div class="container">
             <div class="section-head"><div><span class="eyebrow">Pricing & availability</span><h2>${role === 'merchant' ? 'Manage stock visibility and current pricing.' : 'Manage offers, ticketing, tables, and availability.'}</h2></div></div>
+            ${role === 'merchant' ? catalogueLoadNote : ''}
             <div class="dashboard-table-wrap">
               <div class="dashboard-table-head"><div>${listingLabels[0]}</div><div>${listingLabels[1]}</div><div>${listingLabels[2]}</div><div>${listingLabels[3]}</div></div>
               <div id="dashboard-items">${config.items.length ? config.items.map((item, index) => `
@@ -2281,7 +2302,7 @@ async function renderBusinessDashboardPage() {
                   <input class="input" data-item-name="${index}" value="${safe(item.name)}" />
                   <input class="input" data-item-price="${index}" value="${safe(item.price)}" />
                   <span class="status-badge status-${(item.status || 'pending').toLowerCase()}">${safe(item.status || 'Pending')}</span>
-                  <button class="btn btn-ghost btn-small" type="button" title="Remove item" style="color:#ff6b9d;padding:3px 6px;font-size:1rem;" onclick="removeDashboardItem(${index})">✕</button>
+                  <button class="btn btn-ghost btn-small" type="button" title="Delete this listing" style="color:#ff6b9d;padding:3px 6px;font-size:1rem;" onclick="removeDashboardItem(${index})">✕</button>
                 </div>`).join('') : `
                 <div class="muted" style="padding:22px 20px;">No products listed yet. Import a sheet above or run a website scan to build your catalogue.</div>`}</div>
               <div class="inline-actions" style="padding:20px; border-top:1px solid rgba(255,255,255,.06);">
