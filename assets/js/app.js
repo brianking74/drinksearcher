@@ -1870,7 +1870,10 @@ function saveDashboardProfile() {
 
 function fillSampleTemplate() {
   var el = document.getElementById('sheet-import-source');
-  if (el) el.value = 'Name,Type,Varietal,Origin,Price,Availability,Image\nChardonnay Reserve,White Wine,Chardonnay,Burgundy France,188,In stock,https://example.com/chardonnay.jpg\nSmall Batch Gin,Spirit,,London,420,Low stock,https://example.com/gin.jpg\nBarolo Riserva,Red Wine,Nebbiolo,Piedmont Italy,688,In stock,https://example.com/barolo.jpg';
+  if (el) el.value = 'Name,Type,Varietal,Origin,Price,Availability,ABV,Description,Buy URL,Image\n'
+    + 'Chardonnay Reserve,White Wine,Chardonnay,Burgundy France,188,In stock,13%,"Elegant white Burgundy: citrus, white peach and a clean mineral finish. Barrel-fermented and aged on lees for texture.",https://example.com/products/chardonnay-reserve,https://example.com/chardonnay.jpg\n'
+    + 'Small Batch Gin,Spirit,,London,420,Low stock,44%,"A juniper-forward London dry, distilled in small batches with coriander, angelica and citrus peel.",https://example.com/products/small-batch-gin,https://example.com/gin.jpg\n'
+    + 'Barolo Riserva,Red Wine,Nebbiolo,Piedmont Italy,688,In stock,14.5%,"Classic Barolo from Nebbiolo grown on calcareous marl: rose, tar, dried cherry and firm, fine-grained tannins.",https://example.com/products/barolo-riserva,https://example.com/barolo.jpg';
 }
 
 async function importInventory() {
@@ -1920,6 +1923,15 @@ async function importInventory() {
     for (const item of items) {
       const existingId = existingByName[normName(item.name)];
       const base = { price: item.price, availability: item.availability || 'In stock', type: item.type || 'Wine', varietal: item.varietal || '', origin: item.origin || '', image: item.image || '' };
+      // Only write the content fields when the row actually carried them, so
+      // re-importing a spreadsheet that omits a column never erases live copy.
+      if (item.description) base.description = item.description;
+      if (item.abv) base.abv = item.abv;
+      if (item.buy_url) base.buy_url = item.buy_url;
+      if (item.description || item.abv || item.buy_url) {
+        base.source = 'csv';
+        base.enriched_at = new Date().toISOString();
+      }
       let error;
       if (existingId) {
         ({ error } = await sb.from('drinks').update(base).eq('id', existingId));
@@ -2189,7 +2201,7 @@ async function renderBusinessDashboardPage() {
             <div class="panel admin-stack">
               <span class="eyebrow">Google Sheets import</span>
               <h2 style="margin:14px 0;">Load inventory from a supplier sheet.</h2>
-              <p class="muted">Paste a published CSV URL from Google Sheets or paste CSV rows directly. This is the fastest path for suppliers who already manage stock in a spreadsheet.</p>
+              <p class="muted">Paste a published CSV URL from Google Sheets or paste CSV rows directly. This is the fastest path for suppliers who already manage stock in a spreadsheet. Columns: <strong>Name, Type, Varietal, Origin, Price, Availability, ABV, Description, Buy URL, Image</strong> — only Name is required. Descriptions are trimmed to about 50 words automatically.</p>
               <label class="dashboard-field"><span>Google Sheet CSV URL or pasted CSV</span><textarea class="input" rows="6" id="sheet-import-source" placeholder="https://docs.google.com/.../export?format=csv or pasted CSV rows"></textarea></label>
               <label class="dashboard-field"><span>Import mode</span><select class="select" id="sheet-import-mode"><option value="append">Append to current inventory</option><option value="replace">Replace current inventory</option></select></label>
               <div class="admin-inline"><button class="btn btn-primary" id="sheet-import-btn" type="button" onclick="importInventory()">Import inventory</button><button class="btn btn-ghost" id="sheet-template-btn" type="button" onclick="fillSampleTemplate()">Insert sample template</button></div>
@@ -2645,6 +2657,105 @@ function normalizeImportAvailability(value) {
   return 'In stock';
 }
 
+// ---------------------------------------------------------------
+// Description house standard (40-50 words, always ending on a sentence)
+//
+// Supplier copy arrives as raw HTML, award lines, ALL-CAPS headings and
+// trailing metadata blocks. Everything that lands in drinks.description goes
+// through here so a CSV row and a scanned row read the same.
+//
+// NOTE: this is mirrored in supabase/functions/scan-catalog/index.ts (the edge
+// function is Deno and cannot import from assets/). Keep the two in sync.
+// ---------------------------------------------------------------
+const DS_DESC_MAX_WORDS = 48;
+
+function dsStripHtml(input) {
+  return String(input == null ? '' : input)
+    .replace(/<br\s*\/?>/gi, ' ')
+    .replace(/<\/(p|div|li|h[1-6]|tr)>/gi, ' ')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&quot;|&ldquo;|&rdquo;/gi, '"')
+    .replace(/&#39;|&rsquo;|&lsquo;|&apos;/gi, "'")
+    .replace(/\u00a0/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// Split into sentences, also breaking after a trailing year so an award line
+// ("... Awards 2024 The wine is ...") separates from the copy that follows.
+function dsSentences(text) {
+  const parts = [];
+  let buf = '';
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    buf += ch;
+    const atStop = (ch === '.' || ch === '!' || ch === '?') && /\s/.test(text[i + 1] || '');
+    const atYear = /(?:19|20)\d{2}$/.test(buf) && /\s/.test(text[i + 1] || '') && /[A-Z]/.test(text[i + 2] || '');
+    if (atStop || atYear) { const s = buf.trim(); if (s) parts.push(s); buf = ''; }
+  }
+  const tail = buf.trim();
+  if (tail) parts.push(tail);
+  return parts;
+}
+
+const DS_AWARD_RE = /^(\d{2,3}\s*(?:points|pts)|best\b|gold\b|silver\b|bronze\b|double gold|trophy\b|highly recommended|international\b|decanter\b|wine spectator\b|vinous\b|[a-z&' ]*award[a-z' ]*)/i;
+const DS_LABEL_RE = /^(about the|the winemaker|winemaker|tasting note|vintage note|technical|food pairing|serving|winery|region|hint|note)\b/i;
+const DS_META_RE = /^(abv|alcohol|country of origin|origin|grape varieties|tasting notes|region)\b/i;
+
+function dsIsNoiseSentence(s) {
+  const words = s.split(/\s+/).filter(Boolean);
+  if (!words.length || words.length > 18) return false;
+  return DS_AWARD_RE.test(s) || DS_LABEL_RE.test(s) || s === s.toUpperCase();
+}
+
+// Cut to maxWords without ever ending mid-phrase.
+function dsTrimWords(text, maxWords) {
+  const words = text.split(/\s+/).filter(Boolean);
+  if (words.length <= maxWords) return text.trim();
+  const clipped = words.slice(0, maxWords).join(' ');
+  const ends = [];
+  const re = /[.!?](?=\s|$)/g;
+  let m;
+  while ((m = re.exec(clipped)) !== null) ends.push(m.index);
+  const last = ends.length ? ends[ends.length - 1] : -1;
+  if (last + 1 > clipped.length * 0.5) return clipped.slice(0, last + 1).trim();
+  return clipped.replace(/\s+\S*$/, '').replace(/[,;:]+$/, '') + '\u2026';
+}
+
+function dsNormalizeDescription(raw, maxWords) {
+  let text = dsStripHtml(raw);
+  if (!text) return '';
+  let sents = dsSentences(text);
+  // Leading award lines, ALL-CAPS headings and labels are not copy.
+  while (sents.length > 1 && dsIsNoiseSentence(sents[0])) sents.shift();
+  // An opening quoted review is the critic's words, not the supplier's.
+  if (sents.length > 1 && /["\u201c\u201d]/.test(sents[0]) && sents.slice(1).join(' ').split(/\s+/).length >= 8) sents.shift();
+  // Trailing metadata that starts its own sentence ("ABV 13%", "Country of Origin: ...").
+  while (sents.length > 1 && DS_META_RE.test(sents[sents.length - 1])) sents.pop();
+  text = sents.join(' ').replace(/\*?ALL wines personally hand-picked[\s\S]*$/i, '').trim();
+  // A leading ALL-CAPS run can be glued to the next word: "ABOUT THE WINEMAKERThis is...".
+  text = text.replace(/^(?:[A-Z][A-Z0-9&'\-]{1,30}\s*)+(?=[A-Z][a-z])/, '').trim();
+  text = text.replace(/^["\u201c\u201d'].*?["\u201c\u201d']\s*/, '').trim();
+  if (!text) return '';
+  return dsTrimWords(text, maxWords || DS_DESC_MAX_WORDS).slice(0, 1200);
+}
+
+// "14" / "14 %" / "14.0%" / "alc 13,5" all land on the same shape.
+function normalizeImportAbv(value) {
+  const text = String(value == null ? '' : value).trim();
+  if (!text) return '';
+  const m = text.match(/(\d{1,2}(?:[.,]\d)?)/);
+  return m ? m[1].replace(',', '.') + '%' : text.slice(0, 12);
+}
+
+function normalizeImportBuyUrl(value) {
+  const text = String(value == null ? '' : value).trim();
+  if (!text) return '';
+  return /^https?:\/\//i.test(text) ? text : 'https://' + text.replace(/^\/+/, '');
+}
+
 function importItemsFromCSV(text) {
   const rows = parseCSVRows(text);
   if (rows.length < 2) return [];
@@ -2655,6 +2766,11 @@ function importItemsFromCSV(text) {
   const typeIndex = inventoryColumnIndex(headers, ['type', 'category', 'style', 'wine type']);
   const varietalIndex = inventoryColumnIndex(headers, ['varietal', 'grape', 'grapes', 'grape variety']);
   const originIndex = inventoryColumnIndex(headers, ['origin', 'region', 'country', 'appellation']);
+  // Copy + product facts. These are what make a listing worth reading, so the
+  // fast path has to be able to carry them.
+  const descriptionIndex = inventoryColumnIndex(headers, ['description', 'desc', 'product description', 'notes', 'tasting notes', 'tasting note', 'about', 'copy']);
+  const abvIndex = inventoryColumnIndex(headers, ['abv', 'alcohol', 'alc', 'alcohol %', 'alcohol by volume', 'alc/vol', 'alcohol by vol']);
+  const buyUrlIndex = inventoryColumnIndex(headers, ['buy url', 'buy_url', 'buy link', 'product url', 'product link', 'shop url', 'url', 'link', 'website']);
   let imageIndex = inventoryColumnIndex(headers, ['image', 'image url', 'photo', 'img', 'image_url']);
   if (imageIndex === -1) imageIndex = headers.findIndex(h => /image|photo|img|picture|thumbnail/.test(h));
   const items = rows.slice(1).map((row, index) => {
@@ -2668,6 +2784,9 @@ function importItemsFromCSV(text) {
       type: (row[typeIndex] || '').trim(),
       varietal: (row[varietalIndex] || '').trim(),
       origin: (row[originIndex] || '').trim(),
+      description: dsNormalizeDescription(row[descriptionIndex]),
+      abv: normalizeImportAbv(row[abvIndex]),
+      buy_url: normalizeImportBuyUrl(row[buyUrlIndex]),
       image: (row[imageIndex] || '').trim(),
       status: 'Pending'
     };

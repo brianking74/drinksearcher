@@ -65,6 +65,129 @@ function guessType(title, body) {
   return 'Wine'
 }
 
+// ===============================================================
+// Description house standard (40-50 words, always ending on a sentence)
+//
+// MIRROR of the same logic in assets/js/app.js — the edge function is Deno and
+// cannot import from assets/, so the two copies have to be kept in sync.
+//
+// Two body layouts exist in the wild:
+//   A) a labelled spec sheet (Region / Alcohol / Grapes + a Body-Sweetness-
+//      Tannins-Acidity table) with no prose at all -> compose from the facts;
+//   B) prose copy, often prefixed by award lines and ALL-CAPS headings -> take
+//      the first real sentence.
+// ===============================================================
+const DESC_MAX_WORDS = 48
+
+const AWARD_RE = /^(\d{2,3}\s*(?:points|pts)|best\b|gold\b|silver\b|bronze\b|double gold|trophy\b|highly recommended|international\b|decanter\b|wine spectator\b|vinous\b|[a-z&' ]*award[a-z' ]*)/i
+const LABEL_RE = /^(about the|the winemaker|winemaker|tasting note|vintage note|technical|food pairing|serving|winery|region|hint|note)\b/i
+const META_RE = /^(abv|alcohol|country of origin|origin|grape varieties|tasting notes|region)\b/i
+
+// Split into sentences, also breaking after a trailing year so an award line
+// ("... Awards 2024 The wine is ...") separates from the copy that follows.
+function sentencesOf(text) {
+  const parts = []
+  let buf = ''
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i]
+    buf += ch
+    const atStop = (ch === '.' || ch === '!' || ch === '?') && /\s/.test(text[i + 1] || '')
+    const atYear = /(?:19|20)\d{2}$/.test(buf) && /\s/.test(text[i + 1] || '') && /[A-Z]/.test(text[i + 2] || '')
+    if (atStop || atYear) { const s = buf.trim(); if (s) parts.push(s); buf = '' }
+  }
+  const tail = buf.trim()
+  if (tail) parts.push(tail)
+  return parts
+}
+
+function isNoiseSentence(s) {
+  const words = s.split(/\s+/).filter(Boolean)
+  if (!words.length || words.length > 18) return false
+  return AWARD_RE.test(s) || LABEL_RE.test(s) || s === s.toUpperCase()
+}
+
+// Cut to maxWords without ever ending mid-phrase.
+function trimWords(text, maxWords = DESC_MAX_WORDS) {
+  const words = text.split(/\s+/).filter(Boolean)
+  if (words.length <= maxWords) return text.trim()
+  const clipped = words.slice(0, maxWords).join(' ')
+  const ends = []
+  const re = /[.!?](?=\s|$)/g
+  let m
+  while ((m = re.exec(clipped)) !== null) ends.push(m.index)
+  const last = ends.length ? ends[ends.length - 1] : -1
+  if (last + 1 > clipped.length * 0.5) return clipped.slice(0, last + 1).trim()
+  return clipped.replace(/\s+\S*$/, '').replace(/[,;:]+$/, '') + '\u2026'
+}
+
+function normalizeDescription(body) {
+  let text = stripHtml(body)
+  if (!text) return ''
+  const sents = sentencesOf(text)
+  // Leading award lines, ALL-CAPS headings and labels are not copy.
+  while (sents.length > 1 && isNoiseSentence(sents[0])) sents.shift()
+  // An opening quoted review is the critic's words, not the supplier's.
+  if (sents.length > 1 && /["\u201c\u201d]/.test(sents[0]) && sents.slice(1).join(' ').split(/\s+/).length >= 8) sents.shift()
+  // Trailing metadata that starts its own sentence ("ABV 13%", "Country of Origin: ...").
+  while (sents.length > 1 && META_RE.test(sents[sents.length - 1])) sents.pop()
+  text = sents.join(' ').replace(/\*?ALL wines personally hand-picked[\s\S]*$/i, '').trim()
+  // A leading ALL-CAPS run can be glued to the next word: "ABOUT THE WINEMAKERThis is...".
+  text = text.replace(/^(?:[A-Z][A-Z0-9&'\-]{1,30}\s*)+(?=[A-Z][a-z])/, '').trim()
+  text = text.replace(/^["\u201c\u201d'].*?["\u201c\u201d']\s*/, '').trim()
+  if (!text) return ''
+  return trimWords(text).slice(0, 1200)
+}
+
+// Cells in the Body/Sweetness/Tannins/Acidity table.
+function extractTableField(body, label) {
+  const re = new RegExp(`<td[^>]*>\\s*<(?:strong|b)[^>]*>\\s*${label}\\s*</(?:strong|b)>\\s*</td>\\s*<td[^>]*>([\\s\\S]*?)</td>`, 'i')
+  const m = (body || '').match(re)
+  return m ? stripHtml(m[1]).replace(/^[.,;:\-\s]+|[.,;:\-\s]+$/g, '') : ''
+}
+
+const cap = (t) => (t ? t[0].toUpperCase() + t.slice(1) : t)
+
+// Compose a short factual description from the supplier's own spec sheet, for
+// feeds that publish attributes but no marketing copy.
+function composeFromSpecs(body) {
+  const region = extractField(body, 'Region') || extractField(body, 'Country')
+  const grapes = extractField(body, 'Grapes') || extractField(body, 'Varietal')
+  const winery = extractField(body, 'Winery')
+  const year = extractField(body, 'Year of Production')
+  const bodyChar = extractTableField(body, 'Body')
+  const tannins = extractTableField(body, 'Tannins')
+  const sweetness = extractTableField(body, 'Sweetness')
+  const acidity = extractTableField(body, 'Acidity')
+
+  const parts = []
+  const nonVintage = /^(nv|n\/?v|non[-\s]?vintage)$/i.test(year)
+  if (region && year && !nonVintage) parts.push(`${year} from ${region}`)
+  else if (region) parts.push(`From ${region}`)
+  else if (winery) parts.push(winery)
+  if (grapes) parts.push(`Made from ${grapes}`)
+  const character = [bodyChar, tannins].filter(Boolean).map((x) => x.toLowerCase()).join(', ')
+  if (character) parts.push(`${cap(character)} on the palate`)
+  // "Dry" sweetness is meaningless — dry means no sweetness.
+  if (sweetness && !/^(dry|none|n\/a|nil)$/i.test(sweetness)) parts.push(`${cap(sweetness)} sweetness`)
+  if (acidity) {
+    if (/acidity$/i.test(acidity)) parts.push(cap(acidity))
+    else if (/^acidic$/i.test(acidity)) parts.push('Bright acidity')
+    else parts.push(`${cap(acidity)} acidity`)
+  }
+  if (!parts.length) return ''
+  return trimWords(parts.map(cap).join('. ').replace(/\.+$/, '') + '.')
+}
+
+function buildDescription(title, body) {
+  const src = body || ''
+  const hasSpecSheet = /<(strong|b)[^>]*>\s*(Region|Grapes|Winery|Alcohol)\s*</i.test(src)
+  if (hasSpecSheet) {
+    const composed = composeFromSpecs(src)
+    if (composed) return composed
+  }
+  return normalizeDescription(src)
+}
+
 async function fetchShopifyProducts(baseUrl) {
   const origin = new URL(baseUrl).origin
   const out = []
@@ -165,13 +288,20 @@ Deno.serve(async (req) => {
         price: v.price ? `HK$${formatPrice(v.price)}` : '',
         image: (p.images && p.images[0] && p.images[0].src) || '',
         buy_url: p.handle ? `${origin}/products/${p.handle}` : '',
-        description: '', // descriptions intentionally not imported (user preference)
+        // House-standard copy: prose from the feed, or composed from the
+        // supplier's own spec sheet when they publish attributes but no prose.
+        description: buildDescription(name, body),
         origin: extractField(body, 'Region') || extractField(body, 'Country') || '',
         varietal: extractField(body, 'Grapes') || extractField(body, 'Varietal') || '',
         abv: extractField(body, 'Alcohol') || '',
         availability: 'In stock',
         tier: 'standard',
-        status: IMPORT_STATUS
+        status: IMPORT_STATUS,
+        // Provenance: `handle` is the supplier's own product id, so a later
+        // re-scan can match exactly instead of guessing at names.
+        source: 'scan',
+        source_ref: p.handle || null,
+        enriched_at: new Date().toISOString()
       })
       existingNames.add(name.toLowerCase())
     }
