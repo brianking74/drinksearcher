@@ -1134,6 +1134,10 @@ async function renderPricingPage() {
           <p class="lead">Plans for Hong Kong suppliers and venues that want credible profiles, direct customer actions and better visibility.</p>
           <div class="pricing-toggle" style="margin-top:28px"><span class="badge jade">Founding offer</span></div>
           <p class="muted" style="margin-top:12px">Founding members lock today's lower price for life — standard rates return once the launch window closes. Most approved profiles can be ready in 2–5 working days after content and verification are complete.</p>
+          <div class="hero-actions" style="margin-top:30px">
+            <a class="btn btn-primary" href="list-your-business.html?type=merchant">Start your application</a>
+            <a class="btn btn-ghost" href="list-your-business.html?type=venue">Claim your venue</a>
+          </div>
         </div>
       </div>
     </section>
