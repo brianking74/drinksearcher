@@ -1805,11 +1805,16 @@ function saveDashboardItems() {
   if (!c) return;
   var rows = document.getElementsByClassName('dashboard-row');
   c.items = Array.from(rows).map(function(row, i) {
-    return {
-      id: c.items[i] ? c.items[i].id : (s.activeRole + '_' + Date.now() + '_' + i),
+    var prev = c.items[i] || {};
+    // Carry every other field through: rebuilding rows from the DOM alone used
+    // to drop status/availability, resetting each badge to "Pending".
+    var next = Object.assign({}, prev, {
+      id: prev.id || (s.activeRole + '_' + Date.now() + '_' + i),
       name: row.querySelector('[data-item-name]') ? row.querySelector('[data-item-name]').value : '',
       price: row.querySelector('[data-item-price]') ? row.querySelector('[data-item-price]').value : ''
-    };
+    });
+    if (!next.status) next.status = 'Pending';
+    return next;
   });
   storage.setDashboardState(s);
   renderBusinessDashboardPage();
@@ -1911,9 +1916,15 @@ async function importInventory() {
     let imgOk = 0, imgFail = 0;
     for (const item of items) {
       if (item.image && !/res\.cloudinary\.com/.test(item.image)) {
-        const uploaded = await dsUploadImage(item.image);
-        if (uploaded && uploaded !== item.image) imgOk++; else imgFail++;
-        item.image = uploaded;
+        try {
+          const uploaded = await dsUploadImage(item.image);
+          if (uploaded && uploaded !== item.image) imgOk++; else imgFail++;
+          item.image = uploaded || item.image;
+        } catch (imgErr) {
+          // A single unreachable image must never abort the whole import —
+          // that is how products silently disappear before they are written.
+          imgFail++;
+        }
       }
     }
     // Update existing rows by name, insert only new ones. Track failures honestly.
@@ -1948,6 +1959,12 @@ async function importInventory() {
     const imgNote = !withImg ? ' · no image URLs detected (check the Image column)'
       : (imgFail ? ` · ${imgFail} image upload(s) failed` : ` · ${imgOk} image(s) uploaded to Cloudinary`);
     const failNote = failed ? ` · <strong style="color:#ffd0e2;">${failed} write(s) failed</strong>` : '';
+    // If nothing landed, say so loudly — a quiet "0 updated, 0 new" is how an
+    // import looks successful while the supplier sees an empty catalogue.
+    if (failed && !inserted && !updated) {
+      setNotice(`<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Nothing was saved — all <strong>${failed}</strong> row(s) were rejected by the database. Your catalogue below is unchanged. Please send us this message so we can check your plan limit.</div>`);
+      return;
+    }
     setNotice(`<div class="notice">Imported <strong>${items.length}</strong> rows — <strong>${updated}</strong> updated, <strong>${inserted}</strong> new${imgNote}${failNote}.</div>`);
     setTimeout(() => { if (typeof renderBusinessDashboardPage === 'function') renderBusinessDashboardPage(); }, 600);
   } catch (e) {
@@ -2047,6 +2064,35 @@ async function renderBusinessDashboardPage() {
     if (state.listingLimit == null) state.listingLimit = 10;
     if (state.listingCount == null) state.listingCount = 0;
   }
+  // The database is the source of truth for a supplier's own catalogue.
+  // localStorage is only a convenience cache: rendered alone, products imported
+  // in another browser (or after clearing site data) vanish from the dashboard
+  // even though they are live. Supplier rows are readable under the
+  // "Users can see their own pending drinks" policy (auth.uid() = submitted_by).
+  try {
+    const mine = await fetchMyDrinks();
+    const merchantCfg = state.merchant || (state.merchant = { items: [] });
+    if (!Array.isArray(merchantCfg.items)) merchantCfg.items = [];
+    const normKey = s => String(s || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
+    const merged = {};
+    merchantCfg.items.forEach(it => { merged[normKey(it.name)] = it; });
+    (mine || []).forEach(d => {
+      // DB row wins over any matching local copy, and carries its real status
+      // (pending / approved) so the supplier sees exactly what is going on.
+      merged[normKey(d.name)] = {
+        id: d.id,
+        name: d.name || '',
+        price: d.price || '',
+        availability: d.availability || 'In stock',
+        status: d.status || 'pending',
+        fromDb: true
+      };
+    });
+    merchantCfg.items = Object.values(merged);
+  } catch (e) {
+    console.warn('Could not load your catalogue from the database:', e && e.message);
+  }
+
   // Persist the entitlement-derived fields so other readers (e.g. the sheet
   // import, which re-reads storage.getDashboardState()) see the paid listing
   // limit, not the stale starter default.
@@ -2055,7 +2101,8 @@ async function renderBusinessDashboardPage() {
 
   const roleLocked = !!(roleQuery === 'merchant' || roleQuery === 'venue');
   const renderRole = (role) => {
-    const config = state[role];
+    const config = state[role] || (state[role] = { items: [] });
+    if (!Array.isArray(config.items)) config.items = [];
     const roleTitle = role === 'merchant' ? 'Merchant dashboard' : 'Bar & venue dashboard';
     const roleLabel = role === 'merchant' ? 'Supplier / Merchant' : 'Bar / Venue';
     const listingLabels = role === 'merchant'
@@ -2229,13 +2276,14 @@ async function renderBusinessDashboardPage() {
             <div class="section-head"><div><span class="eyebrow">Pricing & availability</span><h2>${role === 'merchant' ? 'Manage stock visibility and current pricing.' : 'Manage offers, ticketing, tables, and availability.'}</h2></div></div>
             <div class="dashboard-table-wrap">
               <div class="dashboard-table-head"><div>${listingLabels[0]}</div><div>${listingLabels[1]}</div><div>${listingLabels[2]}</div><div>${listingLabels[3]}</div></div>
-              <div id="dashboard-items">${config.items.map((item, index) => `
+              <div id="dashboard-items">${config.items.length ? config.items.map((item, index) => `
                 <div class="dashboard-row">
                   <input class="input" data-item-name="${index}" value="${safe(item.name)}" />
                   <input class="input" data-item-price="${index}" value="${safe(item.price)}" />
                   <span class="status-badge status-${(item.status || 'pending').toLowerCase()}">${safe(item.status || 'Pending')}</span>
                   <button class="btn btn-ghost btn-small" type="button" title="Remove item" style="color:#ff6b9d;padding:3px 6px;font-size:1rem;" onclick="removeDashboardItem(${index})">✕</button>
-                </div>`).join('')}</div>
+                </div>`).join('') : `
+                <div class="muted" style="padding:22px 20px;">No products listed yet. Import a sheet above or run a website scan to build your catalogue.</div>`}</div>
               <div class="inline-actions" style="padding:20px; border-top:1px solid rgba(255,255,255,.06);">
                 <button class="btn btn-primary" type="button" onclick="saveDashboardItems()">Save pricing & availability</button>
                 ${role === 'merchant' ? `<span class="muted" style="font-size:.82rem;">${listingsUsed} of ${listingLimit} listings used</span>` : ''}
