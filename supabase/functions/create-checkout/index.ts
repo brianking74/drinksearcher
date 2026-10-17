@@ -17,12 +17,18 @@ const STRIPE_API = "https://api.stripe.com/v1";
 
 // plan slug -> env var holding that plan's Stripe Price ID.
 // NOTE: Brian renamed two secrets in the Supabase dashboard (2026-09-02):
-//   venue_enhanced        -> STRIPE_PRICE_VENUE_FEATURED   (HK$300, "enhanced" tier)
-//   venue_enhanced_events -> STRIPE_PRICE_VENUE_ENHANCED   (HK$480, "featured" tier)
+//   venue_enhanced        -> STRIPE_PRICE_VENUE_FEATURED   (founding "Venue Enhanced" tier)
+//   venue_enhanced_events -> STRIPE_PRICE_VENUE_ENHANCED   (founding "Venue + Events" tier)
 // The names are inverted vs. the directory tier they grant — keep this mapping
 // in mind if you ever rename prices.
+//
+// The amount charged is whatever the Stripe Price holds; the prices shown on
+// pricing.html are display only. If a displayed founding price changes, the
+// Stripe Price must change too (Stripe prices are immutable, so that means a new
+// price + a new secret value here).
 const PRICE_ENV: Record<string, string> = {
   merchant_enhanced: "STRIPE_PRICE_MERCHANT_ENHANCED",
+  merchant_featured: "STRIPE_PRICE_MERCHANT_FEATURED",
   venue_enhanced: "STRIPE_PRICE_VENUE_FEATURED",
   venue_enhanced_events: "STRIPE_PRICE_VENUE_ENHANCED",
 };

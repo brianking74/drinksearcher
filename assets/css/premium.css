@@ -56,3 +56,26 @@ h1,h2,h3,h4{font-family:var(--serif);font-weight:400;letter-spacing:-.025em;colo
 .nav-links a{position:relative}.nav-links a:after{content:'';position:absolute;bottom:-2px;left:0;width:0;height:1px;background:var(--gold);transition:width .25s ease}.nav-links a:hover:after{width:100%}
 .input:focus,.select:focus,textarea:focus{border-color:var(--gold);box-shadow:0 0 0 2px var(--gold-soft);outline:none}
 .check-row input:checked{filter:brightness(1.2)}
+
+
+/* ── Pricing page ── */
+
+/* Hero in the same style as the directory pages, with its own cover image. */
+.pricing-hero .hero-copy{padding-top:clamp(56px,8vh,104px);padding-bottom:clamp(48px,7vh,88px);max-width:940px}
+.pricing-hero .hero-copy .lead{max-width:54ch}
+.pricing-hero .muted{max-width:76ch}
+/* Two lines, not four: 12ch in the old .pricing-page-head forced a 4-line stack. */
+.pricing-hero-title{max-width:26ch;text-wrap:balance}
+
+/* Section headings that must hold a single line on desktop. The default
+   .section-head > div cap of 880px is what wrapped them onto two. */
+@media (min-width:1100px){
+  .section-head-single>div{max-width:none}
+  .section-head-single h2{font-size:clamp(1.9rem,3.05vw,3rem);white-space:nowrap}
+}
+
+/* Four merchant tiers: tighten the grid so the cards stay readable. */
+@media (min-width:1100px){
+  .pricing-grid.grid-4{gap:16px}
+  .pricing-grid.grid-4 .price-card{padding:26px 20px}
+}

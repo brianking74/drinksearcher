@@ -1125,20 +1125,23 @@ async function startCheckout(planSlug) {
 async function renderPricingPage() {
   const app = $('#app');
   app.innerHTML = `
-    <section class="pricing-page-head">
+    <section class="hero pricing-hero" style="min-height:44vh;">
+      <div class="hero-media" style="background-image:url('${siteImages.shop}')"></div>
       <div class="container">
-        <span class="kicker">Business memberships</span>
-        <h1>Turn local discovery into measurable demand.</h1>
-        <p class="lead">Plans for Hong Kong suppliers and venues that want credible profiles, direct customer actions and better visibility.</p>
-        <div class="pricing-toggle" style="margin-top:28px"><span class="badge jade">Founding offer</span></div>
-        <p class="muted" style="margin-top:12px">Founding members lock today's lower price for life — standard rates return once the launch window closes. Most approved profiles can be ready in 2–5 working days after content and verification are complete.</p>
+        <div class="hero-copy">
+          <span class="kicker">Business memberships</span>
+          <h1 class="pricing-hero-title">Turn local discovery into measurable demand.</h1>
+          <p class="lead">Plans for Hong Kong suppliers and venues that want credible profiles, direct customer actions and better visibility.</p>
+          <div class="pricing-toggle" style="margin-top:28px"><span class="badge jade">Founding offer</span></div>
+          <p class="muted" style="margin-top:12px">Founding members lock today's lower price for life — standard rates return once the launch window closes. Most approved profiles can be ready in 2–5 working days after content and verification are complete.</p>
+        </div>
       </div>
     </section>
 
     <section class="section">
       <div class="container">
-        <div class="section-head"><div><span class="eyebrow">Merchant memberships</span><h2>Built for suppliers, retailers, importers, and breweries.</h2></div></div>
-        <div class="grid grid-3 pricing-grid">
+        <div class="section-head section-head-single"><div><span class="eyebrow">Merchant memberships</span><h2>Built for suppliers, retailers, importers, and breweries.</h2></div></div>
+        <div class="grid grid-4 pricing-grid">
           <article class="price-card">
             <span class="badge gold">Starter</span>
             <h3>Merchant Starter</h3>
@@ -1156,7 +1159,7 @@ async function renderPricingPage() {
             <span class="badge jade">Founding offer</span>
             <h3>Merchant Enhanced</h3>
             <p class="muted">Stronger visibility and 100 listings for early supporters.</p>
-            <div class="price"><span class="amount">HK$380</span><span class="price-period">/ month</span></div>
+            <div class="price"><span class="amount">HK$388</span><span class="price-period">/ month</span></div>
             <div class="price-note"><s>HK$980</s> · founding price, locked for life</div>
             <ul class="feature-list">
               <li>Everything in Starter</li>
@@ -1166,6 +1169,22 @@ async function renderPricingPage() {
               <li>Priority support</li>
             </ul>
             <button class="btn btn-primary btn-block" type="button" data-checkout-plan="merchant_enhanced" onclick="startCheckout('merchant_enhanced')">Choose Enhanced</button>
+          </article>
+          <article class="price-card featured-tier">
+            <span class="badge pink">Featured</span>
+            <h3>Merchant Featured</h3>
+            <p class="muted">Our fullest merchant package — 500 listings, featured placement and EDM reach.</p>
+            <div class="price"><span class="amount">HK$888</span><span class="price-period">/ month</span></div>
+            <div class="price-note"><s>HK$1,488</s> · founding price, locked for life</div>
+            <ul class="feature-list">
+              <li>Everything in Enhanced</li>
+              <li>Up to 500 product listings</li>
+              <li>Featured directory placement</li>
+              <li>Direct links to products on your site</li>
+              <li>List your events</li>
+              <li>Inclusion in marketing EDMs</li>
+            </ul>
+            <button class="btn btn-primary btn-block" type="button" data-checkout-plan="merchant_featured" onclick="startCheckout('merchant_featured')">Choose Featured</button>
           </article>
           <article class="price-card">
             <span class="badge pink">Premium</span>
@@ -1187,7 +1206,7 @@ async function renderPricingPage() {
 
     <section class="section-tight">
       <div class="container">
-        <div class="section-head"><div><span class="eyebrow">Bar & restaurant memberships</span><h2>Simple venue plans with booking and event upside.</h2></div></div>
+        <div class="section-head section-head-single"><div><span class="eyebrow">Bar & restaurant memberships</span><h2>Simple venue plans with booking and event upside.</h2></div></div>
         <div class="grid grid-3 pricing-grid">
           <article class="price-card">
             <span class="badge gold">Starter</span>
@@ -1206,7 +1225,7 @@ async function renderPricingPage() {
             <span class="badge jade">Founding offer</span>
             <h3>Venue Enhanced</h3>
             <p class="muted">A stronger story and direct booking conversion.</p>
-            <div class="price"><span class="amount">HK$300</span><span class="price-period">/ month</span></div>
+            <div class="price"><span class="amount">HK$388</span><span class="price-period">/ month</span></div>
             <div class="price-note"><s>HK$980</s> · founding price, locked for life</div>
             <ul class="feature-list">
               <li>Everything in Starter</li>
@@ -1221,7 +1240,7 @@ async function renderPricingPage() {
             <span class="badge pink">Growth</span>
             <h3>Venue Enhanced + Events</h3>
             <p class="muted">For venues hosting frequent tastings and guest shifts.</p>
-            <div class="price"><span class="amount">HK$480</span><span class="price-period">/ month</span></div>
+            <div class="price"><span class="amount">HK$688</span><span class="price-period">/ month</span></div>
             <div class="price-note"><s>HK$1,480</s> · founding price, locked for life</div>
             <ul class="feature-list">
               <li>Everything in Venue Enhanced</li>
@@ -1236,33 +1255,7 @@ async function renderPricingPage() {
       </div>
     </section>
 
-    <section class="section">
-      <div class="container grid grid-2">
-        <div class="panel">
-          <span class="eyebrow">Featured add-ons</span>
-          <h2 style="margin:14px 0;">Layered upsells that are easy to explain.</h2>
-          <div class="addon-list">
-            <div class="addon-card"><div><strong>Homepage featured supplier block</strong><p class="muted">Rotating placement in premium supplier cards.</p></div><div class="addon-price">+ HK$680/mo</div></div>
-            <div class="addon-card"><div><strong>Homepage featured venue block</strong><p class="muted">Image-led visibility in the Where Hong Kong drinks section.</p></div><div class="addon-price">+ HK$580/mo</div></div>
-            <div class="addon-card"><div><strong>Featured event promotion</strong><p class="muted">Extra event card amplification for launches and guest shifts.</p></div><div class="addon-price">HK$450 / event</div></div>
-          </div>
-        </div>
-        <div class="panel">
-          <span class="eyebrow">Commercial notes</span>
-          <h2 style="margin:14px 0;">A cleaner income story for launch.</h2>
-          <div class="muted" style="display:grid; gap:12px;">
-            <span>• Free starter plans help seed listings without slowing growth.</span>
-            <span>• Enhanced is the obvious first paid step for both merchants and venues.</span>
-            <span>• Premium and add-ons create higher-value upsell paths once the audience starts compounding.</span>
-            <span>• Founding members lock today's price for life — the strongest early incentive.</span>
-          </div>
-          <div class="inline-actions" style="margin-top:20px;">
-            <a class="btn btn-primary" href="list-your-business.html?type=merchant">Start application</a>
-            <a class="btn btn-ghost" href="index.html">Back to homepage</a>
-          </div>
-        </div>
-      </div>
-    </section>`;
+  `;
 
   // Resume a checkout that was interrupted by a sign-in redirect.
   try {
@@ -1288,6 +1281,7 @@ function renderLeadCapturePage() {
     merchant: [
       ['merchant-starter', 'Merchant Starter'],
       ['merchant-enhanced', 'Merchant Enhanced'],
+      ['merchant-featured', 'Merchant Featured'],
       ['merchant-premium', 'Merchant Premium']
     ],
     venue: [
