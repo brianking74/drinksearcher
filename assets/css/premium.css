@@ -60,12 +60,15 @@ h1,h2,h3,h4{font-family:var(--serif);font-weight:400;letter-spacing:-.025em;colo
 
 /* ── Pricing page ── */
 
-/* Hero in the same style as the directory pages, with its own cover image. */
-.pricing-hero .hero-copy{padding-top:clamp(56px,8vh,104px);padding-bottom:clamp(48px,7vh,88px);max-width:940px}
-.pricing-hero .hero-copy .lead{max-width:54ch}
-.pricing-hero .muted{max-width:76ch}
-/* Two lines, not four: 12ch in the old .pricing-page-head forced a 4-line stack. */
-.pricing-hero-title{max-width:26ch;text-wrap:balance}
+/* Hero in the same style as the directory pages, with its own cover image.
+   NOTE: styles.css sets `.hero:not(.homepage-hero) .hero-copy{max-width:min(840px,100%)}`
+   (specificity 0,3,0) which is too narrow for a one-sentence headline — the extra
+   .hero class here matches that specificity so the width actually applies. */
+.hero.pricing-hero .hero-copy{padding-top:clamp(56px,8vh,104px);padding-bottom:clamp(48px,7vh,88px);max-width:min(1000px,100%)}
+.hero.pricing-hero .hero-copy .lead{max-width:54ch}
+.hero.pricing-hero .muted{max-width:76ch}
+/* Two lines, not four: the old .pricing-page-head capped the h1 at 12ch. */
+.hero.pricing-hero .pricing-hero-title{max-width:none;text-wrap:balance}
 
 /* Section headings that must hold a single line on desktop. The default
    .section-head > div cap of 880px is what wrapped them onto two. */
