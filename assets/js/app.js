@@ -804,6 +804,11 @@ async function renderDrinksPage() {
   const area = queryParam('area') || '';
   const allDrinks = await fetchDrinks();
   const filteredDrinks = allDrinks.filter(d => matchesSearch([d.name, d.supplier, d.type, d.area], query) && (!area || d.area === area));
+  // Analytics: impressions for the results actually rendered (capped in
+  // analytics.js; fires only when there is a real keyword).
+  if (dsAnalytics && typeof dsAnalytics.impressions === 'function') {
+    dsAnalytics.impressions(query, filteredDrinks.map(d => ({ drink_id: d.id })), 'product');
+  }
   app.innerHTML = `
     <section class="hero" style="min-height:56vh;"><div class="hero-media" style="background-image:url('${siteImages.event}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Drinks</span><h1>Bottles actually available in Hong Kong.</h1><p class="lead">From cellar icons to sake, Champagne, beer, spirits, and no-alcohol discoveries — all routed to local suppliers.</p></div><div class="search-shell"><div class="search-tabs"><span class="search-tab active">Search results</span></div><div class="notice">Showing <strong>${filteredDrinks.length}</strong> drinks${query ? ` for “${query}”` : ''}${area ? ` in ${area}` : ''}.</div><div class="panel" style="padding:18px; background:transparent; border:none; box-shadow:none;"><div class="muted" style="display:grid; gap:10px;"><span>Direct links to local supplier stores</span><span>HK pricing and neighbourhood context</span><span>A mix of discovery bottles and everyday favourites</span></div></div></div></div></section>
     <section class="section"><div class="container"><div class="section-head"><div><span class="eyebrow">Featured bottles</span><h2>Popular drinks from Hong Kong suppliers.</h2></div></div>${filteredDrinks.length ? `<div class="grid grid-4">${filteredDrinks.map(d => renderCard({...d}, {type:'drink', portrait:true, showBadge:false, showDescription:false, href:`product.html?name=${slugify(d.name)}`, cta:d.tier==='enhanced' ? `${ctaLink('View', `product.html?name=${slugify(d.name)}`, 'btn btn-primary btn-small', 'View')}${d.buy ? ` <a class="btn btn-ghost btn-small" href="${d.buy}" target="_blank" rel="noreferrer">Buy →</a>` : ''}` : ctaLink('View', `product.html?name=${slugify(d.name)}`, 'btn btn-ghost btn-small')})).join('')}</div>` : (allDrinks.length ? '<div class="empty-state">No drinks match that search yet. Try a broader bottle name, category, or area.</div>' : '<div class="empty-state">No drinks listed yet. Local suppliers are adding their stock — check back soon.</div>')}</div></section>`;
@@ -851,6 +856,13 @@ async function renderBottleDetail() {
   }
   const supplierRows = rows.filter(r => (r.supplier_name || '').trim() || (r.buy_url || '').trim() || (r.price || '').trim());
   const supplierCount = supplierRows.length;
+
+  // Analytics: one product_view per product page render. The RPC dedupes a
+  // repeat inside 30 minutes for the same session, so tab refreshes don't
+  // inflate the number.
+  if (typeof dsTrack === 'function' && rows.length && rows[0].id) {
+    dsTrack('product_view', { drink_id: rows[0].id });
+  }
 
   // Enrich each supplier row with the supplier's DIRECTORY PROFILE (area,
   // min_order, tier, website) so the compare table can show location, MOQ
@@ -1032,9 +1044,16 @@ async function renderBottleDetail() {
 
   // Delegated click tracking for the Buy buttons (replaces inline onclick,
   // which interpolated DB strings into an attribute — an XSS vector).
+  // Outbound clicks are deliberately never deduped: every tap counts.
   $('#app').querySelectorAll('[data-track-id]').forEach(btn => {
     btn.addEventListener('click', () => {
       trackClick(btn.dataset.trackId, btn.dataset.trackName, btn.dataset.trackSupplier);
+      if (typeof dsTrack === 'function') {
+        dsTrack('outbound_click', {
+          drink_id: btn.dataset.trackId,
+          surface: btn.dataset.trackSurface || 'price_row'
+        });
+      }
     });
   });
 
@@ -1527,6 +1546,12 @@ async function renderSupplierProfile() {
 
   const name = profile.name;
   const claimed = !!profile.user_id;
+
+  // Analytics: merchant/venue profile view. Only DB-backed profiles carry an
+  // id, so bundled fallbacks are skipped rather than miscounted.
+  if (typeof dsTrack === 'function' && profile.id) {
+    dsTrack('profile_view', { supplier_id: profile.id });
+  }
   const heroBg = profile.hero_image || profile.image || profile.hero || siteImages.shop;
   const logo = profile.image || '';
   const area = profile.area || '';
