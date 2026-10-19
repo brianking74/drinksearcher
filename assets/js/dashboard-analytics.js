@@ -53,6 +53,68 @@
     return tier === 'enhanced' || tier === 'featured';
   }
 
+  function isFeatured(tier) {
+    return tier === 'featured';
+  }
+
+  // Benchmarks are computed server-side and return aggregates only — a merchant
+  // can never read another merchant's figures. The RPC also refuses callers
+  // whose plan does not include them.
+  async function loadBenchmarks(days) {
+    try {
+      var res = await sb.rpc('analytics_benchmarks', { p_days: days });
+      return (res && res.data) || null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function parsePrice(p) {
+    var m = String(p == null ? '' : p).replace(/,/g, '').match(/(\d+(?:\.\d+)?)/);
+    return m ? Number(m[1]) : null;
+  }
+
+  // Same bottle across suppliers, matched on a normalised name (size and vintage
+  // stripped) — the same approach the catalogue importer uses.
+  function normProductName(s) {
+    return String(s || '').toLowerCase()
+      .replace(/\b\d+\s*(ml|l|cl)\b/g, ' ')
+      .replace(/\b(?:x|×)\s*\d+\b/g, ' ')
+      .replace(/\b(?:19|20)\d{2}\b/g, ' ')
+      .replace(/[^a-z0-9 ]/g, ' ')
+      .replace(/\s+/g, ' ').trim();
+  }
+
+  // Price insight uses public directory data only: approved listings are
+  // world-readable, and competitor names are never rendered.
+  async function loadPriceRanges() {
+    var res = await sb.from('drinks').select('name,price').eq('status', 'approved').limit(2000);
+    var rows = (res && res.data) || [];
+    var groups = {};
+    rows.forEach(function (r) {
+      var k = normProductName(r.name);
+      var v = parsePrice(r.price);
+      if (!k || v == null) return;
+      (groups[k] || (groups[k] = [])).push(v);
+    });
+    var out = {};
+    Object.keys(groups).forEach(function (k) {
+      var arr = groups[k].slice().sort(function (a, b) { return a - b; });
+      if (arr.length < 2) return;   // only meaningful when stocked elsewhere too
+      out[k] = {
+        min: arr[0],
+        median: arr[Math.floor(arr.length / 2)],
+        max: arr[arr.length - 1],
+        count: arr.length
+      };
+    });
+    return out;
+  }
+
+  function money(n) {
+    return 'HK$' + Number(n || 0).toLocaleString('en-US');
+  }
+
   // ---------- charts (dependency-free SVG) ----------------------------
   function sparkline(values, opts) {
     var w = (opts && opts.w) || 240, h = (opts && opts.h) || 44;
@@ -122,7 +184,7 @@
   function loadDaily(ctx, days) {
     var start = dayOffset(-(days - 1));
     var q = sb.from('analytics_daily')
-      .select('day_hkt,event,entity_id,source,surface,campaign_id,event_count')
+      .select('day_hkt,event,entity_id,supplier_id,source,surface,campaign_id,keyword,position_sum,position_count,event_count')
       .gte('day_hkt', start)
       .order('day_hkt');
     q = ctx.kind === 'venue' ? q.eq('venue_id', ctx.entityId) : q.eq('supplier_id', ctx.entityId);
@@ -132,7 +194,8 @@
   function fold(rows, days) {
     var daysList = [];
     for (var i = days - 1; i >= 0; i--) daysList.push(dayOffset(-i));
-    var byDay = {}, products = {}, placements = {}, totals = { view: 0, click: 0 };
+    var byDay = {}, products = {}, placements = {}, terms = {}, campaigns = {};
+    var totals = { view: 0, click: 0 };
 
     daysList.forEach(function (d) { byDay[d] = { view: 0, click: 0 }; });
 
@@ -154,9 +217,22 @@
           : r.surface === 'product_page' ? 'Product page'
           : r.surface === 'price_row' ? 'Price row' : 'Other';
         placements[bucket] = (placements[bucket] || 0) + n;
+        // EDM attribution: one row per campaign send.
+        if (r.campaign_id) campaigns[r.campaign_id] = (campaigns[r.campaign_id] || 0) + n;
+      }
+      // Search terms. position_sum/position_count come from the rollup, so the
+      // average is exact rather than reconstructed.
+      if (r.event === 'search_impression' && r.keyword) {
+        var t = terms[r.keyword] || (terms[r.keyword] = { impressions: 0, posSum: 0, posCount: 0 });
+        t.impressions += n;
+        t.posSum += Number(r.position_sum) || 0;
+        t.posCount += Number(r.position_count) || 0;
       }
     });
-    return { daysList: daysList, byDay: byDay, products: products, placements: placements, totals: totals };
+    return {
+      daysList: daysList, byDay: byDay, products: products, placements: placements,
+      terms: terms, campaigns: campaigns, totals: totals
+    };
   }
 
   function viewsByProduct(rows) {
@@ -319,6 +395,68 @@
           upgradeCta({ title: 'See which placements actually convert', body: 'Enhanced shows the full breakdown of where every click came from.' });
       }
 
+      // ---- Benchmarks (Enhanced+). Medians only, and hidden until the cohort is
+      // big enough to be meaningful: showing a comparison against three
+      // merchants would imply a benchmark that does not exist.
+      if (enhanced) {
+        var bm = await loadBenchmarks(state.days);
+        var COHORT_MIN = 10;
+        if (!bm || bm.locked) {
+          overview += '<div class="panel" style="margin-top:18px;">' +
+            '<span class="eyebrow">Benchmark</span>' + lockChip('Enhanced') +
+            '<p class="muted" style="margin:12px 0 0;">Compare your click-through rate against the directory median.</p></div>' +
+            upgradeCta({ title: 'See how you compare', body: 'Benchmarks put your clicks and click-through rate next to the directory median.' });
+        } else if (bm.cohort_size < COHORT_MIN) {
+          overview += '<div class="panel" style="margin-top:18px;">' +
+            '<span class="eyebrow">Benchmark</span>' +
+            '<h2 style="margin:10px 0 6px;">Benchmarks unlock as the directory grows.</h2>' +
+            '<p class="muted" style="margin:0;">' + num(bm.cohort_size) + ' merchants had measurable traffic in this period. A comparison needs at least ' + COHORT_MIN + ' to mean anything, so we are not showing one yet.</p></div>';
+        } else {
+          var medCtr = Number(bm.median_ctr) || 0;
+          var yourCtr = f.totals.view ? f.totals.click / f.totals.view : 0;
+          var medClicks = Number(bm.median_clicks) || 0;
+          var bandMax = 1;
+          (bm.by_price_band || []).forEach(function (b) { bandMax = Math.max(bandMax, b.clicks); });
+          overview += '<div class="panel" style="margin-top:18px;">' +
+            '<span class="eyebrow">Benchmark</span>' +
+            '<h2 style="margin:10px 0 14px;">Your clicks vs the directory median.</h2>' +
+            '<div class="stats-row">' +
+              kpi('your click-through rate', (100 * yourCtr).toFixed(1) + '%', yourCtr >= medCtr ? 'at or above the median' : 'below the median') +
+              kpi('directory median CTR', (100 * medCtr).toFixed(1) + '%') +
+              kpi('your outbound clicks', num(f.totals.click), 'median ' + num(medClicks)) +
+            '</div>' +
+            '<p class="muted" style="font-size:.76rem;margin:12px 0 0;">Median across ' + num(bm.cohort_size) + ' merchants with traffic. No individual merchant is ever identified.</p>' +
+            (isFeatured(ctx.tier) && bm.by_price_band && bm.by_price_band.length
+              ? '<div style="margin-top:20px;"><span class="eyebrow">Demand by price band</span><div style="margin-top:10px;">' +
+                bm.by_price_band.map(function (b) {
+                  return '<div style="display:flex;align-items:center;gap:10px;margin:6px 0;font-size:.82rem;">' +
+                    '<span style="width:150px;color:' + C.muted + ';">' + esc(b.band) + '</span>' +
+                    '<span style="flex:1;background:' + C.border + ';height:10px;border-radius:5px;overflow:hidden;">' +
+                    '<span style="display:block;height:100%;width:' + (100 * b.clicks / bandMax).toFixed(1) + '%;background:' + C.gold + ';"></span></span>' +
+                    '<strong style="width:54px;text-align:right;">' + num(b.clicks) + '</strong></div>';
+                }).join('') + '</div></div>'
+              : '') +
+            '</div>';
+        }
+      }
+
+      // ---- EDM attribution (Featured): clicks per campaign send.
+      if (isFeatured(ctx.tier)) {
+        var camps = Object.keys(f.campaigns).map(function (k) { return { id: k, clicks: f.campaigns[k] }; })
+          .sort(function (a, b) { return b.clicks - a.clicks; });
+        overview += '<div class="panel" style="margin-top:18px;">' +
+          '<span class="eyebrow">EDM attribution</span>' +
+          '<h2 style="margin:10px 0 6px;">What the emails drove.</h2>' +
+          (camps.length
+            ? '<div class="dashboard-table-wrap"><div class="dashboard-table-head" style="grid-template-columns:1fr 90px;"><div>Campaign</div><div>Clicks</div></div>' +
+              camps.map(function (c) {
+                return '<div class="dashboard-row" style="grid-template-columns:1fr 90px;">' +
+                  '<div><strong>' + esc(c.id) + '</strong></div><div><strong>' + num(c.clicks) + '</strong></div></div>';
+              }).join('') + '</div>'
+            : '<p class="muted" style="margin:0;">No newsletter or campaign clicks in this period. Links in The Weekly Pour are campaign-tagged automatically, so attribution begins with the next send.</p>') +
+          '</div>';
+      }
+
       // ---- Products
       var prod = ctx.products || [];
       var byProduct = f.products;
@@ -335,6 +473,19 @@
       else table.sort(function (a, b) { return b.clicks - a.clicks || b.views - a.views; });
 
       var active = table.filter(function (r) { return r.views || r.clicks; });
+
+      // Price insight (Featured): how the merchant's price sits against the
+      // directory range for the same bottle. Public data only, and no competitor
+      // is ever named.
+      var priceRanges = null;
+      var cheapest = 0;
+      if (isFeatured(ctx.tier)) {
+        try { priceRanges = await loadPriceRanges(); } catch (e) { priceRanges = null; }
+      }
+      var pGrid = isFeatured(ctx.tier)
+        ? 'auto 1fr 60px 60px 60px 200px'
+        : 'auto 1fr 72px 72px 72px';
+
       var rowsHtml = table.map(function (r) {
         // On Starter, clicks AND CTR are locked: CTR = clicks/views, so printing
         // a real CTR would hand back the very number the blur is hiding.
@@ -344,38 +495,89 @@
         var ctrCell = enhanced
           ? (r.views ? pct(r.clicks, r.views) : '—')
           : '<span style="filter:blur(5px);user-select:none;" aria-hidden="true">' + pct(r.clicks + 7, r.views || 1) + '</span>';
-        return '<div class="dashboard-row" style="grid-template-columns:auto 1fr 72px 72px 72px;">' +
+
+        var priceCell = '';
+        if (isFeatured(ctx.tier)) {
+          var range = priceRanges ? priceRanges[normProductName(r.name)] : null;
+          var own = parsePrice(r.price);
+          if (!range) {
+            priceCell = '<span class="muted" style="font-size:.76rem;">only listing</span>';
+          } else if (own != null && own <= range.min) {
+            cheapest++;
+            priceCell = '<div style="font-size:.78rem;color:' + C.muted + ';">' + money(range.min) + '–' + money(range.max) + '</div>' +
+              '<span class="badge">cheapest listed</span>';
+          } else {
+            priceCell = '<div style="font-size:.78rem;color:' + C.muted + ';">' + money(range.min) + '–' + money(range.max) + '</div>' +
+              '<span class="muted" style="font-size:.72rem;">median ' + money(range.median) + '</span>';
+          }
+        }
+
+        return '<div class="dashboard-row" style="grid-template-columns:' + pGrid + ';">' +
           '<div style="width:38px;height:38px;border-radius:6px;background:' + C.surface + ';background-image:url(\'' + esc(r.image) + '\');background-size:cover;background-position:center;border:1px solid ' + C.border + ';"></div>' +
           '<div><strong>' + esc(r.name) + '</strong><div class="muted" style="font-size:.76rem;">' + esc(r.price || '—') + '</div></div>' +
           '<div class="muted" style="font-size:.82rem;">' + num(r.views) + '</div>' +
           '<div style="font-size:.86rem;">' + clicksCell + '</div>' +
           '<div class="muted" style="font-size:.82rem;">' + ctrCell + '</div>' +
+          (isFeatured(ctx.tier) ? '<div>' + priceCell + '</div>' : '') +
           '</div>';
       }).join('');
 
       var productsPanel = '<div class="panel" style="margin-top:18px;">' +
         '<div style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;">' +
         '<div><span class="eyebrow">Products</span><h2 style="margin:10px 0 4px;">Which bottles get clicked.</h2>' +
-        '<p class="muted" style="margin:0;font-size:.86rem;">' + num(active.length) + ' of ' + num(table.length) + ' listings saw activity in this window.</p></div>' +
+        '<p class="muted" style="margin:0;font-size:.86rem;">' + num(active.length) + ' of ' + num(table.length) + ' listings saw activity in this window.' +
+        (isFeatured(ctx.tier) && cheapest && priceRanges
+          ? ' You are the cheapest listed for <strong>' + num(cheapest) + '</strong> ' + (cheapest === 1 ? 'bottle' : 'bottles') + ' stocked elsewhere in the directory.'
+          : '') +
+        '</p></div>' +
         (enhanced
           ? '<div class="inline-actions"><button class="btn btn-ghost btn-small" type="button" id="ds-an-csv">Export CSV</button></div>'
           : lockChip('Clicks are locked on Starter')) +
         '</div>' +
         '<div class="dashboard-table-wrap" style="margin-top:14px;">' +
-          '<div class="dashboard-table-head" style="grid-template-columns:auto 1fr 72px 72px 72px;">' +
+          '<div class="dashboard-table-head" style="grid-template-columns:' + pGrid + ';">' +
             '<div></div><div><button class="btn btn-ghost btn-small" type="button" data-sort="name" style="padding:2px 6px;">Product</button></div>' +
             '<div><button class="btn btn-ghost btn-small" type="button" data-sort="views" style="padding:2px 6px;">Views</button></div>' +
             '<div><button class="btn btn-ghost btn-small" type="button" data-sort="clicks" style="padding:2px 6px;">Clicks</button></div>' +
             '<div>CTR</div>' +
+            (isFeatured(ctx.tier) ? '<div>Directory price</div>' : '') +
           '</div>' +
           '<div>' + (rowsHtml || '<div class="muted" style="padding:20px;">No listings yet.</div>') + '</div>' +
         '</div>' +
         (!enhanced ? upgradeCta({ title: 'Enhanced shows which bottles get clicked', body: 'Your click totals stay visible on Starter — Enhanced adds the per-product breakdown and CSV export.' }) : '') +
         '</div>';
 
+      // ---- Search terms (Enhanced+; Featured gets the uncapped list)
+      var termList = Object.keys(f.terms).map(function (k) {
+        var t = f.terms[k];
+        return { keyword: k, impressions: t.impressions, avg: t.posCount ? (t.posSum / t.posCount) : null };
+      }).sort(function (a, b) { return b.impressions - a.impressions || String(a.keyword).localeCompare(String(b.keyword)); });
+      var termCap = isFeatured(ctx.tier) ? termList.length : 10;
+      var termRows = termList.slice(0, termCap);
+      var termsPanel = '<div class="panel" style="margin-top:18px;">' +
+        '<span class="eyebrow">Search terms</span>' +
+        '<h2 style="margin:10px 0 4px;">What people searched to find you.</h2>' +
+        '<p class="muted" style="margin:0 0 14px;font-size:.86rem;">' +
+          (isFeatured(ctx.tier)
+            ? 'Full list for this period, with no cap.'
+            : 'Top 10 shown. Featured unlocks the full list and a weekly search-terms email.') +
+        '</p>' +
+        (termRows.length
+          ? '<div class="dashboard-table-wrap"><div class="dashboard-table-head" style="grid-template-columns:1fr 110px 110px;">' +
+            '<div>Keyword</div><div>Impressions</div><div>Avg position</div></div>' +
+            termRows.map(function (t) {
+              return '<div class="dashboard-row" style="grid-template-columns:1fr 110px 110px;">' +
+                '<div><strong>' + esc(t.keyword) + '</strong></div>' +
+                '<div class="muted" style="font-size:.84rem;">' + num(t.impressions) + '</div>' +
+                '<div class="muted" style="font-size:.84rem;">' + (t.avg ? t.avg.toFixed(1) : '—') + '</div>' +
+                '</div>';
+            }).join('') + '</div>'
+          : '<div class="muted" style="padding:18px 0;">No searches surfaced your listings in this period.</div>') +
+        '</div>';
+
       // ---- tabs
       var tabs = [['overview', 'Overview'], ['products', 'Products']];
-      if (!enhanced) tabs = [['overview', 'Overview'], ['products', 'Products']];
+      if (enhanced) tabs.push(['terms', 'Search terms']);
       var tabBar = tabs.map(function (t) {
         var on = state.view === t[0];
         return '<button class="btn ' + (on ? 'btn-primary' : 'btn-ghost') + ' btn-small" type="button" data-tab="' + t[0] + '">' + esc(t[1]) + '</button>';
@@ -387,7 +589,7 @@
         '<h2 style="margin:10px 0 0;">Turn local discovery into measurable demand.</h2></div>' +
         '<div class="inline-actions">' + tabBar + '</div></div>' +
         '<div id="ds-an-pref" style="margin-top:12px;font-size:.78rem;color:' + C.muted + ';"></div></div>' +
-        '<div style="margin-top:0;">' + (state.view === 'overview' ? overview : productsPanel) + '</div>';
+        '<div style="margin-top:0;">' + (state.view === 'terms' ? termsPanel : state.view === 'products' ? productsPanel : overview) + '</div>';
 
       wirePref();
 
