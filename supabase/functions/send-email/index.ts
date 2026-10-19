@@ -92,6 +92,7 @@ const TEMPLATES = {
        <div style="background:rgba(189,161,111,.06);border-left:3px solid #bda16f;padding:14px 18px;border-radius:0 6px 6px 0;margin:0 0 24px;">
          <p style="color:#c9d1d9;font-size:.88rem;line-height:1.6;margin:0;"><strong style="color:#bda16f;">Next steps:</strong> while we review, you can open your dashboard to add listings and update your profile.</p>
        </div>
+       <p style="color:#8b949e;font-size:.84rem;line-height:1.7;margin:0 0 24px;">Once your listing is live you'll receive a monthly snapshot email showing your profile views and how many visitors clicked through to your site. You can turn it off any time from your dashboard.</p>
        <a href="${SITE}/dashboard.html?role=${esc(data.listingType)}" style="display:inline-block;background:#bda16f;color:#000;padding:13px 30px;border-radius:6px;text-decoration:none;font-weight:600;">Open your dashboard →</a>`
     )
   }),

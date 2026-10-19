@@ -1175,6 +1175,7 @@ async function renderPricingPage() {
               <li>10 product listings</li>
               <li>Website and contact details</li>
               <li>Standard supplier directory placement</li>
+              <li>Click insights: monthly snapshot email</li>
             </ul>
             <a class="btn btn-ghost btn-block" href="list-your-business.html?type=merchant&plan=merchant-starter">Start free</a>
           </article>
@@ -1190,6 +1191,7 @@ async function renderPricingPage() {
               <li>Enhanced directory placement</li>
               <li>Homepage featured eligibility</li>
               <li>Priority support</li>
+              <li>Click insights: full dashboard</li>
             </ul>
             <button class="btn btn-primary btn-block" type="button" data-checkout-plan="merchant_enhanced" onclick="startCheckout('merchant_enhanced')">Choose Enhanced</button>
           </article>
@@ -1206,6 +1208,7 @@ async function renderPricingPage() {
               <li>Direct links to products on your site</li>
               <li>List your events</li>
               <li>Inclusion in marketing EDMs</li>
+              <li>Click insights: full dashboard + benchmarks (coming soon)</li>
             </ul>
             <button class="btn btn-primary btn-block" type="button" data-checkout-plan="merchant_featured" onclick="startCheckout('merchant_featured')">Choose Featured</button>
           </article>
@@ -1220,6 +1223,7 @@ async function renderPricingPage() {
               <li>Featured directory placement</li>
               <li>Homepage premium supplier block</li>
               <li>Priority support for launches</li>
+              <li>Click insights: full dashboard + monthly report (coming soon)</li>
             </ul>
             <a class="btn btn-secondary btn-block" href="list-your-business.html?type=merchant&plan=merchant-premium">Join waitlist</a>
           </article>
@@ -1241,6 +1245,7 @@ async function renderPricingPage() {
               <li>Address, phone, cuisine type</li>
               <li>Standard venue directory placement</li>
               <li>1 event listing</li>
+              <li>Click insights: monthly snapshot email</li>
             </ul>
             <a class="btn btn-ghost btn-block" href="list-your-business.html?type=venue&plan=venue-starter">Start free</a>
           </article>
@@ -1256,6 +1261,7 @@ async function renderPricingPage() {
               <li>Direct booking link (SevenRooms / Bistrochat / site)</li>
               <li>Image-led listing card</li>
               <li>Priority directory placement</li>
+              <li>Click insights: monthly snapshot email + booking clicks (coming soon)</li>
             </ul>
             <button class="btn btn-primary btn-block" type="button" data-checkout-plan="venue_enhanced" onclick="startCheckout('venue_enhanced')">Choose Venue Enhanced</button>
           </article>
@@ -1271,11 +1277,21 @@ async function renderPricingPage() {
               <li>Always-on event promotion slot</li>
               <li>Homepage event consideration</li>
               <li>Seasonal campaign priority</li>
+              <li>Click insights: monthly snapshot email + benchmarks (coming soon)</li>
             </ul>
             <button class="btn btn-secondary btn-block" type="button" data-checkout-plan="venue_enhanced_events" onclick="startCheckout('venue_enhanced_events')">Choose Growth Plan</button>
           </article>
         </div>
       </div>
+
+    <section class="section-tight">
+      <div class="container">
+        <div class="section-head"><div><span class="eyebrow">Pricing FAQ</span><h2>What analytics do I get?</h2></div></div>
+        <div class="panel">
+          <p class="lead" style="margin:0;">Every plan includes the monthly snapshot email covering your profile views and outbound clicks, and paid plans add the live dashboard — Enhanced adds per-product clicks and click-through rate, Featured adds category benchmarks, and Premium adds a shareable monthly report.</p>
+        </div>
+      </div>
+    </section>
     </section>
 
   `;

@@ -210,6 +210,40 @@
     if (!host) return;
     var state = { days: isEnhanced(ctx.tier) ? 30 : 30, sort: 'clicks', view: 'overview' };
 
+    // Monthly snapshot email preference. Reads the merchant's own profile row
+    // (RLS permits their own row) and toggles it in place, so the opt-out has a
+    // home inside the product as well as in the email footer.
+    async function wirePref() {
+      var holder = document.getElementById('ds-an-pref');
+      if (!holder) return;
+      var user = null;
+      try { user = (await sb.auth.getUser()).data.user; } catch (e) { user = null; }
+      if (!user) { holder.innerHTML = ''; return; }
+
+      async function paintPref() {
+        var off = false;
+        try {
+          var res = await sb.from('profiles').select('analytics_email_opt_out').eq('id', user.id).maybeSingle();
+          off = !!(res && res.data && res.data.analytics_email_opt_out);
+        } catch (e) {
+          // A preference lookup must never take down the analytics panel.
+          holder.innerHTML = '';
+          return;
+        }
+        holder.innerHTML = 'Monthly snapshot email: <strong style="color:var(--text, #f4f0e7);">' +
+          (off ? 'Off' : 'On') + '</strong> · ' +
+          '<button class="btn btn-ghost btn-small" type="button" id="ds-an-pref-btn" style="padding:2px 8px;font-size:.72rem;">' +
+          (off ? 'Turn on' : 'Turn off') + '</button>';
+        var b = document.getElementById('ds-an-pref-btn');
+        if (b) b.addEventListener('click', async function () {
+          b.disabled = true;
+          await sb.from('profiles').update({ analytics_email_opt_out: !off }).eq('id', user.id);
+          await paintPref();
+        });
+      }
+      await paintPref();
+    }
+
     function paintLoading() { host.innerHTML = skeleton(); }
 
     async function paint() {
@@ -351,8 +385,11 @@
         '<div style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;">' +
         '<div><span class="eyebrow">Analytics</span>' +
         '<h2 style="margin:10px 0 0;">Turn local discovery into measurable demand.</h2></div>' +
-        '<div class="inline-actions">' + tabBar + '</div></div></div>' +
+        '<div class="inline-actions">' + tabBar + '</div></div>' +
+        '<div id="ds-an-pref" style="margin-top:12px;font-size:.78rem;color:' + C.muted + ';"></div></div>' +
         '<div style="margin-top:0;">' + (state.view === 'overview' ? overview : productsPanel) + '</div>';
+
+      wirePref();
 
       // ---- wiring
       host.querySelectorAll('[data-tab]').forEach(function (b) {

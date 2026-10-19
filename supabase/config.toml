@@ -407,6 +407,12 @@ verify_jwt = false
 [functions.submit-lead]
 verify_jwt = false
 
+# analytics-snapshot: the GET ?unsubscribe= link must work from an email client
+# with no session, so JWT verification is off. The POST path enforces its own
+# check — service role, or a signed-in admin — inside the function.
+[functions.analytics-snapshot]
+verify_jwt = false
+
 # create-checkout MUST keep JWT verification on (default): it is called by the
 # signed-in user's browser and reads their session to key the subscription.
 
