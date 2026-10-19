@@ -62,7 +62,12 @@
 
   function track(event, props) {
     try {
-      if (!window.sb || typeof sb.rpc !== 'function') return Promise.resolve(false);
+      // NOTE: supabase.js declares `const sb` at top level, which creates a
+      // global binding but NOT a window property — so `window.sb` is always
+      // undefined here. Test the binding with typeof instead.
+      if (typeof sb === 'undefined' || !sb || typeof sb.rpc !== 'function') {
+        return Promise.resolve(false);
+      }
       var a = attribution();
       var body = { p_event: event, p_session: sessionId(), p_source: a.source };
       if (a.campaign_id) body.p_campaign_id = a.campaign_id;
