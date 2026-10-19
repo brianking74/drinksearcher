@@ -266,6 +266,82 @@ function renderSnapshot(
   return { subject, html: shell(inner, footerNote) }
 }
 
+// ---------------------------------------------------------------- weekly search terms
+function hktIsoWeek(): string {
+  const d = new Date(Date.now() + 8 * 3600 * 1000)
+  const t = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()))
+  const day = t.getUTCDay() || 7
+  t.setUTCDate(t.getUTCDate() + 4 - day)
+  const yearStart = new Date(Date.UTC(t.getUTCFullYear(), 0, 1))
+  const week = Math.ceil((((t.getTime() - yearStart.getTime()) / 86400000) + 1) / 7)
+  return `${t.getUTCFullYear()}-W${String(week).padStart(2, '0')}`
+}
+
+function weekLabel(): string {
+  const now = new Date(Date.now() + 8 * 3600 * 1000)
+  const fmt = (ms: number) =>
+    new Date(ms).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' })
+  return `${fmt(now.getTime() - 6 * 86400000)}–${fmt(now.getTime())}`
+}
+
+type SearchTerm = { keyword: string; impressions: number; avg_position: number | null }
+
+async function searchTerms(entityId: string, kind: string): Promise<SearchTerm[]> {
+  const { data, error } = await admin.rpc('analytics_search_terms', {
+    p_entity_id: entityId,
+    p_kind: kind === 'venue' ? 'venue' : 'supplier',
+    p_days: 7,
+  })
+  if (error) throw new Error(error.message)
+  return (data || []) as SearchTerm[]
+}
+
+function renderSearchTerms(
+  entityName: string,
+  terms: SearchTerm[],
+  unsubUrl: string,
+  dashboardUrl: string,
+  label: string,
+): { subject: string; html: string } {
+  const top = terms.slice(0, 10)
+  const n = top.length
+  const rows = top.map((t) => `
+        <tr>
+          <td style="padding:9px 0;border-bottom:1px solid #1e2224;color:#f4f0e7;font-size:.9rem;">${esc(t.keyword)}</td>
+          <td style="padding:9px 0;border-bottom:1px solid #1e2224;color:#a6a39c;font-size:.85rem;text-align:right;">${t.impressions}</td>
+          <td style="padding:9px 0;border-bottom:1px solid #1e2224;color:#a6a39c;font-size:.85rem;text-align:right;">${t.avg_position == null ? '—' : Number(t.avg_position).toFixed(1)}</td>
+        </tr>`).join('')
+
+  // Honest empty state: the sender already filters these out, but a term list is
+  // never faked if one slips through.
+  const inner = `
+      <p style="color:#a6a39c;font-size:.78rem;letter-spacing:.1em;text-transform:uppercase;margin:0 0 6px;">Weekly search terms</p>
+      <h1 style="color:#f4f0e7;font-size:1.35rem;margin:0 0 4px;font-weight:400;">What people searched to find ${esc(entityName)}.</h1>
+      <p style="color:#8b949e;font-size:.85rem;margin:0;">Week to ${label}</p>
+      ${n ? `
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:18px;">
+        <tr>
+          <td style="color:#6d6a64;font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;padding-bottom:6px;">Keyword</td>
+          <td style="color:#6d6a64;font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;padding-bottom:6px;text-align:right;">Seen</td>
+          <td style="color:#6d6a64;font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;padding-bottom:6px;text-align:right;">Avg position</td>
+        </tr>
+        ${rows}
+      </table>
+      <p style="color:#8b949e;font-size:.84rem;line-height:1.7;margin:18px 0 0;">Position is where your listing appeared in the results for that search. Moving up puts you in front of more of the people already looking for what you stock.</p>
+      ` : `<p style="color:#a6a39c;font-size:.9rem;line-height:1.7;margin-top:16px;">No searches surfaced your listings in the last 7 days.</p>`}
+      <a href="${dashboardUrl}" style="display:inline-block;margin-top:24px;background:#bda16f;color:#000;padding:12px 26px;border-radius:6px;text-decoration:none;font-weight:600;">Open your dashboard →</a>`
+
+  return {
+    subject: n
+      ? `This week: ${n} search ${n === 1 ? 'term' : 'terms'} found ${entityName}`
+      : `Your weekly search terms`,
+    html: shell(
+      inner,
+      `You receive this weekly on the Featured plan. <a href="${unsubUrl}" style="color:#6d6a64;">Unsubscribe from these emails</a>.`,
+    ),
+  }
+}
+
 // ---------------------------------------------------------------- unsubscribe
 async function handleUnsubscribe(req: Request): Promise<Response> {
   const url = new URL(req.url)
@@ -299,13 +375,19 @@ Deno.serve(async (req) => {
     return json({ error: 'Not authorised to send snapshots.' }, 403)
   }
 
-  let body: { dry_run?: boolean; user_id?: string; period?: string } = {}
+  let body: { dry_run?: boolean; user_id?: string; period?: string; kind?: string } = {}
   try { body = await req.json() } catch { body = {} }
 
-  const period = body.period || hktPeriod()
+  // Two cadences share this function: the monthly snapshot (every tier) and the
+  // weekly search-terms email (Featured). Separate period keys — 'YYYY-MM' vs
+  // 'YYYY-Www' — so the idempotency log can never confuse the two.
+  const weekly = body.kind === 'weekly_search'
+  const period = body.period || (weekly ? hktIsoWeek() : hktPeriod())
   const dryRun = !!body.dry_run
 
-  const { data: recipients, error } = await admin.rpc('analytics_snapshot_recipients', { p_period: period })
+  const { data: recipients, error } = weekly
+    ? await admin.rpc('analytics_search_recipients', { p_days: 7 })
+    : await admin.rpc('analytics_snapshot_recipients', { p_period: period })
   if (error) return json({ error: error.message }, 500)
 
   const list = (recipients || []).filter((r: { user_id: string }) =>
@@ -320,7 +402,6 @@ Deno.serve(async (req) => {
         .select('status').eq('user_id', r.user_id).eq('period', period).maybeSingle()
       if (prior) { results.push({ user: r.entity_name, skipped: 'already_sent' }); continue }
 
-      const s = await summarise(r.kind, r.entity_id)
       const { data: sub } = await admin.from('subscriptions')
         .select('directory_tier, plan').eq('user_id', r.user_id).maybeSingle()
       const tier = (sub && (sub.directory_tier || sub.plan)) || 'standard'
@@ -328,10 +409,24 @@ Deno.serve(async (req) => {
       const token = await optOutToken(r.user_id)
       const unsubUrl = `${SUPABASE_URL}/functions/v1/analytics-snapshot?unsubscribe=${r.user_id}.${token}`
       const dashboardUrl = `${SITE}/dashboard.html`
-      const { subject, html: body_html } = renderSnapshot(r.entity_name, period, String(tier), s, unsubUrl, dashboardUrl)
+
+      let subject: string, body_html: string, hasData: boolean
+      if (weekly) {
+        const terms = await searchTerms(r.entity_id, r.kind)
+        const rendered = renderSearchTerms(r.entity_name, terms, unsubUrl, dashboardUrl, weekLabel())
+        subject = rendered.subject
+        body_html = rendered.html
+        hasData = terms.length > 0
+      } else {
+        const s = await summarise(r.kind, r.entity_id)
+        const rendered = renderSnapshot(r.entity_name, period, String(tier), s, unsubUrl, dashboardUrl)
+        subject = rendered.subject
+        body_html = rendered.html
+        hasData = s.hasData
+      }
 
       if (dryRun) {
-        results.push({ user: r.entity_name, tier, subject, hasData: s.hasData, html: body_html })
+        results.push({ user: r.entity_name, tier, subject, hasData, html: body_html })
         continue
       }
 
