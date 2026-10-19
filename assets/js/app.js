@@ -2047,6 +2047,7 @@ async function renderBusinessDashboardPage() {
       if (biz.supplier) {
         const c = state.merchant;
         c.listingName = biz.supplier.name || c.listingName;
+        c.supplierId = biz.supplier.id || c.supplierId;   // scopes the analytics panel
         c.website = biz.supplier.website || c.website;
         c.phone = biz.supplier.phone || c.phone;
         c.district = biz.supplier.area || c.district;
@@ -2068,6 +2069,7 @@ async function renderBusinessDashboardPage() {
       if (biz.venue) {
         const c = state.venue;
         c.listingName = biz.venue.name || c.listingName;
+        c.venueId = biz.venue.id || c.venueId;             // scopes the analytics panel
         c.website = biz.venue.website || c.website;
         c.phone = biz.venue.phone || c.phone;
         c.district = biz.venue.area || c.district;
@@ -2124,6 +2126,7 @@ async function renderBusinessDashboardPage() {
         id: d.id,
         name: d.name || '',
         price: d.price || '',
+        image: d.image || '',        // product thumbnails in the analytics panel
         availability: d.availability || 'In stock',
         status: d.status || 'pending',
         fromDb: true
@@ -2341,6 +2344,11 @@ async function renderBusinessDashboardPage() {
           </div>
         </section>` : ''}
 
+        ${role === 'merchant' ? `
+        <section class="section-tight">
+          <div class="container" id="analytics-panel"></div>
+        </section>` : ''}
+
         ${isEnhanced ? `
         <section class="section-tight">
           <div class="container">
@@ -2376,6 +2384,27 @@ async function renderBusinessDashboardPage() {
         </section>
       </div>`;
     app.innerHTML = html;
+
+    // Analytics panel. Merchant-scoped: reads analytics_daily only (RLS limits
+    // rows to this account), never the raw event log.
+    const anHost = document.getElementById('analytics-panel');
+    if (anHost && window.dsAnalyticsPanel) {
+      const anId = role === 'merchant' ? (config.supplierId || null) : (config.venueId || null);
+      if (anId) {
+        dsAnalyticsPanel.render(anHost, {
+          kind: role === 'venue' ? 'venue' : 'supplier',
+          entityId: anId,
+          tier: state.directoryTier || 'standard',
+          products: (config.items || [])
+            .filter(i => i.id)
+            .map(i => ({ id: i.id, name: i.name, image: i.image || '', price: i.price || '' }))
+        });
+      } else {
+        anHost.innerHTML = '<div class="panel"><span class="eyebrow">Analytics</span>' +
+          '<h2 style="margin:14px 0;">Analytics unlock once your listing is linked.</h2>' +
+          '<p class="muted">We could not match this account to a directory listing, so there is nothing to attribute yet. Contact us and we will link it.</p></div>';
+      }
+    }
 
     // Ecommerce scan: queue a scan, run it, and show this supplier's history
     const scanBtn = $('#scan-site-btn', app);
