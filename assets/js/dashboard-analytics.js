@@ -193,7 +193,7 @@
   function loadDaily(ctx, days) {
     var start = dayOffset(-(days - 1));
     var q = sb.from('analytics_daily')
-      .select('day_hkt,event,entity_id,supplier_id,source,surface,campaign_id,provider,keyword,position_sum,position_count,event_count')
+      .select('day_hkt,event,entity_id,supplier_id,venue_id,event_id,source,surface,campaign_id,provider,keyword,position_sum,position_count,event_count')
       .gte('day_hkt', start)
       .order('day_hkt');
     q = ctx.kind === 'venue' ? q.eq('venue_id', ctx.entityId) : q.eq('supplier_id', ctx.entityId);
@@ -203,7 +203,7 @@
   function fold(rows, days) {
     var daysList = [];
     for (var i = days - 1; i >= 0; i--) daysList.push(dayOffset(-i));
-    var byDay = {}, products = {}, placements = {}, terms = {}, campaigns = {}, providers = {};
+    var byDay = {}, products = {}, placements = {}, terms = {}, campaigns = {}, providers = {}, events = {};
     var totals = { view: 0, click: 0 };
 
     daysList.forEach(function (d) { byDay[d] = { view: 0, click: 0 }; });
@@ -235,6 +235,13 @@
           providers[pv] = (providers[pv] || 0) + n;
         }
       }
+      // Events: per-event reach and outbound clicks. The rollup keeps event_id
+      // as its own column, so an event belonging to a venue is still countable
+      // per event rather than collapsing into the venue.
+      if (r.event_id && (r.event === 'event_view' || r.event === 'event_outbound_click')) {
+        var ev = events[r.event_id] || (events[r.event_id] = { views: 0, clicks: 0 });
+        if (r.event === 'event_view') ev.views += n; else ev.clicks += n;
+      }
       // Search terms. position_sum/position_count come from the rollup, so the
       // average is exact rather than reconstructed.
       if (r.event === 'search_impression' && r.keyword) {
@@ -246,7 +253,8 @@
     });
     return {
       daysList: daysList, byDay: byDay, products: products, placements: placements,
-      terms: terms, campaigns: campaigns, providers: providers, totals: totals
+      terms: terms, campaigns: campaigns, providers: providers, events: events,
+      totals: totals
     };
   }
 
@@ -572,6 +580,50 @@
       var provs = Object.keys(f.providers).map(function (k) { return { id: k, clicks: f.providers[k] }; })
         .sort(function (a, b) { return b.clicks - a.clicks; });
       var provTotal = provs.reduce(function (a, b) { return a + b.clicks; }, 0);
+      // Event names live on the events table; the rollup only carries ids.
+      var eventIds = Object.keys(f.events);
+      var eventMeta = {};
+      if (isVenue && eventIds.length) {
+        try {
+          var evRes = await sb.from('events').select('id,name,date,event_date').in('id', eventIds.slice(0, 50));
+          ((evRes && evRes.data) || []).forEach(function (r) { eventMeta[r.id] = r; });
+        } catch (e) {
+          // Names are a nicety; the table still renders without them.
+          eventMeta = {};
+        }
+      }
+      var eventRows = eventIds.map(function (id) {
+        var ev = f.events[id];
+        var meta = eventMeta[id] || {};
+        return { id: id, name: meta.name || 'Event', date: meta.date || meta.event_date || '', views: ev.views, clicks: ev.clicks };
+      }).sort(function (a, b) { return b.clicks - a.clicks || b.views - a.views; });
+
+      var eventsPanel = '<div class="panel" style="margin-top:18px;">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;">' +
+        '<div><span class="eyebrow">Events</span><h2 style="margin:10px 0 4px;">How your events performed.</h2>' +
+        '<p class="muted" style="margin:0;font-size:.86rem;">Each event you list, how often it was shown, and how often it sent someone to your booking or ticket page.</p></div>' +
+        (enhanced ? '<div class="inline-actions"><button class="btn btn-ghost btn-small" type="button" id="ds-an-csv">Export CSV</button></div>' : lockChip('Event numbers are locked on Starter')) +
+        '</div>' +
+        (eventRows.length
+          ? '<div class="dashboard-table-wrap" style="margin-top:14px;">' +
+              '<div class="dashboard-table-head" style="grid-template-columns:1fr 90px 90px 80px;">' +
+                '<div>Event</div><div>Shown</div><div>Clicks</div><div>CTR</div></div>' +
+              eventRows.map(function (ev) {
+                return '<div class="dashboard-row" style="grid-template-columns:1fr 90px 90px 80px;">' +
+                  '<div><strong>' + esc(ev.name) + '</strong>' +
+                    (ev.date ? '<div class="muted" style="font-size:.74rem;">' + esc(String(ev.date).slice(0, 10)) + '</div>' : '') + '</div>' +
+                  '<div class="muted" style="font-size:.82rem;">' + num(ev.views) + '</div>' +
+                  '<div>' + (enhanced
+                    ? '<strong>' + num(ev.clicks) + '</strong>'
+                    : '<span style="filter:blur(5px);user-select:none;" aria-hidden="true">' + num(ev.clicks + 3) + '</span>') + '</div>' +
+                  '<div class="muted" style="font-size:.82rem;">' + (enhanced ? pct(ev.clicks, ev.views) : '—') + '</div>' +
+                  '</div>';
+              }).join('') +
+            '</div>'
+          : '<div class="muted" style="padding:18px 0;">No event activity in this period yet. Events you list are tracked here — how often each was shown, and how often it sent someone to your booking page.</div>') +
+        (!enhanced ? upgradeCta({ title: 'Enhanced shows which events convert', body: 'Your event reach stays visible on Starter — Enhanced adds the clicks and click-through rate for each one.' }) : '') +
+        '</div>';
+
       var venuePanel = '<div class="panel" style="margin-top:18px;">' +
         '<div style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;">' +
         '<div><span class="eyebrow">Bookings</span><h2 style="margin:10px 0 4px;">Where your bookings came from.</h2>' +
@@ -630,6 +682,7 @@
       // ---- tabs
       var tabs = [['overview', 'Overview'], ['products', isVenue ? 'Bookings' : 'Products']];
       if (enhanced) tabs.push(['terms', 'Search terms']);
+      if (isVenue) tabs.push(['events', 'Events']);
       var tabBar = tabs.map(function (t) {
         var on = state.view === t[0];
         return '<button class="btn ' + (on ? 'btn-primary' : 'btn-ghost') + ' btn-small" type="button" data-tab="' + t[0] + '">' + esc(t[1]) + '</button>';
@@ -641,7 +694,7 @@
         '<h2 style="margin:10px 0 0;">Turn local discovery into measurable demand.</h2></div>' +
         '<div class="inline-actions">' + tabBar + '</div></div>' +
         '<div id="ds-an-pref" style="margin-top:12px;font-size:.78rem;color:' + C.muted + ';"></div></div>' +
-        '<div style="margin-top:0;">' + (state.view === 'terms' ? termsPanel : state.view === 'products' ? (isVenue ? venuePanel : productsPanel) : overview) + '</div>';
+        '<div style="margin-top:0;">' + (state.view === 'terms' ? termsPanel : state.view === 'products' ? (isVenue ? venuePanel : productsPanel) : state.view === 'events' ? eventsPanel : overview) + '</div>';
 
       wirePref();
 

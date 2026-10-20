@@ -1098,7 +1098,18 @@ async function renderEventsPage() {
   const area = queryParam('area') || '';
   const allEvents = await fetchEvents();
   const filteredEvents = allEvents.filter(e => matchesSearch([e.name, e.venue, e.type, e.area], query) && (!area || e.area === area));
-  const cards = filteredEvents.length ? `<div class="grid grid-3">${filteredEvents.map(e => renderCard({...e, description:e.venue, tierLabel:e.type}, {type:'event', className:'event-card', href:buildSearchHref('events.html', e.name, e.area), cta:ctaLink('Event details', hasUsableHref(e.url) ? e.url : buildSearchHref('events.html', e.name, e.area), 'btn btn-primary btn-small', 'Details soon')})).join('')}</div>` : '<div class="empty-state">No current events match that search yet — try a venue, event type, or a broader area.</div>';
+  const cards = filteredEvents.length ? `<div class="grid grid-3">${filteredEvents.map(e => renderCard({...e, description:e.venue, tierLabel:e.type}, {type:'event', className:'event-card', href:buildSearchHref('events.html', e.name, e.area), cta:ctaLink('Event details', hasUsableHref(e.url) ? e.url : buildSearchHref('events.html', e.name, e.area), 'btn btn-primary btn-small', 'Details soon', eventClickAttrs(e))})).join('')}</div>` : '<div class="empty-state">No current events match that search yet — try a venue, event type, or a broader area.</div>';
+
+  // Analytics: event views. There is no per-event detail page — events render as
+  // cards — so a "view" means the listing was displayed. Only DB-backed events
+  // carry an id; anything else is skipped rather than miscounted. Capped so a
+  // long results page cannot dominate a venue's numbers.
+  if (dsAnalytics && typeof dsAnalytics.track === 'function') {
+    filteredEvents.slice(0, 20).forEach(ev => {
+      if (!ev || !ev.id) return;
+      dsAnalytics.track('event_view', { event_id: ev.id, venue_id: ev.venue_id || undefined, source: 'events' });
+    });
+  }
   app.innerHTML = `
     <section class="hero" style="min-height:56vh;"><div class="hero-media" style="background-image:url('${siteImages.event}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Events</span><h1>Tastings, launches, guest shifts, and social nights.</h1><p class="lead">Masterclasses, pairings, cocktail takeovers, launch nights, and zero-proof happenings around Hong Kong.</p></div><div class="search-shell"><div class="search-tabs"><span class="search-tab active">Plan your next night out</span></div><div class="notice">Showing <strong>${filteredEvents.length}</strong> events${query ? ` for “${query}”` : ''}${area ? ` in ${area}` : ''}.</div><p class="muted">From hotel tastings to bar collabs and community-led pours.</p></div></div></section>
     <section class="section"><div class="container"><div class="section-head"><div><span class="eyebrow">Upcoming events</span><h2>What's on around Hong Kong.</h2><p class="lead" style="margin-top:14px;">Tastings, launches, guest shifts, and social nights across Hong Kong — find your next night out.</p></div></div>${cards}</div></section>`;
@@ -1502,8 +1513,55 @@ function venueBookingAttrs(v, surface = 'profile') {
   return ` data-booking-venue="${id}" data-booking-provider="own_site" data-booking-surface="${surface}"`;
 }
 
-// Bound once for the session: venue booking/outbound click tracking.
-let venueAnalyticsBound = false;
+// Events render as cards rather than pages, so the outbound click is the
+// conversion. Only DB-backed events carry an id.
+function eventClickAttrs(e) {
+  const id = (e && e.id) ? String(e.id) : '';
+  if (!id) return '';
+  return ` data-event-out="${id}"` + ((e && e.venue_id) ? ` data-event-venue="${e.venue_id}"` : '');
+}
+
+// Booking, event and venue-outbound clicks are bound once, at the top level, for
+// every page. Binding this inside a page render was a bug: directory and
+// homepage Book links fired nothing because that render never ran there.
+function bindAttributionClicks() {
+  if (window.__dsAttributionBound) return;
+  window.__dsAttributionBound = true;
+  document.addEventListener('click', (ev) => {
+    if (typeof dsTrack !== 'function') return;
+    const target = ev.target instanceof Element ? ev.target : null;
+    if (!target) return;
+
+    const bk = target.closest('[data-booking-venue]');
+    if (bk) {
+      dsTrack('booking_click', {
+        venue_id: bk.dataset.bookingVenue,
+        provider: bk.dataset.bookingProvider || 'own_site',
+        surface: bk.dataset.bookingSurface || 'profile'
+      });
+      return;
+    }
+
+    const eo = target.closest('[data-event-out]');
+    if (eo) {
+      dsTrack('event_outbound_click', {
+        event_id: eo.dataset.eventOut,
+        venue_id: eo.dataset.eventVenue || undefined,
+        surface: 'events_page'
+      });
+      return;
+    }
+
+    const ob = target.closest('[data-outbound-venue]');
+    if (ob) {
+      dsTrack('outbound_click', {
+        venue_id: ob.dataset.outboundVenue,
+        surface: ob.dataset.outboundSurface || 'profile'
+      });
+    }
+  });
+}
+bindAttributionClicks();
 
 async function renderVenueProfile() {
   const slug = queryParam('slug') || 'quinary';
@@ -1536,31 +1594,6 @@ async function renderVenueProfile() {
     dsTrack('profile_view', { venue_id: v.id });
   }
 
-  // Booking clicks are a venue's money metric, so they are bound once at the
-  // document level and read the provider off the anchor. A venue whose booking
-  // field says "Walk-in / Waitlist" has no online booking behind it, so its link
-  // counts as an outbound click rather than pretending to be a booking.
-  if (!venueAnalyticsBound) {
-    venueAnalyticsBound = true;
-    document.addEventListener('click', (ev) => {
-      if (typeof dsTrack !== 'function') return;
-      const target = ev.target instanceof Element ? ev.target : null;
-      if (!target) return;
-      const bk = target.closest('[data-booking-venue]');
-      if (bk) {
-        dsTrack('booking_click', {
-          venue_id: bk.dataset.bookingVenue,
-          provider: bk.dataset.bookingProvider || 'own_site',
-          surface: bk.dataset.bookingSurface || 'profile'
-        });
-        return;
-      }
-      const ob = target.closest('[data-outbound-venue]');
-      if (ob) {
-        dsTrack('outbound_click', { venue_id: ob.dataset.outboundVenue, surface: ob.dataset.outboundSurface || 'profile' });
-      }
-    });
-  }
   const summaryText = v.summary || ((v.specialty ? 'Known for ' + v.specialty.toLowerCase() + '.' : '') + ' A ' + (v.cuisine || 'bar') + (v.area ? ' in ' + v.area : '') + (v.price ? ' with ' + v.price.toLowerCase() + ' pricing' : '') + '.');
   
   app.innerHTML = `
