@@ -3985,6 +3985,58 @@ async function renderBlogAdminPage() {
   $$('[data-blog-toggle-status]', app).forEach(btn => btn.addEventListener('click', () => rowAction(btn.dataset.blogToggleStatus, btn.dataset.blogToggleStatus === 'true' ? 'unpublish' : 'publish')));
 }
 
+// ── 404 ─────────────────────────────────────────────────────────────────────
+// Vercel's built-in 404 was an unbranded white page that leaked an internal
+// request id ("hkg1::qhhl2-…", different on every request) and offered visitors
+// "View documentation" and "Copy debug prompt". This is the site's own page.
+// Vercel serves /404.html with a 404 status for any unmatched path, so the
+// status code stays honest while the page belongs to the brand.
+function renderNotFoundPage() {
+  const app = $('#app');
+  const priorQuery = queryParam('q') || '';
+  app.innerHTML = `
+    <section class="section">
+      <div class="container">
+        <div class="section-head section-head-single">
+          <div>
+            <span class="eyebrow">404 · Page not found</span>
+            <h1>That page isn’t here.</h1>
+            <p class="lead">The link may be out of date, or the listing may have been removed. Everything worth finding is one tap away.</p>
+          </div>
+        </div>
+
+        <div class="panel" style="margin-bottom:24px;">
+          <span class="eyebrow">Search instead</span>
+          <div class="search-box" style="margin-top:14px;">
+            <input class="input" id="notfound-query" type="search" placeholder="Search bottles, bars or events" value="${safe(priorQuery)}" aria-label="Search DrinkSearcher" />
+            <button class="btn btn-primary" id="notfound-search" type="button">Search</button>
+          </div>
+        </div>
+
+        <div class="grid grid-3">
+          <a class="panel" href="/drinks.html"><span class="eyebrow">Browse</span><h3 style="margin:10px 0 6px;">Drinks</h3><p class="muted" style="margin:0;">Compare bottles in stock across Hong Kong.</p></a>
+          <a class="panel" href="/bars-restaurants.html"><span class="eyebrow">Browse</span><h3 style="margin:10px 0 6px;">Bars &amp; restaurants</h3><p class="muted" style="margin:0;">Find somewhere worth going tonight.</p></a>
+          <a class="panel" href="/events.html"><span class="eyebrow">Browse</span><h3 style="margin:10px 0 6px;">Events</h3><p class="muted" style="margin:0;">Tastings, guest shifts and launches.</p></a>
+        </div>
+
+        <div class="inline-actions" style="margin-top:28px;">
+          <a class="btn btn-primary" href="/index.html">Back to home</a>
+          <a class="btn btn-ghost" href="/pricing.html">Pricing</a>
+          <a class="btn btn-ghost" href="/suppliers.html">Suppliers</a>
+        </div>
+      </div>
+    </section>`;
+
+  const input = $('#notfound-query');
+  const searchBtn = $('#notfound-search');
+  const go = () => {
+    const term = (input && input.value ? input.value : '').trim();
+    location.href = '/drinks.html' + (term ? '?q=' + encodeURIComponent(term) : '');
+  };
+  if (searchBtn) searchBtn.addEventListener('click', go);
+  if (input) input.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') go(); });
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   await hydrateCurrentUser();
   await hydrateSavedItems();
@@ -4030,6 +4082,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (page === 'signin') await renderSignInPage();
   if (page === 'signup') await renderSignUpPage();
   if (page === 'blog') await renderBlogPage();
+  if (page === 'notfound') renderNotFoundPage();
   if (page === 'blog-post') await renderBlogPostPage();
   if (page === 'account') await renderAccountPage();
   setupAnchorSpy();
