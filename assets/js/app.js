@@ -299,6 +299,19 @@ function externalLinkAttrs(url) {
   return /^https?:\/\//i.test(String(url || '')) ? 'target="_blank" rel="noreferrer"' : '';
 }
 
+// One currency formatter, used everywhere a price is rendered. "MOQ $650" was
+// showing a bare "$650"; this normalises "$650", "650" and "HK$650" to "HK$650"
+// and leaves non-numeric values ("Free") alone.
+function hkd(v) {
+  if (v === null || v === undefined) return '';
+  const s = String(v).trim();
+  if (!s) return '';
+  if (/^hk\$/i.test(s)) return 'HK$' + s.slice(3).trim();
+  if (/^[\uFF04$]\s*/.test(s)) return 'HK$' + s.replace(/^[\uFF04$]\s*/, '');
+  return /^[\d]/.test(s) ? 'HK$' + s : s;
+}
+window.hkd = hkd;
+
 function ctaLink(label, url, className = 'btn btn-ghost btn-small', fallbackLabel = 'Coming soon', attrs = '') {
   return hasUsableHref(url)
     ? `<a class="${className}" href="${url}" ${externalLinkAttrs(url)}${attrs}>${label}</a>`
@@ -322,13 +335,43 @@ function buildSearchHref(base, query = '', area = '') {
   return `${base}${params.toString() ? `?${params.toString()}` : ''}`;
 }
 
+// ── One source of truth for the numbers shown anywhere on the site ──────────
+// These used to be computed in two places with different rules, and the bottle
+// figure was rounded UP — 86 real bottles displayed as "90+", which overstates
+// the catalogue. One helper, real counts, no rounding.
+let dsCountsCache = null;
+async function dsCounts() {
+  if (dsCountsCache) return dsCountsCache;
+  try {
+    const [drinks, suppliers, venues] = await Promise.all([fetchDrinks(), fetchSuppliers(), fetchVenues()]);
+    const n = (o) => ((o && o.enhanced) || []).length + ((o && o.featured) || []).length + ((o && o.standard) || []).length;
+    dsCountsCache = { bottles: (drinks || []).length, suppliers: n(suppliers), venues: n(venues) };
+  } catch (e) {
+    dsCountsCache = { bottles: 0, suppliers: 0, venues: 0 };
+  }
+  return dsCountsCache;
+}
+window.dsCounts = dsCounts;
+
+// The single StatBlock: one row of three, everywhere, always.
+function statBlockHTML(counts) {
+  const c = counts || { bottles: 0, suppliers: 0, venues: 0 };
+  return `<div class="stats-row homepage-stats">` +
+    `<div class="stat"><strong>${c.bottles}</strong><span class="muted">Bottles indexed</span></div>` +
+    `<div class="stat"><strong>${c.suppliers}</strong><span class="muted">HK suppliers</span></div>` +
+    `<div class="stat"><strong>${c.venues}</strong><span class="muted">Bars &amp; restaurants</span></div>` +
+    `</div>`;
+}
+window.statBlockHTML = statBlockHTML;
+
 function navHTML(active = '', user) {
   const links = [
     ['index.html','Home'],
     ['drinks.html','Drinks'],
+    ['bars-restaurants.html','Bars & Restaurants'],
     ['events.html','Events'],
     ['blog.html','Blog'],
-    ['bars-restaurants.html','Bars & Restaurants'],
+    ['pricing.html','Pricing'],
     ];
   const authActions = user
     ? `<a class="btn btn-ghost btn-small" href="account.html">My Account</a>`
@@ -336,15 +379,21 @@ function navHTML(active = '', user) {
   return `
     <div class="container nav-inner">
       <a class="logo brand-logo" href="index.html" aria-label="DrinkSearcher home"><img src="assets/brand/drinksearcher-logo.webp" alt="DrinkSearcher"></a>
-      <button class="mobile-toggle" aria-label="Toggle menu"><span></span><span></span><span></span></button>
-      <nav class="nav-links">
-        ${links.map(([href,label]) => `<a class="${active===label?'active':''}" href="${href}">${label}</a>`).join('')}
-        <a class="nav-mobile-auth" href="${user ? 'account.html' : 'signin.html'}">${user ? 'My Account' : 'Sign In / Create Account'}</a>
-        <a class="nav-mobile-auth" href="list-your-business.html?type=merchant">List your business</a>
+      <nav class="nav-links" id="nav-links" aria-label="Main">
+        <div class="drawer-top">
+          <a class="logo brand-logo" href="index.html" aria-label="DrinkSearcher home"><img src="assets/brand/drinksearcher-logo.webp" alt="DrinkSearcher"></a>
+          <button class="drawer-close" type="button" aria-label="Close menu"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+        </div>
+        <div class="drawer-links">
+          ${links.map(([href,label]) => `<a class="${active===label?'active':''}" href="${href}">${label}</a>`).join('')}
+          <a class="nav-mobile-auth" href="${user ? 'account.html' : 'signin.html'}">${user ? 'My Account' : 'Sign In / Create Account'}</a>
+        </div>
+        <a class="btn btn-primary drawer-cta" href="list-your-business.html?type=merchant">List your business</a>
       </nav>
       <div class="nav-actions">
         ${authActions}
         <a class="btn btn-primary btn-small" href="list-your-business.html?type=merchant">List your business</a>
+        <button class="mobile-toggle" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="nav-links"><span></span><span></span><span></span></button>
       </div>
     </div>`;
 }
@@ -392,9 +441,31 @@ async function setupChrome(activeLabel) {
   const footerWrap = document.createElement('div');
   footerWrap.innerHTML = footerHTML();
   document.body.appendChild(footerWrap.firstElementChild);
+  // ── Mobile drawer ──────────────────────────────────────────────────────
+  // Full-screen and solid, above all page content, so nothing overlaps the
+  // link rows. Closes on the X, on a link tap and on Escape; background scroll
+  // is locked while open; focus moves in on open and back to the burger on close.
   const toggle = $('.mobile-toggle');
   const links = $('.nav-links');
-  if (toggle && links) toggle.addEventListener('click', () => links.classList.toggle('open'));
+  const drawerClose = $('.drawer-close');
+  if (toggle && links) {
+    const isOpen = () => links.classList.contains('open');
+    const setOpen = (open) => {
+      links.classList.toggle('open', open);
+      document.body.classList.toggle('nav-open', open);
+      toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+      if (open) {
+        const first = links.querySelector('a, button');
+        if (first) first.focus({ preventScroll: true });
+      } else if (document.activeElement && links.contains(document.activeElement)) {
+        toggle.focus({ preventScroll: true });
+      }
+    };
+    toggle.addEventListener('click', () => setOpen(!isOpen()));
+    if (drawerClose) drawerClose.addEventListener('click', () => setOpen(false));
+    links.addEventListener('click', (ev) => { if (ev.target.closest('a')) setOpen(false); });
+    document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape' && isOpen()) setOpen(false); });
+  }
   const signOutBtn = $('#signout-btn');
   if (signOutBtn) signOutBtn.addEventListener('click', async () => {
     await dsAuth.signOut();
@@ -590,11 +661,7 @@ async function renderHomepage() {
             <button class="chip" type="button" data-home-chip="Margaux">Margaux</button><button class="chip" type="button" data-home-chip="Yamazaki 12">Yamazaki 12</button><button class="chip" type="button" data-home-chip="Champagne Brunch">Champagne Brunch</button><button class="chip" type="button" data-home-chip="Sake Tasting">Sake Tasting</button><button class="chip" type="button" data-home-chip="Central Bars">Central Bars</button><button class="chip" type="button" data-home-chip="Non-Alcoholic">Non-Alcoholic</button>
           </div>
         </div>
-        <div class="stats-row homepage-stats">
-          <div class="stat"><strong>${allDrinks.length >= 50 ? Math.round(allDrinks.length / 10) * 10 + '+' : allDrinks.length}</strong><span class="muted">Bottles indexed</span></div>
-          <div class="stat"><strong>${sData.enhanced.length + sData.featured.length + sData.standard.length}</strong><span class="muted">HK suppliers</span></div>
-          <div class="stat"><strong>${vData.enhanced.length + vData.featured.length + vData.standard.length}</strong><span class="muted">Bars & restaurants</span></div>
-        </div>
+        ${statBlockHTML({ bottles: allDrinks.length, suppliers: sData.enhanced.length + sData.featured.length + sData.standard.length, venues: vData.enhanced.length + vData.featured.length + vData.standard.length })}
       </div>
     </section>
 
@@ -922,11 +989,11 @@ async function renderBottleDetail() {
             <span class="kicker">${safe(drink.type || '')}</span>
             <h1>${safe(drink.name)}</h1>
             <div class="bottle-meta">
-              ${drink.origin ? `<span class="meta-tag">📍 ${safe(drink.origin)}</span>` : ''}
+              ${drink.origin ? `<span class="meta-tag">${safe(drink.origin)}</span>` : ''}
               ${drink.abv ? `<span class="meta-tag">${safe(drink.abv)} ABV</span>` : ''}
-              ${supplierCount > 1 ? `<span class="meta-tag meta-tag--suppliers">${supplierCount} suppliers</span>` : ''}
             </div>
-            <div class="bottle-price">${safe(priceDisplay)}</div>
+            <div class="bottle-price">${safe(hkd(priceDisplay))}</div>
+            <p class="bottle-price-caption">Across ${supplierCount} supplier${supplierCount > 1 ? 's' : ''}</p>
             ${drink.description ? `<p class="bottle-desc">${safe(drink.description)}</p>` : ''}
             ${!drink.description && (drink.origin || drink.abv) ? `<p class="bottle-desc muted">${[
               drink.type ? `${safe(drink.type)}` : '',
@@ -939,24 +1006,22 @@ async function renderBottleDetail() {
             ${supplierCount ? `
             <div class="supplier-inline" style="margin-top:24px">
               <div class="section-head">
-                <span class="eyebrow">Buy it here</span><h3>${supplierCount} supplier${supplierCount>1?'s':''} in Hong Kong</h3>
+                <span class="eyebrow">Where to buy</span><h3>${supplierCount} supplier${supplierCount>1?'s':''} in Hong Kong</h3>
               </div>
               <div class="supplier-compare-table" style="margin-top:14px">
                 ${supplierRows.map((s, i) => `
                   <div class="supplier-row${i===0?' supplier-row--best':''}">
-                    <div class="supplier-row__info">
+                    <div class="supplier-row__topline">
                       <span class="supplier-row__name">${safe(s.supplier_name || 'Supplier')}</span>
-                      <span class="supplier-row__meta">
-                        ${s.supplier_area ? `<span class="supplier-row__area">📍 ${safe(s.supplier_area)}</span>` : ''}
-                        ${s.supplier_min_order ? `<span class="supplier-row__moq">MOQ ${safe(s.supplier_min_order)}</span>` : ''}
-                      </span>
-                      ${s.availability ? `<span class="supplier-row__stock ${s.availability.toLowerCase().includes('stock') ? 'in-stock' : ''}">${safe(s.availability)}</span>` : ''}
+                      <span class="supplier-row__price">${safe(hkd(s.price))}${i === 0 ? '<span class="best-price-badge">Best price</span>' : ''}</span>
                     </div>
-                    <div class="supplier-row__price">${safe(s.price)}</div>
+                    <div class="supplier-row__meta">${[s.supplier_area ? safe(s.supplier_area) : '', s.supplier_min_order ? 'Min. order ' + safe(hkd(s.supplier_min_order)) : ''].filter(Boolean).join(' · ')}</div>
+                    <div class="supplier-row__foot">
+                      ${s.availability ? `<span class="supplier-row__stock ${s.availability.toLowerCase().includes('stock') ? 'in-stock' : ''}">${safe(s.availability)}</span>` : '<span></span>'}
                     ${(i === 0 || s.buy_url || s.supplier_tier === 'enhanced' || s.supplier_tier === 'featured') ? `<div class="supplier-row__actions">
-                      ${i === 0 ? '<span class="best-price-badge">Best price</span>' : ''}
                       ${s.buy_url ? `<a href="${safe(s.buy_url)}" target="_blank" rel="noreferrer" class="btn btn-primary btn-small" data-track-id="${safe(s.id)}" data-track-name="${safe(s.name)}" data-track-supplier="${safe(s.supplier_name || '')}">Buy now →</a>` : (s.supplier_tier === 'enhanced' || s.supplier_tier === 'featured') ? `<a href="supplier-template.html?slug=${safe(slugify(s.supplier_name || ''))}" class="btn btn-ghost btn-small">View supplier</a>` : ''}
                     </div>` : ''}
+                    </div>
                   </div>
                 `).join('')}
               </div>
@@ -1598,7 +1663,7 @@ async function renderVenueProfile() {
   
   app.innerHTML = `
     <section class="profile-hero"><div class="hero-media" style="background-image:url('${heroBg}')"></div><div class="container profile-content"><div>${logo ? `<img src="${safe(logo)}" alt="Logo" style="width:80px;height:80px;object-fit:cover;border-radius:12px;border:1px solid rgba(255,255,255,.18);margin-bottom:16px;" />` : ''}<span class="kicker">${v.tier === 'enhanced' ? 'Featured venue' : 'Venue'}</span><h1>${safe(v.name)}</h1><p class="lead" style="margin-top:16px;">${safe(v.specialty || v.cuisine || '')}${v.area ? ` in ${safe(v.area)}` : ''}</p>${summaryText ? `<p style="margin-top:14px;max-width:60ch;color:var(--muted);font-size:1.02rem;line-height:1.65;">${safe(summaryText)}</p>` : ''}<div class="info-strip">${v.area ? `<div class="info-chip"><div class="muted">Area</div><strong>${safe(v.area)}</strong></div>` : ''}<div class="info-chip"><div class="muted">Category</div><strong>${safe(v.cuisine || 'Bar')}</strong></div>${v.rating ? `<div class="info-chip"><div class="muted">Rating</div><strong>★ ${safe(v.rating)}</strong></div>` : ''}<div class="info-chip"><div class="muted">Price</div><strong>${safe(v.price || 'N/A')}</strong></div></div></div><div class="panel"><span class="eyebrow">Quick actions</span><div class="inline-actions" style="margin-top:16px;">${website !== '#' ? `<a class="btn btn-secondary" href="${safe(website)}" target="_blank" rel="noreferrer"${venueBookingAttrs(v)}>${v.booking ? 'Book via ' + safe(v.booking) : 'Visit website'}</a>` : ''}${saveButton({id:`venue:${slug}`, name:v.name, kind:'venue', href:`venue-template.html?slug=${slug}`, meta:v.area})}</div>${v.phone ? `<hr class="sep"><div class="muted" style="display:grid; gap:8px;"><span>${safe(v.phone)}</span><span>${safe(v.price || '')} · ${safe(v.cuisine || '')}</span></div>` : ''}</div></div></section>
-    <section class="section-tight"><div class="container ${claimed ? '' : 'grid grid-2'}"><div class="panel"><span class="eyebrow">Contact & details</span><h3 style="margin:14px 0;">Plan your visit.</h3><div class="muted" style="display:grid; gap:10px;">${v.phone ? '<span>📞 ' + safe(v.phone) + '</span>' : ''}${v.area ? '<span>📍 ' + safe(v.area) + '</span>' : ''}${v.booking ? '<span>📅 Book via ' + safe(v.booking) + '</span>' : ''}</div></div>${claimed ? '' : `<div class="panel"><span class="eyebrow">Claim your venue</span><h3 style="margin:14px 0;">Own this venue?</h3><p class="muted">Add direct booking links, imagery, and promoted placement so guests find you first.</p><div class="inline-actions" style="margin-top:18px;"><a class="btn btn-primary" href="list-your-business.html?type=venue&claim=${encodeURIComponent(slug)}">Claim your venue</a></div></div>`}</div></section>
+    <section class="section-tight"><div class="container ${claimed ? '' : 'grid grid-2'}"><div class="panel"><span class="eyebrow">Contact & details</span><h3 style="margin:14px 0;">Plan your visit.</h3><div class="muted" style="display:grid; gap:10px;">${v.phone ? '<span>📞 ' + safe(v.phone) + '</span>' : ''}${v.area ? '<span>' + safe(v.area) + '</span>' : ''}${v.booking ? '<span>📅 Book via ' + safe(v.booking) + '</span>' : ''}</div></div>${claimed ? '' : `<div class="panel"><span class="eyebrow">Claim your venue</span><h3 style="margin:14px 0;">Own this venue?</h3><p class="muted">Add direct booking links, imagery, and promoted placement so guests find you first.</p><div class="inline-actions" style="margin-top:18px;"><a class="btn btn-primary" href="list-your-business.html?type=venue&claim=${encodeURIComponent(slug)}">Claim your venue</a></div></div>`}</div></section>
     ${v.tier === 'enhanced' && v.instagram_handle ? `
     <section class="section instagram-section">
       <div class="container">
