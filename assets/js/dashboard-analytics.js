@@ -49,12 +49,13 @@
     return Number(n || 0).toLocaleString('en-US');
   }
 
+  // Premium sits at the top of the ladder: it sees everything Featured sees.
   function isEnhanced(tier) {
-    return tier === 'enhanced' || tier === 'featured';
+    return tier === 'enhanced' || tier === 'featured' || tier === 'premium';
   }
 
   function isFeatured(tier) {
-    return tier === 'featured';
+    return tier === 'featured' || tier === 'premium';
   }
 
   // Benchmarks are computed server-side and return aggregates only — a merchant
@@ -113,6 +114,14 @@
 
   function money(n) {
     return 'HK$' + Number(n || 0).toLocaleString('en-US');
+  }
+
+  // The provider values the venue tracker stores.
+  function provLabel(id) {
+    if (id === 'sevenrooms') return 'SevenRooms';
+    if (id === 'bistrochat') return 'Bistrochat';
+    if (id === 'own_site') return 'Own website';
+    return 'Other';
   }
 
   // ---------- charts (dependency-free SVG) ----------------------------
@@ -184,7 +193,7 @@
   function loadDaily(ctx, days) {
     var start = dayOffset(-(days - 1));
     var q = sb.from('analytics_daily')
-      .select('day_hkt,event,entity_id,supplier_id,source,surface,campaign_id,keyword,position_sum,position_count,event_count')
+      .select('day_hkt,event,entity_id,supplier_id,source,surface,campaign_id,provider,keyword,position_sum,position_count,event_count')
       .gte('day_hkt', start)
       .order('day_hkt');
     q = ctx.kind === 'venue' ? q.eq('venue_id', ctx.entityId) : q.eq('supplier_id', ctx.entityId);
@@ -194,7 +203,7 @@
   function fold(rows, days) {
     var daysList = [];
     for (var i = days - 1; i >= 0; i--) daysList.push(dayOffset(-i));
-    var byDay = {}, products = {}, placements = {}, terms = {}, campaigns = {};
+    var byDay = {}, products = {}, placements = {}, terms = {}, campaigns = {}, providers = {};
     var totals = { view: 0, click: 0 };
 
     daysList.forEach(function (d) { byDay[d] = { view: 0, click: 0 }; });
@@ -219,6 +228,12 @@
         placements[bucket] = (placements[bucket] || 0) + n;
         // EDM attribution: one row per campaign send.
         if (r.campaign_id) campaigns[r.campaign_id] = (campaigns[r.campaign_id] || 0) + n;
+        // Venue bookings: which provider the click went to
+        // (sevenrooms | bistrochat | own_site).
+        if (r.event === 'booking_click') {
+          var pv = r.provider || 'unknown';
+          providers[pv] = (providers[pv] || 0) + n;
+        }
       }
       // Search terms. position_sum/position_count come from the rollup, so the
       // average is exact rather than reconstructed.
@@ -231,7 +246,7 @@
     });
     return {
       daysList: daysList, byDay: byDay, products: products, placements: placements,
-      terms: terms, campaigns: campaigns, totals: totals
+      terms: terms, campaigns: campaigns, providers: providers, totals: totals
     };
   }
 
@@ -343,6 +358,10 @@
       if (!rows.length) { host.innerHTML = emptyState(); return; }
 
       var enhanced = isEnhanced(ctx.tier);
+      // Venues convert on bookings, not bottle clicks, so they get their own
+      // labels and lose the supplier-only modules entirely.
+      var isVenue = ctx.kind === 'venue';
+      var showPrice = isFeatured(ctx.tier) && !isVenue;
       var viewSeries = f.daysList.map(function (d) { return f.byDay[d].view; });
       var clickSeries = f.daysList.map(function (d) { return f.byDay[d].click; });
 
@@ -350,17 +369,17 @@
       var overview = '' +
         '<div class="panel">' +
           '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;">' +
-            '<div><span class="eyebrow">Last ' + state.days + ' days</span><h2 style="margin:10px 0 4px;">Your reach and your clicks.</h2>' +
+            '<div><span class="eyebrow">Last ' + state.days + ' days</span><h2 style="margin:10px 0 4px;">' + (isVenue ? 'Your reach and your bookings.' : 'Your reach and your clicks.') + '</h2>' +
             '<p class="muted" style="margin:0;font-size:.86rem;">As of ' + esc(hktStamp()) + ' · ' + state.days + '-day window</p></div>' +
             (enhanced ? rangeSwitcher() : '<span class="badge gold">30-day window on Starter</span>') +
           '</div>' +
           '<div class="stats-row" style="margin-top:18px;">' +
-            kpi('profile & product views', num(f.totals.view)) +
-            kpi('outbound clicks', num(f.totals.click)) +
-            kpi('click-through rate', pct(f.totals.click, f.totals.view)) +
+            kpi(isVenue ? 'venue profile views' : 'profile & product views', num(f.totals.view)) +
+            kpi(isVenue ? 'booking & site clicks' : 'outbound clicks', num(f.totals.click)) +
+            kpi(isVenue ? 'booking rate' : 'click-through rate', pct(f.totals.click, f.totals.view)) +
           '</div>' +
           '<div style="margin-top:16px;">' + sparkline(clickSeries, { color: C.gold }) +
-          '<div class="muted" style="font-size:.72rem;margin-top:4px;">Outbound clicks, last ' + state.days + ' days</div></div>' +
+          '<div class="muted" style="font-size:.72rem;margin-top:4px;">' + (isVenue ? 'Booking clicks' : 'Outbound clicks') + ', last ' + state.days + ' days</div></div>' +
         '</div>';
 
       // Hoisted above the branch: the locked (Starter) and unlocked placement
@@ -374,7 +393,7 @@
           '<span class="eyebrow">Trend</span><h2 style="margin:10px 0 4px;">Views and clicks over time.</h2>' +
           lineChart([
             { name: 'Views', colour: C.jade, values: viewSeries },
-            { name: 'Outbound clicks', colour: C.gold, values: clickSeries }
+            { name: isVenue ? 'Booking clicks' : 'Outbound clicks', colour: C.gold, values: clickSeries }
           ], f.daysList) + '</div>';
         overview += '<div class="panel" style="margin-top:18px;">' +
           '<span class="eyebrow">Placement mix</span><h2 style="margin:10px 0 14px;">Where your clicks came from.</h2>' +
@@ -398,7 +417,9 @@
       // ---- Benchmarks (Enhanced+). Medians only, and hidden until the cohort is
       // big enough to be meaningful: showing a comparison against three
       // merchants would imply a benchmark that does not exist.
-      if (enhanced) {
+      // Venues are excluded: the medians are computed across suppliers, so a
+      // venue comparing against them would be reading the wrong cohort.
+      if (enhanced && !isVenue) {
         var bm = await loadBenchmarks(state.days);
         var COHORT_MIN = 10;
         if (!bm || bm.locked) {
@@ -479,10 +500,10 @@
       // is ever named.
       var priceRanges = null;
       var cheapest = 0;
-      if (isFeatured(ctx.tier)) {
+      if (showPrice) {
         try { priceRanges = await loadPriceRanges(); } catch (e) { priceRanges = null; }
       }
-      var pGrid = isFeatured(ctx.tier)
+      var pGrid = showPrice
         ? 'auto 1fr 60px 60px 60px 200px'
         : 'auto 1fr 72px 72px 72px';
 
@@ -497,7 +518,7 @@
           : '<span style="filter:blur(5px);user-select:none;" aria-hidden="true">' + pct(r.clicks + 7, r.views || 1) + '</span>';
 
         var priceCell = '';
-        if (isFeatured(ctx.tier)) {
+        if (showPrice) {
           var range = priceRanges ? priceRanges[normProductName(r.name)] : null;
           var own = parsePrice(r.price);
           if (!range) {
@@ -518,7 +539,7 @@
           '<div class="muted" style="font-size:.82rem;">' + num(r.views) + '</div>' +
           '<div style="font-size:.86rem;">' + clicksCell + '</div>' +
           '<div class="muted" style="font-size:.82rem;">' + ctrCell + '</div>' +
-          (isFeatured(ctx.tier) ? '<div>' + priceCell + '</div>' : '') +
+          (showPrice ? '<div>' + priceCell + '</div>' : '') +
           '</div>';
       }).join('');
 
@@ -526,7 +547,7 @@
         '<div style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;">' +
         '<div><span class="eyebrow">Products</span><h2 style="margin:10px 0 4px;">Which bottles get clicked.</h2>' +
         '<p class="muted" style="margin:0;font-size:.86rem;">' + num(active.length) + ' of ' + num(table.length) + ' listings saw activity in this window.' +
-        (isFeatured(ctx.tier) && cheapest && priceRanges
+        (showPrice && cheapest && priceRanges
           ? ' You are the cheapest listed for <strong>' + num(cheapest) + '</strong> ' + (cheapest === 1 ? 'bottle' : 'bottles') + ' stocked elsewhere in the directory.'
           : '') +
         '</p></div>' +
@@ -540,11 +561,42 @@
             '<div><button class="btn btn-ghost btn-small" type="button" data-sort="views" style="padding:2px 6px;">Views</button></div>' +
             '<div><button class="btn btn-ghost btn-small" type="button" data-sort="clicks" style="padding:2px 6px;">Clicks</button></div>' +
             '<div>CTR</div>' +
-            (isFeatured(ctx.tier) ? '<div>Directory price</div>' : '') +
+            (showPrice ? '<div>Directory price</div>' : '') +
           '</div>' +
           '<div>' + (rowsHtml || '<div class="muted" style="padding:20px;">No listings yet.</div>') + '</div>' +
         '</div>' +
         (!enhanced ? upgradeCta({ title: 'Enhanced shows which bottles get clicked', body: 'Your click totals stay visible on Starter — Enhanced adds the per-product breakdown and CSV export.' }) : '') +
+        '</div>';
+
+      // ---- Venue bookings (their money metric, by provider)
+      var provs = Object.keys(f.providers).map(function (k) { return { id: k, clicks: f.providers[k] }; })
+        .sort(function (a, b) { return b.clicks - a.clicks; });
+      var provTotal = provs.reduce(function (a, b) { return a + b.clicks; }, 0);
+      var venuePanel = '<div class="panel" style="margin-top:18px;">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;">' +
+        '<div><span class="eyebrow">Bookings</span><h2 style="margin:10px 0 4px;">Where your bookings came from.</h2>' +
+        '<p class="muted" style="margin:0;font-size:.86rem;">Every tap on your booking link, split by provider.</p></div>' +
+        (enhanced
+          ? '<div class="inline-actions"><button class="btn btn-ghost btn-small" type="button" id="ds-an-csv">Export CSV</button></div>'
+          : lockChip('Booking counts are locked on Starter')) +
+        '</div>' +
+        '<div class="dashboard-table-wrap" style="margin-top:14px;">' +
+          '<div class="dashboard-table-head" style="grid-template-columns:1fr 110px 90px;">' +
+            '<div>Provider</div><div>Bookings</div><div>Share</div></div>' +
+          (provs.length
+            ? provs.map(function (pv) {
+                return '<div class="dashboard-row" style="grid-template-columns:1fr 110px 90px;">' +
+                  '<div><strong>' + esc(provLabel(pv.id)) + '</strong></div>' +
+                  '<div>' + (enhanced
+                    ? '<strong>' + num(pv.clicks) + '</strong>'
+                    : '<span style="filter:blur(5px);user-select:none;" aria-hidden="true">' + num(pv.clicks + 3) + '</span>') + '</div>' +
+                  '<div class="muted" style="font-size:.82rem;">' +
+                    (enhanced && provTotal ? Math.round(100 * pv.clicks / provTotal) + '%' : '—') + '</div>' +
+                  '</div>';
+              }).join('')
+            : '<div class="muted" style="padding:18px 0;">No booking clicks in this period yet.</div>') +
+        '</div>' +
+        (!enhanced ? upgradeCta({ title: 'Enhanced shows which bookings convert', body: 'Your booking total stays visible on Starter — Enhanced adds the provider split and CSV export.' }) : '') +
         '</div>';
 
       // ---- Search terms (Enhanced+; Featured gets the uncapped list)
@@ -576,7 +628,7 @@
         '</div>';
 
       // ---- tabs
-      var tabs = [['overview', 'Overview'], ['products', 'Products']];
+      var tabs = [['overview', 'Overview'], ['products', isVenue ? 'Bookings' : 'Products']];
       if (enhanced) tabs.push(['terms', 'Search terms']);
       var tabBar = tabs.map(function (t) {
         var on = state.view === t[0];
@@ -589,7 +641,7 @@
         '<h2 style="margin:10px 0 0;">Turn local discovery into measurable demand.</h2></div>' +
         '<div class="inline-actions">' + tabBar + '</div></div>' +
         '<div id="ds-an-pref" style="margin-top:12px;font-size:.78rem;color:' + C.muted + ';"></div></div>' +
-        '<div style="margin-top:0;">' + (state.view === 'terms' ? termsPanel : state.view === 'products' ? productsPanel : overview) + '</div>';
+        '<div style="margin-top:0;">' + (state.view === 'terms' ? termsPanel : state.view === 'products' ? (isVenue ? venuePanel : productsPanel) : overview) + '</div>';
 
       wirePref();
 

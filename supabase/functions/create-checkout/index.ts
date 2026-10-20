@@ -29,6 +29,7 @@ const STRIPE_API = "https://api.stripe.com/v1";
 const PRICE_ENV: Record<string, string> = {
   merchant_enhanced: "STRIPE_PRICE_MERCHANT_ENHANCED",
   merchant_featured: "STRIPE_PRICE_MERCHANT_FEATURED",
+  merchant_premium: "STRIPE_PRICE_MERCHANT_PREMIUM",
   venue_enhanced: "STRIPE_PRICE_VENUE_FEATURED",
   venue_enhanced_events: "STRIPE_PRICE_VENUE_ENHANCED",
 };
@@ -96,10 +97,17 @@ serve(async (req) => {
   }
 
   const plan = String(body.plan || "").trim();
+
+  // Premium is configured in Stripe but the secret may not be set yet. Gate on
+  // the price existing rather than on the plan name, so the tier opens for
+  // purchase the moment STRIPE_PRICE_MERCHANT_PREMIUM is present and stays a
+  // polite waitlist until then — never a button that errors.
+  if (plan === "merchant_premium" && !Deno.env.get(PRICE_ENV.merchant_premium)) {
+    return json({ error: "Premium is not available for self-signup yet. Join the waitlist and we'll be in touch." }, 400);
+  }
+
   if (!AVAILABLE.has(plan)) {
-    return json({ error: plan === "merchant_premium"
-      ? "Premium is not available for self-signup yet. Join the waitlist and we'll be in touch."
-      : "Unknown plan." }, 400);
+    return json({ error: "Unknown plan." }, 400);
   }
 
   const priceId = Deno.env.get(PRICE_ENV[plan]);

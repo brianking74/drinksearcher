@@ -95,7 +95,8 @@
         position: i + 1,
         result_type: resultType,
         drink_id: it && it.drink_id,
-        supplier_id: it && it.supplier_id
+        supplier_id: it && it.supplier_id,
+        venue_id: it && it.venue_id
       });
     });
   }

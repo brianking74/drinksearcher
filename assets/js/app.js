@@ -299,9 +299,9 @@ function externalLinkAttrs(url) {
   return /^https?:\/\//i.test(String(url || '')) ? 'target="_blank" rel="noreferrer"' : '';
 }
 
-function ctaLink(label, url, className = 'btn btn-ghost btn-small', fallbackLabel = 'Coming soon') {
+function ctaLink(label, url, className = 'btn btn-ghost btn-small', fallbackLabel = 'Coming soon', attrs = '') {
   return hasUsableHref(url)
-    ? `<a class="${className}" href="${url}" ${externalLinkAttrs(url)}>${label}</a>`
+    ? `<a class="${className}" href="${url}" ${externalLinkAttrs(url)}${attrs}>${label}</a>`
     : `<span class="${className} is-disabled" aria-disabled="true">${fallbackLabel}</span>`;
 }
 
@@ -629,7 +629,7 @@ async function renderHomepage() {
       <div class="container">
         <div class="section-head section-head-center"><div><span class="eyebrow">Venue discovery</span><h2>Where Hong Kong <span class="text-pink headline-script">drinks</span></h2><p class="lead" style="margin-top:14px;">Cocktail bars, rooftops, hotel lounges, and neighbourhood favourites — compare by area, style, and drinks focus.</p></div></div>
         <div class="chip-row section-filter-pills"><span class="chip chip-active">All Venues</span><span class="chip">Cocktail Bars</span><span class="chip">Wine Bars</span><span class="chip">Rooftop</span><span class="chip">Hidden Speakeasies</span></div>
-        <div class="grid grid-4">${featuredVenues.map(v => renderCard(v, {type:'venue', href:`venue-template.html?slug=${v.slug}`, cta:`${ctaLink('View', `venue-template.html?slug=${v.slug}`, 'btn btn-primary btn-small')}${ctaLink('Book', v.website, 'btn btn-ghost btn-small', 'Book')}`})).join('')}</div>
+        <div class="grid grid-4">${featuredVenues.map(v => renderCard(v, {type:'venue', href:`venue-template.html?slug=${v.slug}`, cta:`${ctaLink('View', `venue-template.html?slug=${v.slug}`, 'btn btn-primary btn-small')}${ctaLink('Book', v.website, 'btn btn-ghost btn-small', 'Book', venueBookingAttrs(v, 'homepage_block'))}`})).join('')}</div>
       </div>
     </section>
 
@@ -743,7 +743,7 @@ async function renderVenueDirectory() {
     const enhanced = vData.enhanced.filter(v => filterMatch(v.area, v.cuisine, 'enhanced', [v.name, v.area, v.cuisine, v.specialty, v.booking])).slice(0, 12);
     const featured = vData.featured.filter(v => filterMatch(v.area, v.cuisine, 'featured', [v.name, v.area, v.cuisine])).slice(0, 20);
     const standard = vData.standard.filter(v => filterMatch(v[1], v[3], 'standard', [v[0], v[1], v[3]]));
-    $('#venue-enhanced').innerHTML = enhanced.length ? enhanced.map(v => renderCard({...v, tierLabel:'Enhanced'}, {type:'venue', href:`venue-template.html?slug=${v.slug}`, cta:`${ctaLink('View', `venue-template.html?slug=${v.slug}`, 'btn btn-primary btn-small')}${ctaLink('Book', v.website, 'btn btn-ghost btn-small', 'Book')}`})).join('') : '<div class="empty-state">No enhanced venues match these filters yet.</div>';
+    $('#venue-enhanced').innerHTML = enhanced.length ? enhanced.map(v => renderCard({...v, tierLabel:'Enhanced'}, {type:'venue', href:`venue-template.html?slug=${v.slug}`, cta:`${ctaLink('View', `venue-template.html?slug=${v.slug}`, 'btn btn-primary btn-small')}${ctaLink('Book', v.website, 'btn btn-ghost btn-small', 'Book', venueBookingAttrs(v, 'directory'))}`})).join('') : '<div class="empty-state">No enhanced venues match these filters yet.</div>';
     $('#venue-featured').innerHTML = featured.length ? featured.map(v => renderCard({...v, tierLabel:'Featured'}, {type:'venue', small:true, href:buildSearchHref('bars-restaurants.html', v.name, v.area), cta:ctaLink('View listing', buildSearchHref('bars-restaurants.html', v.name, v.area), 'btn btn-ghost btn-small')})).join('') : '<div class="empty-state">No featured venues match these filters.</div>';
     const totalPages = Math.max(1, Math.ceil(standard.length / perPage));
     page = Math.min(page, totalPages);
@@ -751,6 +751,15 @@ async function renderVenueDirectory() {
     $('#venue-standard').innerHTML = slice.length ? slice.map(row => `<div class="list-row"><div><strong>${row[0]}</strong></div><div>${row[1]}</div><div>${row[2]}</div><div>${row[3]}</div></div>`).join('') : '<div class="empty-state">No standard venues match these filters.</div>';
     const totalMatches = enhanced.length + featured.length + standard.length;
     $('#venue-page').textContent = `Page ${page} of ${totalPages}`;
+
+    // Analytics: venue search impressions. Without this a venue's search-terms
+    // report is always empty — only the drinks search was being captured. Real
+    // searches only, and only for DB-backed venues (the bundled fallback list
+    // has no id to attribute to).
+    if (dsAnalytics && typeof dsAnalytics.impressions === 'function' && queryInput?.value) {
+      const venueImpressions = [...enhanced, ...featured].filter(v => v && v.id).map(v => ({ venue_id: v.id }));
+      if (venueImpressions.length) dsAnalytics.impressions(queryInput.value, venueImpressions, 'venue');
+    }
     $('#venue-results-note').innerHTML = `<div class="notice">Showing <strong>${totalMatches}</strong> matching venues${queryInput?.value ? ` for “${queryInput.value}”` : ''}${areaSelect.value !== 'all' ? ` in ${areaSelect.value}` : ''}.</div>`;
     $('#venue-prev').disabled = page <= 1; $('#venue-next').disabled = page >= totalPages;
     bindSaveButtons(app);
@@ -1208,14 +1217,14 @@ async function renderPricingPage() {
               <li>Direct links to products on your site</li>
               <li>List your events</li>
               <li>Inclusion in marketing EDMs</li>
-              <li>Click insights: full dashboard + benchmarks (coming soon)</li>
+              <li>Click insights: full dashboard + benchmarks</li>
             </ul>
             <button class="btn btn-primary btn-block" type="button" data-checkout-plan="merchant_featured" onclick="startCheckout('merchant_featured')">Choose Featured</button>
           </article>
           <article class="price-card">
             <span class="badge pink">Premium</span>
             <h3>Merchant Premium</h3>
-            <p class="muted">Full catalogue and featured placement — opening soon.</p>
+            <p class="muted">The whole catalogue, top placement, and a managed hand.</p>
             <div class="price"><span class="amount">HK$2,480</span><span class="price-period">/ month</span></div>
             <ul class="feature-list">
               <li>Everything in Enhanced</li>
@@ -1223,9 +1232,9 @@ async function renderPricingPage() {
               <li>Featured directory placement</li>
               <li>Homepage premium supplier block</li>
               <li>Priority support for launches</li>
-              <li>Click insights: full dashboard + monthly report (coming soon)</li>
+              <li>Click insights: full dashboard + benchmarks + monthly report (coming soon)</li>
             </ul>
-            <a class="btn btn-secondary btn-block" href="list-your-business.html?type=merchant&plan=merchant-premium">Join waitlist</a>
+            <button class="btn btn-primary btn-block" type="button" data-checkout-plan="merchant_premium" onclick="startCheckout('merchant_premium')">Choose Premium</button>
           </article>
         </div>
       </div>
@@ -1261,7 +1270,7 @@ async function renderPricingPage() {
               <li>Direct booking link (SevenRooms / Bistrochat / site)</li>
               <li>Image-led listing card</li>
               <li>Priority directory placement</li>
-              <li>Click insights: monthly snapshot email + booking clicks (coming soon)</li>
+              <li>Click insights: monthly snapshot email + booking clicks</li>
             </ul>
             <button class="btn btn-primary btn-block" type="button" data-checkout-plan="venue_enhanced" onclick="startCheckout('venue_enhanced')">Choose Venue Enhanced</button>
           </article>
@@ -1277,7 +1286,7 @@ async function renderPricingPage() {
               <li>Always-on event promotion slot</li>
               <li>Homepage event consideration</li>
               <li>Seasonal campaign priority</li>
-              <li>Click insights: monthly snapshot email + benchmarks (coming soon)</li>
+              <li>Click insights: monthly snapshot email + booking clicks + benchmarks (coming soon)</li>
             </ul>
             <button class="btn btn-secondary btn-block" type="button" data-checkout-plan="venue_enhanced_events" onclick="startCheckout('venue_enhanced_events')">Choose Growth Plan</button>
           </article>
@@ -1480,6 +1489,22 @@ function queryParam(name) {
   return new URLSearchParams(location.search).get(name);
 }
 
+// Normalises a venue's free-text booking field ('SevenRooms', 'Bistrochat',
+// 'Walk-in / Waitlist', 'Website'...) into the vocabulary the analytics rollup
+// stores, and marks which event the link should fire.
+function venueBookingAttrs(v, surface = 'profile') {
+  const id = (v && v.id) ? String(v.id) : '';
+  if (!id) return '';
+  const b = String((v && v.booking) || '').toLowerCase();
+  if (b.includes('sevenrooms')) return ` data-booking-venue="${id}" data-booking-provider="sevenrooms" data-booking-surface="${surface}"`;
+  if (b.includes('bistrochat')) return ` data-booking-venue="${id}" data-booking-provider="bistrochat" data-booking-surface="${surface}"`;
+  if (b.includes('walk-in') || b.includes('waitlist')) return ` data-outbound-venue="${id}" data-outbound-surface="${surface}"`;
+  return ` data-booking-venue="${id}" data-booking-provider="own_site" data-booking-surface="${surface}"`;
+}
+
+// Bound once for the session: venue booking/outbound click tracking.
+let venueAnalyticsBound = false;
+
 async function renderVenueProfile() {
   const slug = queryParam('slug') || 'quinary';
   const app = $('#app');
@@ -1504,10 +1529,42 @@ async function renderVenueProfile() {
   const rawSite = (v.website && v.website !== '#') ? String(v.website).trim() : '';
   const website = rawSite ? (/^https?:\/\//i.test(rawSite) ? rawSite : 'https://' + rawSite) : '#';
   const claimed = !!v.user_id;
+
+  // Analytics: venue profile view. Only DB-backed venues carry an id, so the
+  // bundled fallback list is skipped rather than miscounted.
+  if (typeof dsTrack === 'function' && v.id) {
+    dsTrack('profile_view', { venue_id: v.id });
+  }
+
+  // Booking clicks are a venue's money metric, so they are bound once at the
+  // document level and read the provider off the anchor. A venue whose booking
+  // field says "Walk-in / Waitlist" has no online booking behind it, so its link
+  // counts as an outbound click rather than pretending to be a booking.
+  if (!venueAnalyticsBound) {
+    venueAnalyticsBound = true;
+    document.addEventListener('click', (ev) => {
+      if (typeof dsTrack !== 'function') return;
+      const target = ev.target instanceof Element ? ev.target : null;
+      if (!target) return;
+      const bk = target.closest('[data-booking-venue]');
+      if (bk) {
+        dsTrack('booking_click', {
+          venue_id: bk.dataset.bookingVenue,
+          provider: bk.dataset.bookingProvider || 'own_site',
+          surface: bk.dataset.bookingSurface || 'profile'
+        });
+        return;
+      }
+      const ob = target.closest('[data-outbound-venue]');
+      if (ob) {
+        dsTrack('outbound_click', { venue_id: ob.dataset.outboundVenue, surface: ob.dataset.outboundSurface || 'profile' });
+      }
+    });
+  }
   const summaryText = v.summary || ((v.specialty ? 'Known for ' + v.specialty.toLowerCase() + '.' : '') + ' A ' + (v.cuisine || 'bar') + (v.area ? ' in ' + v.area : '') + (v.price ? ' with ' + v.price.toLowerCase() + ' pricing' : '') + '.');
   
   app.innerHTML = `
-    <section class="profile-hero"><div class="hero-media" style="background-image:url('${heroBg}')"></div><div class="container profile-content"><div>${logo ? `<img src="${safe(logo)}" alt="Logo" style="width:80px;height:80px;object-fit:cover;border-radius:12px;border:1px solid rgba(255,255,255,.18);margin-bottom:16px;" />` : ''}<span class="kicker">${v.tier === 'enhanced' ? 'Featured venue' : 'Venue'}</span><h1>${safe(v.name)}</h1><p class="lead" style="margin-top:16px;">${safe(v.specialty || v.cuisine || '')}${v.area ? ` in ${safe(v.area)}` : ''}</p>${summaryText ? `<p style="margin-top:14px;max-width:60ch;color:var(--muted);font-size:1.02rem;line-height:1.65;">${safe(summaryText)}</p>` : ''}<div class="info-strip">${v.area ? `<div class="info-chip"><div class="muted">Area</div><strong>${safe(v.area)}</strong></div>` : ''}<div class="info-chip"><div class="muted">Category</div><strong>${safe(v.cuisine || 'Bar')}</strong></div>${v.rating ? `<div class="info-chip"><div class="muted">Rating</div><strong>★ ${safe(v.rating)}</strong></div>` : ''}<div class="info-chip"><div class="muted">Price</div><strong>${safe(v.price || 'N/A')}</strong></div></div></div><div class="panel"><span class="eyebrow">Quick actions</span><div class="inline-actions" style="margin-top:16px;">${website !== '#' ? `<a class="btn btn-secondary" href="${safe(website)}" target="_blank" rel="noreferrer">${v.booking ? 'Book via ' + safe(v.booking) : 'Visit website'}</a>` : ''}${saveButton({id:`venue:${slug}`, name:v.name, kind:'venue', href:`venue-template.html?slug=${slug}`, meta:v.area})}</div>${v.phone ? `<hr class="sep"><div class="muted" style="display:grid; gap:8px;"><span>${safe(v.phone)}</span><span>${safe(v.price || '')} · ${safe(v.cuisine || '')}</span></div>` : ''}</div></div></section>
+    <section class="profile-hero"><div class="hero-media" style="background-image:url('${heroBg}')"></div><div class="container profile-content"><div>${logo ? `<img src="${safe(logo)}" alt="Logo" style="width:80px;height:80px;object-fit:cover;border-radius:12px;border:1px solid rgba(255,255,255,.18);margin-bottom:16px;" />` : ''}<span class="kicker">${v.tier === 'enhanced' ? 'Featured venue' : 'Venue'}</span><h1>${safe(v.name)}</h1><p class="lead" style="margin-top:16px;">${safe(v.specialty || v.cuisine || '')}${v.area ? ` in ${safe(v.area)}` : ''}</p>${summaryText ? `<p style="margin-top:14px;max-width:60ch;color:var(--muted);font-size:1.02rem;line-height:1.65;">${safe(summaryText)}</p>` : ''}<div class="info-strip">${v.area ? `<div class="info-chip"><div class="muted">Area</div><strong>${safe(v.area)}</strong></div>` : ''}<div class="info-chip"><div class="muted">Category</div><strong>${safe(v.cuisine || 'Bar')}</strong></div>${v.rating ? `<div class="info-chip"><div class="muted">Rating</div><strong>★ ${safe(v.rating)}</strong></div>` : ''}<div class="info-chip"><div class="muted">Price</div><strong>${safe(v.price || 'N/A')}</strong></div></div></div><div class="panel"><span class="eyebrow">Quick actions</span><div class="inline-actions" style="margin-top:16px;">${website !== '#' ? `<a class="btn btn-secondary" href="${safe(website)}" target="_blank" rel="noreferrer"${venueBookingAttrs(v)}>${v.booking ? 'Book via ' + safe(v.booking) : 'Visit website'}</a>` : ''}${saveButton({id:`venue:${slug}`, name:v.name, kind:'venue', href:`venue-template.html?slug=${slug}`, meta:v.area})}</div>${v.phone ? `<hr class="sep"><div class="muted" style="display:grid; gap:8px;"><span>${safe(v.phone)}</span><span>${safe(v.price || '')} · ${safe(v.cuisine || '')}</span></div>` : ''}</div></div></section>
     <section class="section-tight"><div class="container ${claimed ? '' : 'grid grid-2'}"><div class="panel"><span class="eyebrow">Contact & details</span><h3 style="margin:14px 0;">Plan your visit.</h3><div class="muted" style="display:grid; gap:10px;">${v.phone ? '<span>📞 ' + safe(v.phone) + '</span>' : ''}${v.area ? '<span>📍 ' + safe(v.area) + '</span>' : ''}${v.booking ? '<span>📅 Book via ' + safe(v.booking) + '</span>' : ''}</div></div>${claimed ? '' : `<div class="panel"><span class="eyebrow">Claim your venue</span><h3 style="margin:14px 0;">Own this venue?</h3><p class="muted">Add direct booking links, imagery, and promoted placement so guests find you first.</p><div class="inline-actions" style="margin-top:18px;"><a class="btn btn-primary" href="list-your-business.html?type=venue&claim=${encodeURIComponent(slug)}">Claim your venue</a></div></div>`}</div></section>
     ${v.tier === 'enhanced' && v.instagram_handle ? `
     <section class="section instagram-section">
@@ -2172,18 +2229,18 @@ async function renderBusinessDashboardPage() {
     const listingLabels = role === 'merchant'
       ? ['Product / listing', 'Price', 'Status', '']
       : ['Offer / event / table inventory', 'Price', 'Status', ''];
-    const isEnhanced = state.directoryTier === 'enhanced' || state.directoryTier === 'featured';
+    const isEnhanced = state.directoryTier === 'enhanced' || state.directoryTier === 'featured' || state.directoryTier === 'premium';
     const planNames = { merchant_starter: 'Merchant Starter', merchant_enhanced: 'Merchant Enhanced', merchant_premium: 'Merchant Premium', venue_starter: 'Venue Starter', venue_enhanced: 'Venue Enhanced', venue_enhanced_events: 'Venue Enhanced + Events' };
     const planName = planNames[state.plan] || (role === 'venue' ? 'Venue Starter' : 'Merchant Starter');
     const listingLimit = (state.listingLimit != null) ? state.listingLimit : 10;
     const listingsUsed = (state.listingCount != null) ? state.listingCount : 0;
     const atListingLimit = role === 'merchant' && listingsUsed >= listingLimit;
-    const tierRank = { standard: 0, enhanced: 1, featured: 2 };
+    const tierRank = { standard: 0, enhanced: 1, featured: 2, premium: 3 };
     const currentRank = tierRank[state.directoryTier] || 0;
     const allUpgrades = role === 'merchant'
       ? [
           { name: 'Merchant Enhanced', price: 'HK$380', was: 'HK$980', listings: '100 listings', tier: 'Enhanced', rank: 1, founding: true, checkout: 'merchant_enhanced', benefits: ['Everything in Starter', '100 product listings', 'Events + Website scan', 'Enhanced directory placement', 'Homepage featured eligibility'] },
-          { name: 'Merchant Premium', price: 'HK$2,480', was: '', listings: 'Unlimited listings', tier: 'Featured', rank: 2, founding: false, checkout: '', waitlist: 'list-your-business.html?type=merchant&plan=merchant-premium', benefits: ['Everything in Enhanced', 'Unlimited listings', 'Featured directory placement', 'Homepage premium block'] }
+          { name: 'Merchant Premium', price: 'HK$2,480', was: '', listings: 'Unlimited listings', tier: 'Premium', rank: 3, founding: false, checkout: 'merchant_premium', waitlist: 'list-your-business.html?type=merchant&plan=merchant-premium', benefits: ['Everything in Enhanced', 'Unlimited listings', 'Featured directory placement', 'Homepage premium block'] }
         ]
       : [
           { name: 'Venue Enhanced', price: 'HK$300', was: 'HK$980', listings: '', tier: 'Enhanced', rank: 1, founding: true, checkout: 'venue_enhanced', benefits: ['Everything in Starter', 'Enhanced venue page', 'Direct booking link', 'Image-led listing card'] },
@@ -2707,7 +2764,7 @@ function adminPlanCatalog() {
     merchant: {
       'merchant-starter': { name: 'Merchant Starter', dbPlan: 'merchant_starter', monthly: 'HK$0', annual: 'HK$0', listings: 10, directoryTier: 'standard', founding: false },
       'merchant-enhanced': { name: 'Merchant Enhanced', dbPlan: 'merchant_enhanced', monthly: 'HK$380', annual: 'HK$3,800', listings: 100, directoryTier: 'enhanced', founding: true },
-      'merchant-premium': { name: 'Merchant Premium', dbPlan: 'merchant_premium', monthly: 'HK$2,480', annual: 'HK$24,720', listings: null, directoryTier: 'featured', founding: false }
+      'merchant-premium': { name: 'Merchant Premium', dbPlan: 'merchant_premium', monthly: 'HK$2,480', annual: 'HK$24,720', listings: null, directoryTier: 'premium', founding: false }
     },
     venue: {
       'venue-starter': { name: 'Venue Starter', dbPlan: 'venue_starter', monthly: 'HK$0', annual: 'HK$0', listings: 0, directoryTier: 'standard', founding: false },
