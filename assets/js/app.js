@@ -69,11 +69,36 @@ async function sendEmail(payload) {
   } catch (e) { /* email is best-effort */ }
 }
 
+// Approvals arrive one at a time from the moderation screen, so a 10-item
+// import produced 10 separate "your drink is live" emails. Buffer them per
+// supplier and send a single summary once the approvals stop arriving.
+const _statusEmailBuffer = new Map();
+const STATUS_EMAIL_DELAY_MS = 30000;
+
 async function sendDrinkStatusEmail(drinkId, status) {
   try {
     const { data: d } = await sb.from('drinks').select('name, submitted_by, supplier_id').eq('id', drinkId).single();
     if (!d) return;
-    await sendEmail({ template: 'drink_status', data: { drinkName: d.name, status }, userId: d.submitted_by || null, supplierId: d.supplier_id || null });
+    const key = String(d.submitted_by || d.supplier_id || 'unknown') + ':' + status;
+    const buf = _statusEmailBuffer.get(key) || {
+      names: [],
+      userId: d.submitted_by || null,
+      supplierId: d.supplier_id || null,
+      timer: null
+    };
+    if (d.name && buf.names.indexOf(d.name) === -1) buf.names.push(d.name);
+    clearTimeout(buf.timer);
+    buf.timer = setTimeout(async () => {
+      _statusEmailBuffer.delete(key);
+      const names = buf.names.slice(0, 20);
+      await sendEmail({
+        template: 'drink_status',
+        data: { names, count: buf.names.length, status },
+        userId: buf.userId,
+        supplierId: buf.supplierId
+      });
+    }, STATUS_EMAIL_DELAY_MS);
+    _statusEmailBuffer.set(key, buf);
   } catch (e) { /* best-effort */ }
 }
 

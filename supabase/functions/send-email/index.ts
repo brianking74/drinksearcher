@@ -121,19 +121,35 @@ const TEMPLATES = {
   }),
 
   // --- Drink status — approved or rejected ---
-  drink_status: (data) => ({
-    subject: data.status === 'approved'
-      ? `✓ Your drink "${esc(data.drinkName)}" is now live on drinksearcher.net`
-      : `Update needed for "${esc(data.drinkName)}" — drinksearcher.net`,
-    html: shell(
-      data.status === 'approved' ? 'Drink approved' : 'Updates needed',
-      `${data.status === 'approved' ? '✓' : '!'} ${esc(data.drinkName)}`,
-      `<p style="color:#c9d1d9;line-height:1.7;margin:0 0 20px;">${data.status === 'approved'
-        ? 'Your drink is now live. Customers can discover it, compare prices, and click through to your store.'
-        : 'Your drink submission needs a few changes before it can go live. Check your dashboard for what needs updating.'}</p>
-       <a href="${SITE}/dashboard.html" style="display:inline-block;background:#bda16f;color:#000;padding:13px 30px;border-radius:6px;text-decoration:none;font-weight:600;">View dashboard →</a>`
-    )
-  }),
+  drink_status: (data) => {
+    // Accepts either a single drinkName or a batch (names/count) so a bulk
+    // approval sends one email instead of one per row.
+    const names = Array.isArray(data.names) && data.names.length
+      ? data.names
+      : (data.drinkName ? [data.drinkName] : []);
+    const count = Number(data.count) || names.length;
+    const many = count > 1;
+    const first = esc(names[0] || '');
+    const list = names.slice(0, 15).map((n) => `<li style="color:#c9d1d9;line-height:1.7;">${esc(n)}</li>`).join('');
+    const shown = many ? `<ul style="margin:0 0 20px;padding-left:20px;">${list}</ul>` : '';
+    const subject = data.status === 'approved'
+      ? (many ? `✓ ${count} drinks are now live on drinksearcher.net` : `✓ Your drink "${first}" is now live on drinksearcher.net`)
+      : (many ? `Update needed for ${count} drinks — drinksearcher.net` : `Update needed for "${first}" — drinksearcher.net`);
+    return {
+      subject,
+      html: shell(
+        data.status === 'approved' ? 'Drink approved' : 'Updates needed',
+        data.status === 'approved'
+          ? (many ? `✓ ${count} drinks approved` : `✓ ${first}`)
+          : (many ? `! ${count} drinks need changes` : `! ${first}`),
+        `<p style="color:#c9d1d9;line-height:1.7;margin:0 0 20px;">${data.status === 'approved'
+          ? (many ? `${count} of your listings are now live. Customers can discover them, compare prices, and click through to your store.` : 'Your drink is now live. Customers can discover it, compare prices, and click through to your store.')
+          : (many ? `${count} of your listings need changes before they can go live. Check your dashboard for what needs updating.` : 'Your drink submission needs a few changes before it can go live. Check your dashboard for what needs updating.')}</p>
+         ${shown}
+         <a href="${SITE}/dashboard.html" style="display:inline-block;background:#bda16f;color:#000;padding:13px 30px;border-radius:6px;text-decoration:none;font-weight:600;">Open your dashboard</a>`
+      )
+    };
+  },
 
   // --- Event status — approved or rejected ---
   event_status: (data) => ({
