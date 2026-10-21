@@ -657,7 +657,25 @@ async function renderHomepage() {
     image: s.image || '',
     description: s.summary || ''
   }));
-  const featuredVenues = vData.enhanced.concat(vData.featured).slice(0, 4).map(v => ({
+  // Venue discovery. Filtering by tier left this section empty: every one of the
+  // 40 venues in the directory is on 'standard', so there were no enhanced or
+  // featured venues to show. These four are shown by name instead, pulled with
+  // their slug and image so the cards render properly. Their tiers are untouched.
+  const HOME_VENUE_NAMES = ['Aqua', 'Cardinal Point', 'COA', 'La Rambla'];
+  let curatedVenues = [];
+  try {
+    const { data: cv } = await sb.from('venues')
+      .select('name,slug,area,cuisine,rating,specialty,image,website')
+      .in('name', HOME_VENUE_NAMES);
+    curatedVenues = (cv || []).slice().sort(
+      (a, b) => HOME_VENUE_NAMES.indexOf(a.name) - HOME_VENUE_NAMES.indexOf(b.name)
+    );
+  } catch (e) {
+    curatedVenues = [];
+  }
+  const paidVenues = (vData.enhanced || []).concat(vData.featured || []);
+  const venueSource = paidVenues.length ? paidVenues : curatedVenues;
+  const featuredVenues = venueSource.slice(0, 4).map(v => ({
     slug: v.slug || '',
     name: v.name,
     area: v.area || '',
