@@ -587,7 +587,6 @@ function renderCard(item, options = {}) {
   const topBadges = showBadge ? [
     item.tierLabel ? `<span class="badge ${badgeTone}">${safe(item.tierLabel)}</span>` : '',
     type === 'supplier' && primaryMeta ? `<span class="badge supplier-location-badge">${safe(primaryMeta)}</span>` : '',
-    type === 'venue' && primaryMeta ? `<span class="badge venue-location-badge">${safe(primaryMeta)}</span>` : '',
     type === 'event' && item.date ? `<span class="badge event-date-badge">${safe(item.date)}</span>` : '',
     type !== 'supplier' && type !== 'venue' && type !== 'event' && item.specialty ? `<span class="badge gold">${safe(item.specialty)}</span>` : ''
   ].filter(Boolean).join('') : '';
