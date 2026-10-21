@@ -2245,6 +2245,15 @@ async function importInventory() {
       return;
     }
     setNotice(`<div class="notice">Imported <strong>${items.length}</strong> rows — <strong>${updated}</strong> updated, <strong>${inserted}</strong> new${imgNote}${failNote}.</div>`);
+
+    // One email for the whole import, not one per row.
+    if (inserted || updated) {
+      sendEmail({
+        template: 'import_complete',
+        data: { total: items.length, inserted, updated, failed, role },
+        userId
+      });
+    }
     setTimeout(() => { if (typeof renderBusinessDashboardPage === 'function') renderBusinessDashboardPage(); }, 600);
   } catch (e) {
     setNotice(`<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">${e.message || 'Import failed'}</div>`);
@@ -2405,12 +2414,13 @@ async function renderBusinessDashboardPage() {
     const currentRank = tierRank[state.directoryTier] || 0;
     const allUpgrades = role === 'merchant'
       ? [
-          { name: 'Merchant Enhanced', price: 'HK$380', was: 'HK$980', listings: '100 listings', tier: 'Enhanced', rank: 1, founding: true, checkout: 'merchant_enhanced', benefits: ['Everything in Starter', '100 product listings', 'Events + Website scan', 'Enhanced directory placement', 'Homepage featured eligibility'] },
+          { name: 'Merchant Enhanced', price: 'HK$388', was: 'HK$980', listings: '100 listings', tier: 'Enhanced', rank: 1, founding: true, checkout: 'merchant_enhanced', benefits: ['Everything in Starter', '100 product listings', 'Events + Website scan', 'Enhanced directory placement', 'Homepage featured eligibility'] },
+          { name: 'Merchant Featured', price: 'HK$888', was: 'HK$1,488', listings: '500 listings', tier: 'Featured', rank: 2, founding: true, checkout: 'merchant_featured', benefits: ['Everything in Enhanced', 'Up to 500 product listings', 'Featured directory placement', 'Direct links to your products', 'List your events', 'Inclusion in marketing EDMs'] },
           { name: 'Merchant Premium', price: 'HK$2,480', was: '', listings: 'Unlimited listings', tier: 'Premium', rank: 3, founding: false, checkout: 'merchant_premium', waitlist: 'list-your-business.html?type=merchant&plan=merchant-premium', benefits: ['Everything in Enhanced', 'Unlimited listings', 'Featured directory placement', 'Homepage premium block'] }
         ]
       : [
-          { name: 'Venue Enhanced', price: 'HK$300', was: 'HK$980', listings: '', tier: 'Enhanced', rank: 1, founding: true, checkout: 'venue_enhanced', benefits: ['Everything in Starter', 'Enhanced venue page', 'Direct booking link', 'Image-led listing card'] },
-          { name: 'Venue Enhanced + Events', price: 'HK$480', was: 'HK$1,480', listings: '', tier: 'Featured', rank: 2, founding: true, checkout: 'venue_enhanced_events', benefits: ['Everything in Venue Enhanced', 'Unlimited event listings', 'Always-on event promotion'] }
+          { name: 'Venue Enhanced', price: 'HK$388', was: 'HK$980', listings: '', tier: 'Enhanced', rank: 1, founding: true, checkout: 'venue_enhanced', benefits: ['Everything in Starter', 'Enhanced venue page', 'Direct booking link', 'Image-led listing card'] },
+          { name: 'Venue Enhanced + Events', price: 'HK$688', was: 'HK$1,480', listings: '', tier: 'Featured', rank: 2, founding: true, checkout: 'venue_enhanced_events', benefits: ['Everything in Venue Enhanced', 'Unlimited event listings', 'Always-on event promotion'] }
         ];
     const upgrades = allUpgrades.filter(t => t.rank > currentRank);
     const upgradeBlock = upgrades.length ? `

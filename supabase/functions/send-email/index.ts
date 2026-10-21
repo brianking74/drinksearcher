@@ -150,6 +150,35 @@ const TEMPLATES = {
     )
   }),
 
+  // --- Supplier notification — ONE summary after a bulk inventory import ---
+  // Per-row notifications on a 40-line CSV are noise; this confirms the outcome
+  // of the whole import in a single email.
+  import_complete: (data) => {
+    const total = Number(data.total) || 0;
+    const inserted = Number(data.inserted) || 0;
+    const updated = Number(data.updated) || 0;
+    const failed = Number(data.failed) || 0;
+    return {
+      subject: `Import finished — ${inserted} new, ${updated} updated`,
+      html: shell(
+        'Inventory import',
+        'Your import has finished',
+        `<table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
+          <tr style="border-bottom:1px solid rgba(255,255,255,.06);"><td style="padding:10px 0;color:#8b949e;">Rows read</td><td style="padding:10px 0;text-align:right;color:#f1eee6;">${total}</td></tr>
+          <tr style="border-bottom:1px solid rgba(255,255,255,.06);"><td style="padding:10px 0;color:#8b949e;">New listings</td><td style="padding:10px 0;text-align:right;color:#f1eee6;">${inserted}</td></tr>
+          <tr style="border-bottom:1px solid rgba(255,255,255,.06);"><td style="padding:10px 0;color:#8b949e;">Updated</td><td style="padding:10px 0;text-align:right;color:#f1eee6;">${updated}</td></tr>
+          <tr><td style="padding:10px 0;color:#8b949e;">Failed</td><td style="padding:10px 0;text-align:right;color:${failed ? '#ff8fa3' : '#f1eee6'};">${failed}</td></tr>
+        </table>
+        <p style="color:#c9d1d9;line-height:1.7;margin:0 0 20px;">${
+          inserted
+            ? 'New listings are pending review and appear in the directory once approved.'
+            : 'No new listings were added — existing rows were updated in place.'
+        }${failed ? ' Some rows could not be written; re-import those lines from your spreadsheet.' : ''}</p>
+        <a href="${SITE}/dashboard.html?role=${data.role === 'venue' ? 'venue' : 'merchant'}" style="display:inline-block;background:#bda16f;color:#000;padding:13px 30px;border-radius:6px;text-decoration:none;font-weight:600;">Review your catalogue</a>`
+      )
+    };
+  },
+
   // --- Admin notification — new business lead ---
   admin_new_lead: (data) => ({
     subject: `New ${esc(data.listingType)} lead: ${esc(data.businessName)}`,
