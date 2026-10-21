@@ -4140,6 +4140,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (page === 'signup') await renderSignUpPage();
   if (page === 'blog') await renderBlogPage();
   if (page === 'notfound') renderNotFoundPage();
+  if (page === 'searcher-account') await renderAccountPage();
   if (page === 'blog-post') await renderBlogPostPage();
   if (page === 'account') await renderAccountPage();
   setupAnchorSpy();
