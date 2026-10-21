@@ -66,8 +66,9 @@ function patchDashboard(){
 
   const signoutBtn=$('.sidebar-signout', app);
   if(signoutBtn) signoutBtn.addEventListener('click', ()=>{
-    dsAuth.signOut();
-    storage.signOut();
+    if (typeof window.signOutNow === 'function') { window.signOutNow(); return; }
+    try { dsAuth.signOut(); } catch (e) {}
+    try { storage.signOut(); } catch (e) {}
     location.href='index.html';
   });
 

@@ -113,7 +113,13 @@ const storage = {
   setCurrentUser(user) { _currentUser = user || null; },
   signUp() { return { ok: false, message: 'Use the signup form.' }; },
   signIn() { return { ok: false, message: 'Use the signin form.' }; },
-  signOut() { _currentUser = null; },
+  signOut() {
+    _currentUser = null;
+    // Memory alone was not enough: the Supabase session persisted and the user
+    // came back signed in after a reload. Best-effort here; use signOutNow()
+    // whenever you can await.
+    try { if (typeof sb !== 'undefined' && sb && sb.auth) sb.auth.signOut(); } catch (e) { /* noop */ }
+  },
   isAdmin() { return !!(_currentUser && _currentUser.role === 'admin'); },
 
   // Saved items are Supabase-backed (saved_items); see fetchSavedItems() in supabase.js.
@@ -1816,7 +1822,7 @@ async function renderSignInPage() {
   if (currentUser) {
     app.innerHTML = `
       <section class="hero" style="min-height:50vh;"><div class="hero-media" style="background-image:url('${siteImages.hero}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Already signed in</span><h1>Welcome back, ${currentUser.name || 'friend'}.</h1><p class="lead">Your account is already active in this browser. Head to your dashboard to manage saved drinks, events, and venues.</p></div><div class="search-shell"><div class="inline-actions"><a class="btn btn-primary btn-block" href="account.html">Go to account</a><button id="inline-signout" class="btn btn-ghost btn-block" type="button">Sign out first</button></div></div></div></section>`;
-    $('#inline-signout').addEventListener('click', () => { storage.signOut(); window.location.reload(); });
+    $('#inline-signout').addEventListener('click', () => { signOutNow(); });
     return;
   }
 
