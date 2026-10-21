@@ -369,6 +369,45 @@ function statBlockHTML(counts) {
 }
 window.statBlockHTML = statBlockHTML;
 
+// ── CSP-safe actions ────────────────────────────────────────────────────────
+// vercel.json sets script-src 'self' with no 'unsafe-inline', so inline onclick=
+// attributes never execute. Every pricing button, Sign out and the dashboard's
+// save/delete controls were silently dead because of it. Rather than weaken the
+// CSP (which is what protects this site from injected script), markup emits
+// data-action="fn('arg')" and one delegated handler dispatches it against an
+// explicit allowlist — no eval, and only these names can ever run.
+const DS_ACTIONS = ['addDashboardEvent', 'addDashboardEventRow', 'addDashboardItem', 'adminAddEventFromForm', 'bulkImportEvents', 'closeProductEdit', 'dsDashboardImageRemove', 'dsDashboardImageUpload', 'fetchMissingImages', 'fillSampleTemplate', 'importInventory', 'moderateEvent', 'removeDashboardEvent', 'removeDashboardEventRow', 'removeDashboardItem', 'saveDashboardEventRow', 'saveDashboardEvents', 'saveDashboardItems', 'saveDashboardProfile', 'saveProductEdit', 'signOutNow', 'startCheckout'];
+function runDsAction(expr) {
+  const m = /^([A-Za-z_$][\w$]*)\s*\((.*)\)$/s.exec(String(expr || '').trim());
+  if (!m) return false;
+  const name = m[1];
+  if (DS_ACTIONS.indexOf(name) === -1) return false;
+  const fn = window[name];
+  if (typeof fn !== 'function') return false;
+  let args = [];
+  const raw = m[2].trim();
+  if (raw) {
+    try { args = JSON.parse('[' + raw.replace(/'/g, '"') + ']'); }
+    catch (e) { return false; }
+  }
+  try { fn.apply(null, args); return true; } catch (e) { console.error('action ' + name + ' failed', e); return false; }
+}
+
+// Sign out has to clear the Supabase session AND the local cache, then leave.
+async function signOutNow() {
+  try { await sb.auth.signOut(); } catch (e) { /* offline is fine */ }
+  try { dsAuth.signOut(); } catch (e) { /* noop */ }
+  try { storage.signOut(); } catch (e) { /* noop */ }
+  location.href = 'index.html';
+}
+window.signOutNow = signOutNow;
+
+document.addEventListener('click', (ev) => {
+  const el = ev.target && ev.target.closest ? ev.target.closest('[data-action]') : null;
+  if (!el) return;
+  if (runDsAction(el.getAttribute('data-action'))) ev.preventDefault();
+});
+
 function navHTML(active = '', user) {
   const links = [
     ['index.html','Home'],
@@ -730,15 +769,7 @@ async function renderHomepage() {
       </div>
     </section>
 
-    <section class="section-tight">
-      <div class="container">
-        <div class="panel" style="display:grid; gap:14px; align-items:center;">
-          <span class="eyebrow">Newsletter</span>
-          <h2>Get the <em>weekly pour.</em></h2>
-          <p class="muted">New arrivals, exclusive tastings, and secret bar openings — curated for Hong Kong every Friday morning.</p>
-        </div>
-      </div>
-    </section>`;
+    <!-- Newsletter block removed until the list is live. -->`;
   bindSaveButtons(app);
   bindCarouselButtons(app);
 
@@ -1193,9 +1224,13 @@ async function renderEventsPage() {
 async function startCheckout(planSlug) {
   const user = await dsAuth.getCurrentUser();
   if (!user) {
+    // No account yet: 'List your business' is the only path that actually creates
+    // one. Sending a first-time buyer to sign-in was a dead end, and with the CSP
+    // blocking the inline handler these buttons did nothing at all.
     try { localStorage.setItem('ds_pending_plan', String(planSlug)); } catch (e) { /* noop */ }
-    storage.setPostAuthRedirect('pricing.html');
-    location.href = 'signin.html';
+    const kind = String(planSlug).startsWith('venue') ? 'venue' : 'merchant';
+    const planParam = String(planSlug).replace(/_/g, '-');
+    location.href = 'list-your-business.html?type=' + kind + '&plan=' + encodeURIComponent(planParam);
     return;
   }
   const type = String(planSlug).startsWith('venue') ? 'venue' : 'merchant';
@@ -1283,7 +1318,7 @@ async function renderPricingPage() {
               <li>Priority support</li>
               <li>Click insights: full dashboard</li>
             </ul>
-            <button class="btn btn-primary btn-block" type="button" data-checkout-plan="merchant_enhanced" onclick="startCheckout('merchant_enhanced')">Choose Enhanced</button>
+            <button class="btn btn-primary btn-block" type="button" data-checkout-plan="merchant_enhanced" data-action="startCheckout('merchant_enhanced')">Choose Enhanced</button>
           </article>
           <article class="price-card featured-tier">
             <span class="badge pink">Featured</span>
@@ -1300,7 +1335,7 @@ async function renderPricingPage() {
               <li>Inclusion in marketing EDMs</li>
               <li>Click insights: full dashboard + benchmarks</li>
             </ul>
-            <button class="btn btn-primary btn-block" type="button" data-checkout-plan="merchant_featured" onclick="startCheckout('merchant_featured')">Choose Featured</button>
+            <button class="btn btn-primary btn-block" type="button" data-checkout-plan="merchant_featured" data-action="startCheckout('merchant_featured')">Choose Featured</button>
           </article>
           <article class="price-card">
             <span class="badge pink">Premium</span>
@@ -1315,7 +1350,7 @@ async function renderPricingPage() {
               <li>Priority support for launches</li>
               <li>Click insights: full dashboard + benchmarks + monthly report (coming soon)</li>
             </ul>
-            <button class="btn btn-primary btn-block" type="button" data-checkout-plan="merchant_premium" onclick="startCheckout('merchant_premium')">Choose Premium</button>
+            <button class="btn btn-primary btn-block" type="button" data-checkout-plan="merchant_premium" data-action="startCheckout('merchant_premium')">Choose Premium</button>
           </article>
         </div>
       </div>
@@ -1353,7 +1388,7 @@ async function renderPricingPage() {
               <li>Priority directory placement</li>
               <li>Click insights: monthly snapshot email + booking clicks</li>
             </ul>
-            <button class="btn btn-primary btn-block" type="button" data-checkout-plan="venue_enhanced" onclick="startCheckout('venue_enhanced')">Choose Venue Enhanced</button>
+            <button class="btn btn-primary btn-block" type="button" data-checkout-plan="venue_enhanced" data-action="startCheckout('venue_enhanced')">Choose Venue Enhanced</button>
           </article>
           <article class="price-card">
             <span class="badge pink">Growth</span>
@@ -1369,7 +1404,7 @@ async function renderPricingPage() {
               <li>Seasonal campaign priority</li>
               <li>Click insights: monthly snapshot email + booking clicks + benchmarks (coming soon)</li>
             </ul>
-            <button class="btn btn-secondary btn-block" type="button" data-checkout-plan="venue_enhanced_events" onclick="startCheckout('venue_enhanced_events')">Choose Growth Plan</button>
+            <button class="btn btn-secondary btn-block" type="button" data-checkout-plan="venue_enhanced_events" data-action="startCheckout('venue_enhanced_events')">Choose Growth Plan</button>
           </article>
         </div>
       </div>
@@ -1936,7 +1971,7 @@ async function renderAccountPage() {
   }
   app.innerHTML = `
     <section class="hero" style="min-height:48vh;"><div class="hero-media" style="background-image:url('${siteImages.rooftop}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">My account</span><h1>${user.name || 'Your account'} <span class="text-jade">dashboard</span>.</h1><p class="lead">Manage your profile, keep a shortlist of drinks and venues, and stay on top of your enquiries and saved discoveries.</p></div><div class="search-shell"><span class="eyebrow">Profile details</span><form id="account-form" class="form-grid" style="margin-top:14px;"><input class="input" name="name" value="${user.name || ''}" placeholder="Full name" required /><input class="input" name="city" value="${user.city || ''}" placeholder="Preferred district" required /><input class="input full" value="${user.email}" disabled /><button class="btn btn-primary full" type="submit">Update profile</button></form><div id="account-notice"></div></div></div></section>
-    <section class="section"><div class="container grid grid-2"><div class="panel"><span class="eyebrow">Saved items</span><h2 style="margin:14px 0;">Your shortlist</h2><div id="saved-items"></div></div><div class="panel"><span class="eyebrow">Account actions</span><h2 style="margin:14px 0;">Keep track of what matters.</h2><div class="muted" style="display:grid; gap:12px;"><span>• Save bottles, bars, and events for later.</span><span>• Review your enquiries and listing requests.</span><span>• Access your business dashboard if you manage a supplier or venue profile.</span></div><div class="inline-actions" style="margin-top:18px;"><a class="btn btn-ghost" href="drinks.html">Save more drinks</a><button class="btn btn-secondary" id="account-signout-btn" type="button" onclick="dsAuth.signOut().then(()=>{storage.signOut();location.href='index.html'})">Sign Out</button></div></div></div></section>
+    <section class="section"><div class="container grid grid-2"><div class="panel"><span class="eyebrow">Saved items</span><h2 style="margin:14px 0;">Your shortlist</h2><div id="saved-items"></div></div><div class="panel"><span class="eyebrow">Account actions</span><h2 style="margin:14px 0;">Keep track of what matters.</h2><div class="muted" style="display:grid; gap:12px;"><span>• Save bottles, bars, and events for later.</span><span>• Review your enquiries and listing requests.</span><span>• Access your business dashboard if you manage a supplier or venue profile.</span></div><div class="inline-actions" style="margin-top:18px;"><a class="btn btn-ghost" href="drinks.html">Save more drinks</a><button class="btn btn-secondary" id="account-signout-btn" type="button" data-action="signOutNow">Sign Out</button></div></div></div></section>
     <section class="section-tight"><div class="container"><div class="panel"><span class="eyebrow">My business enquiries</span><h2 style="margin:14px 0;">Submitted lead capture forms</h2><div id="account-leads"></div></div></div></section>`;
   $('#account-form').addEventListener('submit', async e => {
     e.preventDefault();
@@ -2369,7 +2404,7 @@ async function renderBusinessDashboardPage() {
                   ${u.benefits.map(b => `<li style="margin:4px 0;">${b}</li>`).join('')}
                 </ul>
                 ${u.checkout
-                  ? `<button class="btn btn-primary btn-block" type="button" style="margin-top:18px;" onclick="startCheckout('${u.checkout}')">Upgrade to ${u.name}</button>`
+                  ? `<button class="btn btn-primary btn-block" type="button" style="margin-top:18px;" data-action="startCheckout('${u.checkout}')">Upgrade to ${u.name}</button>`
                   : `<a class="btn btn-secondary btn-block" style="margin-top:18px;" href="${u.waitlist}">Join waitlist</a>`}
               </div>`).join('')}
             </div>
@@ -2423,8 +2458,8 @@ async function renderBusinessDashboardPage() {
                   <div style="display:flex;align-items:center;gap:12px;margin-top:8px;">
                     <img id="dashboard-logo-preview" src="${safe(config.image || '')}" alt="Logo preview" style="width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.03);${config.image ? '' : 'display:none;'}" />
                     <div style="display:flex;flex-direction:column;gap:8px;">
-                      <button class="btn btn-secondary btn-small" type="button" onclick="dsDashboardImageUpload('${role}','logo')">Upload logo</button>
-                      <button class="btn btn-ghost btn-small" type="button" id="dashboard-remove-image" onclick="dsDashboardImageRemove('logo')" ${config.image ? '' : 'style="display:none;"'}>Remove</button>
+                      <button class="btn btn-secondary btn-small" type="button" data-action="dsDashboardImageUpload('${role}','logo')">Upload logo</button>
+                      <button class="btn btn-ghost btn-small" type="button" id="dashboard-remove-image" data-action="dsDashboardImageRemove('logo')" ${config.image ? '' : 'style="display:none;"'}>Remove</button>
                     </div>
                   </div>
                   <input type="hidden" name="image" id="dashboard-logo-input" value="${safe(config.image || '')}" />
@@ -2435,8 +2470,8 @@ async function renderBusinessDashboardPage() {
                   <div style="display:flex;align-items:center;gap:12px;margin-top:8px;">
                     <img id="dashboard-header-preview" src="${safe(config.heroImage || '')}" alt="Header preview" style="width:180px;height:56px;object-fit:cover;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.03);${config.heroImage ? '' : 'display:none;'}" />
                     <div style="display:flex;flex-direction:column;gap:8px;">
-                      <button class="btn btn-secondary btn-small" type="button" onclick="dsDashboardImageUpload('${role}','header')">Upload header</button>
-                      <button class="btn btn-ghost btn-small" type="button" id="dashboard-remove-header" onclick="dsDashboardImageRemove('header')" ${config.heroImage ? '' : 'style="display:none;"'}>Remove</button>
+                      <button class="btn btn-secondary btn-small" type="button" data-action="dsDashboardImageUpload('${role}','header')">Upload header</button>
+                      <button class="btn btn-ghost btn-small" type="button" id="dashboard-remove-header" data-action="dsDashboardImageRemove('header')" ${config.heroImage ? '' : 'style="display:none;"'}>Remove</button>
                     </div>
                   </div>
                   <input type="hidden" name="hero_image" id="dashboard-header-input" value="${safe(config.heroImage || '')}" />
@@ -2473,7 +2508,7 @@ async function renderBusinessDashboardPage() {
               <p class="muted">Paste a published CSV URL from Google Sheets or paste CSV rows directly. This is the fastest path for suppliers who already manage stock in a spreadsheet. Columns: <strong>Name, Type, Varietal, Origin, Price, Availability, ABV, Description, Buy URL, Image</strong> — only Name is required. Descriptions are trimmed to about 50 words automatically.</p>
               <label class="dashboard-field"><span>Google Sheet CSV URL or pasted CSV</span><textarea class="input" rows="6" id="sheet-import-source" placeholder="https://docs.google.com/.../export?format=csv or pasted CSV rows"></textarea></label>
               <label class="dashboard-field"><span>Import mode</span><select class="select" id="sheet-import-mode"><option value="append">Append to current inventory</option><option value="replace">Replace current inventory</option></select></label>
-              <div class="admin-inline"><button class="btn btn-primary" id="sheet-import-btn" type="button" onclick="importInventory()">Import inventory</button><button class="btn btn-ghost" id="sheet-template-btn" type="button" onclick="fillSampleTemplate()">Insert sample template</button></div>
+              <div class="admin-inline"><button class="btn btn-primary" id="sheet-import-btn" type="button" data-action="importInventory()">Import inventory</button><button class="btn btn-ghost" id="sheet-template-btn" type="button" data-action="fillSampleTemplate()">Insert sample template</button></div>
               <div class="small-note">Recommended columns: Name, Price, Availability. You can extend the mapping later for SKU, size, pack, ABV, and product URL.</div>
               <div id="sheet-import-notice">${takeImportNotice()}</div>
             </div>
@@ -2506,15 +2541,15 @@ async function renderBusinessDashboardPage() {
                   <input class="input" data-item-name="${index}" value="${safe(item.name)}" />
                   <input class="input" data-item-price="${index}" value="${safe(item.price)}" />
                   <span class="status-badge status-${(item.status || 'pending').toLowerCase()}">${safe(item.status || 'Pending')}</span>
-                  <button class="btn btn-ghost btn-small" type="button" title="Delete this listing" style="color:#ff6b9d;padding:3px 6px;font-size:1rem;" onclick="removeDashboardItem(${index})">✕</button>
+                  <button class="btn btn-ghost btn-small" type="button" title="Delete this listing" style="color:#ff6b9d;padding:3px 6px;font-size:1rem;" data-action="removeDashboardItem(${index})">✕</button>
                 </div>`).join('') : `
                 <div class="muted" style="padding:22px 20px;">No products listed yet. Import a sheet above or run a website scan to build your catalogue.</div>`}</div>
               <div class="inline-actions" style="padding:20px; border-top:1px solid rgba(255,255,255,.06);">
-                <button class="btn btn-primary" type="button" onclick="saveDashboardItems()">Save pricing & availability</button>
+                <button class="btn btn-primary" type="button" data-action="saveDashboardItems()">Save pricing & availability</button>
                 ${role === 'merchant' ? `<span class="muted" style="font-size:.82rem;">${listingsUsed} of ${listingLimit} listings used</span>` : ''}
                 ${atListingLimit
                   ? `<button class="btn btn-ghost" type="button" disabled style="opacity:.55;cursor:not-allowed;">🔒 Add another row</button><div class="notice" style="margin-top:12px;background:rgba(255,193,7,.08);border-color:rgba(255,193,7,.18);color:#ffd27d;">You've reached your ${listingLimit}-item limit. <a class="text-gold" href="pricing.html">Upgrade</a> to add more items.</div>`
-                  : `<button class="btn btn-ghost" type="button" onclick="addDashboardItem()">Add another row</button>`}
+                  : `<button class="btn btn-ghost" type="button" data-action="addDashboardItem()">Add another row</button>`}
               </div>
             </div>
           </div>
@@ -2533,7 +2568,7 @@ async function renderBusinessDashboardPage() {
               <div class="dashboard-table-head dashboard-events-head"><div>Event name</div><div>Date</div><div>Time</div><div>Price</div><div>Venue</div><div>Status</div><div></div></div>
               <div id="dashboard-events-list" data-venue="${config.listingName || user.name || ''}"><div class="muted" style="padding:16px;">Loading your events…</div></div>
               <div class="inline-actions" style="padding:20px; border-top:1px solid rgba(255,255,255,.06);">
-                <button class="btn btn-primary" type="button" onclick="addDashboardEventRow()">+ Add event</button>
+                <button class="btn btn-primary" type="button" data-action="addDashboardEventRow()">+ Add event</button>
               </div>
             </div>
             <div id="dashboard-events-notice"></div>
@@ -2554,7 +2589,7 @@ async function renderBusinessDashboardPage() {
           <div class="container">
             <div class="inline-actions" style="justify-content:center; gap:16px;">
               <a class="btn btn-ghost" href="account.html">Back to account</a>
-              <button class="btn btn-secondary" id="dashboard-signout-btn" type="button" onclick="dsAuth.signOut();storage.signOut();location.href='index.html'">Sign Out</button>
+              <button class="btn btn-secondary" id="dashboard-signout-btn" type="button" data-action="signOutNow">Sign Out</button>
             </div>
           </div>
         </section>
@@ -2798,8 +2833,8 @@ function eventRowHTML(e) {
     <input class="input" data-event-venue value="${String(e.venue || '').replace(/"/g, '&quot;')}" placeholder="Venue" />
     <span class="status-badge status-${(e.status || 'pending').toLowerCase()}">${e.status || 'Pending'}</span>
     <div class="inline-actions" style="gap:6px;">
-      <button class="btn btn-primary btn-small" type="button" onclick="saveDashboardEventRow('${id}')">Save</button>
-      <button class="btn btn-ghost btn-small" type="button" title="Remove" style="color:#ff6b9d;" onclick="removeDashboardEventRow('${id}')">✕</button>
+      <button class="btn btn-primary btn-small" type="button" data-action="saveDashboardEventRow('${id}')">Save</button>
+      <button class="btn btn-ghost btn-small" type="button" title="Remove" style="color:#ff6b9d;" data-action="removeDashboardEventRow('${id}')">✕</button>
     </div>
   </div>`;
 }
@@ -3190,12 +3225,12 @@ async function loadProductManager() {
 
     holder.innerHTML = `
       <div class="admin-toolbar" style="margin-bottom:14px;flex-wrap:wrap;">
-        <button class="toggle-pill ${filter==='all'?'active':''}" onclick="location.search='?pm=all'">All (${counts.all})</button>
-        <button class="toggle-pill ${filter==='approved'?'active':''}" onclick="location.search='?pm=approved'">Approved (${counts.approved})</button>
-        <button class="toggle-pill ${filter==='pending'?'active':''}" onclick="location.search='?pm=pending'">Pending (${counts.pending})</button>
-        <button class="toggle-pill ${filter==='rejected'?'active':''}" onclick="location.search='?pm=rejected'">Rejected (${counts.rejected})</button>
-        <button class="toggle-pill ${filter==='noimage'?'active':''}" onclick="location.search='?pm=noimage'">No image (${counts.noimage})</button>
-        ${missing.length ? `<button class="btn btn-primary btn-small" style="margin-left:auto;" onclick="fetchMissingImages()">Fetch images (${missing.length})</button>` : ''}
+        <button class="toggle-pill ${filter==='all'?'active':''}" data-action="location.search='?pm=all'">All (${counts.all})</button>
+        <button class="toggle-pill ${filter==='approved'?'active':''}" data-action="location.search='?pm=approved'">Approved (${counts.approved})</button>
+        <button class="toggle-pill ${filter==='pending'?'active':''}" data-action="location.search='?pm=pending'">Pending (${counts.pending})</button>
+        <button class="toggle-pill ${filter==='rejected'?'active':''}" data-action="location.search='?pm=rejected'">Rejected (${counts.rejected})</button>
+        <button class="toggle-pill ${filter==='noimage'?'active':''}" data-action="location.search='?pm=noimage'">No image (${counts.noimage})</button>
+        ${missing.length ? `<button class="btn btn-primary btn-small" style="margin-left:auto;" data-action="fetchMissingImages()">Fetch images (${missing.length})</button>` : ''}
       </div>
       ${!filtered.length ? '<div class="notice">No products match this filter.</div>' : `
       <div class="admin-table">
@@ -3320,7 +3355,7 @@ async function openProductEdit(id) {
     <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;width:100%;max-width:680px;max-height:90vh;overflow:auto;padding:24px;">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:18px;">
         <div><span class="eyebrow">Edit product</span><h3 style="margin:6px 0 0;">${safe(item.name)}</h3></div>
-        <button type="button" style="background:none;border:none;font-size:1.6rem;line-height:1;cursor:pointer;color:var(--muted-foreground);" onclick="closeProductEdit()">×</button>
+        <button type="button" style="background:none;border:none;font-size:1.6rem;line-height:1;cursor:pointer;color:var(--muted-foreground);" data-action="closeProductEdit()">×</button>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
         <label class="dashboard-field"><span>Name</span><input class="input" id="pm-e-name" value="${safe(item.name)}" /></label>
@@ -3335,8 +3370,8 @@ async function openProductEdit(id) {
         <label class="dashboard-field" style="grid-column:1/-1;"><span>Description</span><textarea class="input" id="pm-e-desc" rows="3">${safe(item.description || '')}</textarea></label>
       </div>
       <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px;">
-        <button class="btn btn-ghost" type="button" onclick="closeProductEdit()">Cancel</button>
-        <button class="btn btn-primary" type="button" onclick="saveProductEdit('${id}')">Save changes</button>
+        <button class="btn btn-ghost" type="button" data-action="closeProductEdit()">Cancel</button>
+        <button class="btn btn-primary" type="button" data-action="saveProductEdit('${id}')">Save changes</button>
       </div>
     </div>`;
   document.body.appendChild(overlay);
@@ -3391,8 +3426,8 @@ async function loadPendingEvents() {
         <div>${e.date ? String(e.date).slice(0, 10) : (e.event_date || '—')}${e.time ? ' · ' + e.time : ''}</div>
         <div><span class="status-badge status-${(e.status || 'pending').toLowerCase()}">${e.status || 'Pending'}</span></div>
         <div style="display:flex;gap:4px;flex-wrap:wrap;">
-          <button class="btn btn-primary btn-small" type="button" onclick="moderateEvent('${e.id}','approved')">Approve</button>
-          <button class="btn btn-ghost btn-small" type="button" onclick="moderateEvent('${e.id}','rejected')">Reject</button>
+          <button class="btn btn-primary btn-small" type="button" data-action="moderateEvent('${e.id}','approved')">Approve</button>
+          <button class="btn btn-ghost btn-small" type="button" data-action="moderateEvent('${e.id}','rejected')">Reject</button>
         </div>
       </div>`).join('');
   } catch (e) {
@@ -3649,7 +3684,7 @@ async function renderAdminDashboardPage() {
             <label class="dashboard-field" style="grid-column:1/-1;"><span>Booking / RSVP link</span><input class="input" id="admin-ev-url" placeholder="https://…" /></label>
           </div>
           <div style="margin-top:14px;display:flex;align-items:center;gap:12px;">
-            <button class="btn btn-primary" type="button" onclick="adminAddEventFromForm()">Add event</button>
+            <button class="btn btn-primary" type="button" data-action="adminAddEventFromForm()">Add event</button>
             <span id="admin-add-event-notice"></span>
           </div>
         </div>
@@ -3665,7 +3700,7 @@ async function renderAdminDashboardPage() {
           <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:10px 14px;font-size:.78rem;line-height:1.5;color:rgba(241,238,230,.55);overflow:auto;">Event name | Venue | District | Type | Date | Time | Price | Booking URL</div>
           <textarea class="input" id="admin-bulk-events" rows="8" style="margin-top:12px;font-family:ui-monospace,monospace;font-size:.8rem;" placeholder="Burgundy Masterclass | Mandarin Oriental | Central | Tasting | 18 Nov | 7:30 PM | HK$1,200 | https://…&#10;Whisky Flight Night | Quinary | Central | Whisky | 2026-11-22 | 8:00 PM | HK$680 | "></textarea>
           <div style="margin-top:12px;display:flex;align-items:center;gap:12px;">
-            <button class="btn btn-primary" type="button" onclick="bulkImportEvents()">Import for review</button>
+            <button class="btn btn-primary" type="button" data-action="bulkImportEvents()">Import for review</button>
             <span id="admin-bulk-notice"></span>
           </div>
           <p class="muted" style="margin-top:10px;font-size:.78rem;">Date accepts <code>YYYY-MM-DD</code> or <code>18 Nov</code> (assumes the next occurrence). Leave a field empty with <code>||</code>.</p>
@@ -3723,8 +3758,8 @@ async function renderAdminDashboardPage() {
           <div id="admin-guides-notice"></div>
           <div id="admin-guides">
             <div style="display:flex;gap:8px;margin-bottom:14px;">
-              <button class="btn btn-primary btn-small" onclick="adminGuides.showGuideForm()">+ New guide</button>
-              <button class="btn btn-ghost btn-small" onclick="adminGuides.loadGuidesList()">Refresh</button>
+              <button class="btn btn-primary btn-small" data-action="adminGuides.showGuideForm()">+ New guide</button>
+              <button class="btn btn-ghost btn-small" data-action="adminGuides.loadGuidesList()">Refresh</button>
             </div>
             <div id="admin-guides-list"><div class="notice">Loading guides...</div></div>
             <div id="admin-guides-form" style="display:none;">
@@ -3738,11 +3773,11 @@ async function renderAdminDashboardPage() {
               <h3 style="margin-bottom:10px;">Venues in this guide</h3>
               <div id="guide-entries-list"></div>
               <div style="display:flex;gap:8px;margin-top:10px;">
-                <button class="btn btn-ghost btn-small" onclick="adminGuides.addEntry()">+ Add venue</button>
+                <button class="btn btn-ghost btn-small" data-action="adminGuides.addEntry()">+ Add venue</button>
               </div>
               <div style="display:flex;gap:8px;margin-top:16px;border-top:1px solid var(--border);padding-top:16px;">
-                <button class="btn btn-primary" onclick="adminGuides.saveGuide()">Save guide</button>
-                <button class="btn btn-ghost" onclick="adminGuides.cancelForm()">Cancel</button>
+                <button class="btn btn-primary" data-action="adminGuides.saveGuide()">Save guide</button>
+                <button class="btn btn-ghost" data-action="adminGuides.cancelForm()">Cancel</button>
               </div>
             </div>
           </div>
