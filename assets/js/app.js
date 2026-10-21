@@ -384,19 +384,25 @@ window.statBlockHTML = statBlockHTML;
 // explicit allowlist — no eval, and only these names can ever run.
 const DS_ACTIONS = ['addDashboardEvent', 'addDashboardEventRow', 'addDashboardItem', 'adminAddEventFromForm', 'bulkImportEvents', 'closeProductEdit', 'dsDashboardImageRemove', 'dsDashboardImageUpload', 'fetchMissingImages', 'fillSampleTemplate', 'importInventory', 'moderateEvent', 'removeDashboardEvent', 'removeDashboardEventRow', 'removeDashboardItem', 'saveDashboardEventRow', 'saveDashboardEvents', 'saveDashboardItems', 'saveDashboardProfile', 'saveProductEdit', 'signOutNow', 'startCheckout'];
 function runDsAction(expr) {
-  const m = /^([A-Za-z_$][\w$]*)\s*\((.*)\)$/s.exec(String(expr || '').trim());
-  if (!m) return false;
+  // Zero-argument actions ("signOutNow") and calls with arguments
+  // ("startCheckout('merchant_enhanced')") both have to work. The first version
+  // required parentheses, so every bare name was silently ignored — which is why
+  // the pricing buttons worked and Sign out did nothing.
+  const raw = String(expr || '').trim();
+  const m = /^([A-Za-z_$][\w$]*)\s*(?:\((.*)\))?$/s.exec(raw);
+  if (!m) { console.warn('[ds] unparseable action:', raw); return false; }
   const name = m[1];
-  if (DS_ACTIONS.indexOf(name) === -1) return false;
+  if (DS_ACTIONS.indexOf(name) === -1) { console.warn('[ds] action not allowlisted:', name); return false; }
   const fn = window[name];
-  if (typeof fn !== 'function') return false;
+  if (typeof fn !== 'function') { console.warn('[ds] action is not a function:', name); return false; }
   let args = [];
-  const raw = m[2].trim();
-  if (raw) {
-    try { args = JSON.parse('[' + raw.replace(/'/g, '"') + ']'); }
-    catch (e) { return false; }
+  const argStr = (m[2] || '').trim();
+  if (argStr) {
+    try { args = JSON.parse('[' + argStr.replace(/'/g, '"') + ']'); }
+    catch (e) { console.warn('[ds] bad argument list for', name, ':', argStr); return false; }
   }
-  try { fn.apply(null, args); return true; } catch (e) { console.error('action ' + name + ' failed', e); return false; }
+  try { fn.apply(null, args); return true; }
+  catch (e) { console.error('action ' + name + ' failed', e); return false; }
 }
 
 // Sign out has to clear the Supabase session AND the local cache, then leave.
