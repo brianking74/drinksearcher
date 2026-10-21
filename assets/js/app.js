@@ -304,7 +304,7 @@ function externalLinkAttrs(url) {
 // and leaves non-numeric values ("Free") alone.
 function hkd(v) {
   if (v === null || v === undefined) return '';
-  const s = String(v).trim();
+  let s = String(v).trim();
   if (!s) return '';
   if (/^[\uFF04$]\s*/.test(s)) s = s.replace(/^[\uFF04$]\s*/, '');
   if (/^\d/.test(s)) s = s;
@@ -586,7 +586,6 @@ function renderCard(item, options = {}) {
   const badgeTone = type === 'venue' ? 'pink' : type === 'event' ? 'jade' : 'gold';
   const topBadges = showBadge ? [
     item.tierLabel ? `<span class="badge ${badgeTone}">${safe(item.tierLabel)}</span>` : '',
-    type === 'supplier' && primaryMeta ? `<span class="badge supplier-location-badge">${safe(primaryMeta)}</span>` : '',
     type === 'event' && item.date ? `<span class="badge event-date-badge">${safe(item.date)}</span>` : '',
     type !== 'supplier' && type !== 'venue' && type !== 'event' && item.specialty ? `<span class="badge gold">${safe(item.specialty)}</span>` : ''
   ].filter(Boolean).join('') : '';
