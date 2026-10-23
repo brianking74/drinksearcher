@@ -1069,11 +1069,8 @@ async function renderBottleDetail() {
     </div></nav>
 
     <section class="section bottle-hero">
-      <div class="container">
+      <div class="container bottle-page-col">
         <div class="bottle-hero-grid">
-          <div class="bottle-hero-media">
-            <img src="${safe(dsImage(drink.image) || 'assets/images/bottle-placeholder.svg')}" alt="${safe(drink.name)}" class="bottle-hero-img" onerror="this.src='assets/images/bottle-placeholder.svg'">
-          </div>
           <div class="bottle-hero-info">
             <span class="kicker">${safe(drink.type || '')}</span>
             <h1>${safe(drink.name)}</h1>
@@ -1092,32 +1089,35 @@ async function renderBottleDetail() {
             <div class="bottle-actions">
               ${saveButton({id: `drink:${slug}`, name: drink.name, kind: 'drink'})}
             </div>
-            ${supplierCount ? `
-            <div class="supplier-inline" style="margin-top:24px">
-              <div class="section-head">
-                <span class="eyebrow">Where to buy</span><h3>${supplierCount} supplier${supplierCount>1?'s':''} in Hong Kong</h3>
-              </div>
-              <div class="supplier-compare-table" style="margin-top:14px">
-                ${supplierRows.map((s, i) => `
-                  <div class="supplier-row${i===0?' supplier-row--best':''}">
-                    <div class="supplier-row__topline">
-                      <span class="supplier-row__name">${safe(s.supplier_name || 'Supplier')}</span>
-                      <span class="supplier-row__price">${safe(hkd(s.price))}${i === 0 ? '<span class="best-price-badge">Best price</span>' : ''}</span>
-                    </div>
-                    <div class="supplier-row__meta">${[s.supplier_area ? safe(s.supplier_area) : '', s.supplier_min_order ? 'Min. order ' + safe(hkd(s.supplier_min_order)) : ''].filter(Boolean).join(' · ')}</div>
-                    <div class="supplier-row__foot">
-                      ${s.availability ? `<span class="supplier-row__stock ${s.availability.toLowerCase().includes('stock') ? 'in-stock' : ''}">${safe(s.availability)}</span>` : '<span></span>'}
-                    ${(i === 0 || s.buy_url || s.supplier_tier === 'enhanced' || s.supplier_tier === 'featured') ? `<div class="supplier-row__actions">
-                      ${s.buy_url ? `<a href="${safe(s.buy_url)}" target="_blank" rel="noreferrer" class="btn btn-primary btn-small" data-track-id="${safe(s.id)}" data-track-name="${safe(s.name)}" data-track-supplier="${safe(s.supplier_name || '')}">Buy now →</a>` : (s.supplier_tier === 'enhanced' || s.supplier_tier === 'featured') ? `<a href="supplier-template.html?slug=${safe(slugify(s.supplier_name || ''))}" class="btn btn-ghost btn-small">View supplier</a>` : ''}
-                    </div>` : ''}
-                    </div>
-                  </div>
-                `).join('')}
-              </div>
-            </div>
-            ` : ''}
+          </div>
+          <div class="bottle-hero-media">
+            <img src="${safe(dsImage(drink.image) || 'assets/images/bottle-placeholder.svg')}" alt="${safe(drink.name)}" class="bottle-hero-img" onerror="this.src='assets/images/bottle-placeholder.svg'">
           </div>
         </div>
+        ${supplierCount ? `
+        <div class="supplier-inline" style="margin-top:24px">
+          <div class="section-head supplier-buy-head">
+            <span class="eyebrow">Where to buy</span><h3>${supplierCount} supplier${supplierCount>1?'s':''} in Hong Kong</h3>
+          </div>
+          <div class="supplier-compare-table" style="margin-top:14px">
+            ${supplierRows.map((s, i) => `
+              <div class="supplier-row">
+                <div class="supplier-row__topline">
+                  <span class="supplier-row__name">${safe(s.supplier_name || 'Supplier')}</span>
+                  <span class="supplier-row__price">${safe(hkd(s.price))}</span>
+                </div>
+                <div class="supplier-row__meta">${[s.supplier_area ? safe(s.supplier_area) : '', s.supplier_min_order ? 'Min. order ' + safe(hkd(s.supplier_min_order)) : ''].filter(Boolean).join(' · ')}</div>
+                <div class="supplier-row__foot">
+                  ${s.availability ? `<span class="supplier-row__stock ${s.availability.toLowerCase().includes('stock') ? 'in-stock' : ''}">${safe(s.availability)}</span>` : '<span></span>'}
+                ${(i === 0 || s.buy_url || s.supplier_tier === 'enhanced' || s.supplier_tier === 'featured') ? `<div class="supplier-row__actions">
+                  ${s.buy_url ? `<a href="${safe(s.buy_url)}" target="_blank" rel="noreferrer" class="btn btn-primary btn-small" data-track-id="${safe(s.id)}" data-track-name="${safe(s.name)}" data-track-supplier="${safe(s.supplier_name || '')}">Buy now →</a>` : (s.supplier_tier === 'enhanced' || s.supplier_tier === 'featured') ? `<a href="supplier-template.html?slug=${safe(slugify(s.supplier_name || ''))}" class="btn btn-ghost btn-small">View supplier</a>` : ''}
+                </div>` : ''}
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+        ` : ''}
       </div>
     </section>
   </div>

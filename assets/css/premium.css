@@ -263,3 +263,75 @@ h1,h2,h3,h4{font-family:var(--serif);font-weight:400;letter-spacing:-.025em;colo
   content: ''; position: absolute; inset: 0;
   background: linear-gradient(180deg, rgba(6,7,9,.86) 0%, rgba(6,7,9,.70) 50%, rgba(6,7,9,.93) 100%);
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Product page — desktop layout, per the approved mockup.
+   Desktop only (≥1024px): the mobile product page is deliberately untouched.
+   ═══════════════════════════════════════════════════════════════════════════ */
+@media (min-width: 1024px) {
+  /* 5 · one narrow centred column for the whole page */
+  .bottle-page-col { max-width: 1100px; margin-inline: auto; }
+
+  /* 1 · copy left, bottle right */
+  .bottle-hero-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 460px;
+    gap: 56px;
+    align-items: start;
+  }
+  .bottle-hero-info { min-width: 0; }
+  .bottle-hero-media {
+    width: 100%; max-width: 460px;
+    background: #fff !important;          /* white card stays, as mocked */
+    border-radius: 10px;
+    padding: 24px;
+    overflow: hidden;
+  }
+  .bottle-hero-media img { width: 100%; height: auto; display: block; }
+
+  /* Where to buy: rule + label left, supplier count right */
+  .supplier-buy-head {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 24px;
+    border-top: 1px solid var(--border, rgba(255,255,255,.07));
+    padding-top: 18px; margin: 0;
+  }
+  .supplier-buy-head .eyebrow { display: inline-flex; align-items: center; gap: 12px; }
+  .supplier-buy-head .eyebrow::before {
+    content: ''; width: 34px; height: 1px;
+    background: var(--border-strong, rgba(255,255,255,.14));
+  }
+  .supplier-buy-head h3 {
+    font-family: var(--serif, Georgia, serif); font-weight: 400;
+    font-size: 1.55rem; margin: 0; text-align: right;
+  }
+
+  /* 2 + 3 + 4 · a single offer line:
+     name · location + MOQ · stock ............ price · BUY NOW */
+  .supplier-compare-table { margin-top: 16px; }
+  .supplier-row {
+    display: flex; align-items: center; flex-wrap: nowrap;
+    gap: 16px; padding: 18px 22px;
+  }
+  .supplier-row__topline,
+  .supplier-row__foot { display: contents; }
+  .supplier-row__name { order: 1; font-size: 1.05rem; white-space: nowrap; }
+  .supplier-row__meta { order: 2; margin: 0; font-size: .9rem; white-space: nowrap; }
+  .supplier-row__stock { order: 3; white-space: nowrap; }
+  .supplier-row__price { order: 4; margin-left: auto; font-size: 1.35rem; white-space: nowrap; }
+  .supplier-row__actions { order: 5; margin: 0; display: block; }
+  .supplier-row__actions .btn { white-space: nowrap; }
+}
+
+/* Below desktop the mockup does not apply: keep the image above the copy, as
+   the mobile product page renders today. */
+@media (max-width: 1023px) {
+  .bottle-hero-media { order: -1; }
+}
+
+/* The drawer-only auth links were also rendering inside the desktop nav, so
+   "Sign in / Create account" and "List your business" each appeared twice
+   (once as a text link, once as a button). The actions group already carries
+   both on desktop. */
+@media (min-width: 861px) {
+  .drawer-links .nav-mobile-auth { display: none; }
+}
