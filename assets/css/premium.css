@@ -335,3 +335,15 @@ h1,h2,h3,h4{font-family:var(--serif);font-weight:400;letter-spacing:-.025em;colo
 @media (min-width: 861px) {
   .drawer-links .nav-mobile-auth { display: none; }
 }
+
+/* Venue card subtitle — mirrors the venue page line "<type> in <area>". */
+.venue-sub {
+  color: var(--muted, #a7a093);
+  font-size: .92rem;
+  line-height: 1.5;
+  margin: 8px 0 0;
+  max-width: 46ch;
+}
+@media (max-width: 640px) {
+  .venue-sub { font-size: .88rem; margin-top: 6px; }
+}

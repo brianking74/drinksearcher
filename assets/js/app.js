@@ -2218,6 +2218,10 @@ async function saveDashboardProfile() {
     var patch = {};
     if (typeEl && typeEl.value) patch[col] = typeEl.value;
     if (cityEl && cityEl.value.trim()) patch.area = cityEl.value.trim();
+    // Venues publish their own Google Maps listing; the directory falls back to a
+    // name search until this is set.
+    var mapsEl = document.getElementById('dash-profile-maps');
+    if (role === 'venue' && mapsEl && mapsEl.value.trim()) patch.maps_url = mapsEl.value.trim();
 
     if (!Object.keys(patch).length) { say('<div class="notice">Profile updated.</div>'); return; }
 
