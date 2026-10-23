@@ -57,18 +57,40 @@ async function resolveEmail({ to, userId, supplierId, leadId }) {
   return null
 }
 
+// ── Email shell ─────────────────────────────────────────────────────────────
+// Light grey page, white card, gold wordmark top right. Built with tables
+// because Outlook ignores most div-based layout. Web fonts are best-effort
+// (Apple Mail honours them, Gmail strips the @import) with real fallbacks so it
+// still reads properly: Instrument Serif -> Georgia, DM Sans -> Helvetica.
+const LOGO_URL = `${SITE}/assets/brand/drinksearcher-logo.png`;
+const FONT_BODY = `'DM Sans',-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif`;
+const FONT_DISPLAY = `'Instrument Serif',Georgia,'Times New Roman',serif`;
+
 const shell = (kicker, title, body) => `
-  <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:560px;margin:0 auto;background:#0d1117;color:#c9d1d9;border-radius:10px;overflow:hidden;">
-    <div style="background:linear-gradient(135deg,#08080c,#141820);padding:36px 32px;text-align:center;border-bottom:1px solid rgba(189,161,111,.15);">
-      <p style="font-size:.72rem;text-transform:uppercase;letter-spacing:.15em;color:#bda16f;margin:0 0 10px;">${kicker}</p>
-      <h1 style="color:#fff;margin:0;font-size:1.35rem;font-weight:700;">${title}</h1>
-    </div>
-    <div style="padding:32px;">
-      ${body}
-      <p style="color:#484f58;font-size:.75rem;margin:28px 0 0;">drinksearcher.net — Hong Kong's drink discovery marketplace.</p>
-    </div>
-  </div>
-`
+<div style="margin:0;padding:0;background:#f1f0ec;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f1f0ec;padding:32px 16px;">
+  <tr><td align="center">
+    <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px;max-width:600px;background:#ffffff;border:1px solid #e6e3dc;border-radius:10px;overflow:hidden;">
+      <tr><td align="right" style="padding:26px 32px 0;">
+        <a href="${SITE}" style="text-decoration:none;border:0;"><img src="${LOGO_URL}" width="104" height="104" alt="DrinkSearcher" style="display:block;width:104px;height:104px;border:0;outline:none;text-decoration:none;" /></a>
+      </td></tr>
+      <tr><td style="padding:6px 32px 0;">
+        <p style="margin:0 0 8px;font-family:${FONT_BODY};font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#bda16f;font-weight:500;">${kicker}</p>
+        <h1 style="margin:0 0 22px;font-family:${FONT_DISPLAY};font-weight:400;font-size:31px;line-height:1.22;color:#161616;letter-spacing:-.01em;">${title}</h1>
+        <div style="height:1px;line-height:1px;font-size:0;background:#eae6dd;margin:0 0 26px;">&nbsp;</div>
+      </td></tr>
+      <tr><td style="padding:0 32px 34px;font-family:${FONT_BODY};font-size:15px;line-height:1.7;color:#3f3f3f;">
+        ${body}
+      </td></tr>
+      <tr><td style="padding:20px 32px 24px;border-top:1px solid #eae6dd;background:#fcfbf8;">
+        <p style="margin:0;font-family:${FONT_BODY};font-size:12px;line-height:1.6;color:#8c8c8c;">
+          <a href="${SITE}" style="color:#bda16f;text-decoration:none;">drinksearcher.net</a> — Hong Kong&rsquo;s drink discovery marketplace.
+        </p>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</div>`
 
 const TEMPLATES = {
   // --- Welcome — consumer signup ---
@@ -76,8 +98,8 @@ const TEMPLATES = {
     subject: `Welcome to drinksearcher.net, ${esc(data.name) || 'friend'}`,
     html: shell(
       'Your account is ready',
-      `Welcome to <span style="color:#bda16f;">drinksearcher</span><span style="color:#fff;">.net</span>`,
-      `<p style="color:#c9d1d9;line-height:1.7;margin:0 0 20px;">Hi${data.name ? ` ${esc(data.name.split(' ')[0])}` : ''}, your account is set up. You can now save bottles, follow bars, track events, and discover what's actually available in Hong Kong.</p>
+      `Welcome to <span style="color:#bda16f;">drinksearcher</span><span style="color:#161616;">.net</span>`,
+      `<p style="color:#3f3f3f;line-height:1.7;margin:0 0 20px;">Hi${data.name ? ` ${esc(data.name.split(' ')[0])}` : ''}, your account is set up. You can now save bottles, follow bars, track events, and discover what's actually available in Hong Kong.</p>
        <a href="${SITE}/account.html" style="display:inline-block;background:#bda16f;color:#000;padding:13px 30px;border-radius:6px;text-decoration:none;font-weight:600;">Explore your account →</a>`
     )
   }),
@@ -87,12 +109,12 @@ const TEMPLATES = {
     subject: `Welcome to drinksearcher.net — let's get your ${data.listingType === 'venue' ? 'venue' : 'supplier'} listing live`,
     html: shell(
       'Application received',
-      `${esc(data.businessName) || data.name}, welcome to <span style="color:#bda16f;">drinksearcher</span><span style="color:#fff;">.net</span>`,
-      `<p style="color:#c9d1d9;line-height:1.7;margin:0 0 20px;">We've received your ${data.listingType === 'venue' ? 'venue claim' : 'supplier application'} and will review it within 24–48 hours. Once approved, your business will appear across the directory.</p>
-       <div style="background:rgba(189,161,111,.06);border-left:3px solid #bda16f;padding:14px 18px;border-radius:0 6px 6px 0;margin:0 0 24px;">
-         <p style="color:#c9d1d9;font-size:.88rem;line-height:1.6;margin:0;"><strong style="color:#bda16f;">Next steps:</strong> while we review, you can open your dashboard to add listings and update your profile.</p>
+      `${esc(data.businessName) || data.name}, welcome to <span style="color:#bda16f;">drinksearcher</span><span style="color:#161616;">.net</span>`,
+      `<p style="color:#3f3f3f;line-height:1.7;margin:0 0 20px;">We've received your ${data.listingType === 'venue' ? 'venue claim' : 'supplier application'} and will review it within 24–48 hours. Once approved, your business will appear across the directory.</p>
+       <div style="background:#fbf7ef;border-left:3px solid #bda16f;padding:14px 18px;border-radius:0 6px 6px 0;margin:0 0 24px;">
+         <p style="color:#3f3f3f;font-size:.88rem;line-height:1.6;margin:0;"><strong style="color:#bda16f;">Next steps:</strong> while we review, you can open your dashboard to add listings and update your profile.</p>
        </div>
-       <p style="color:#8b949e;font-size:.84rem;line-height:1.7;margin:0 0 24px;">Once your listing is live you'll receive a monthly snapshot email showing your profile views and how many visitors clicked through to your site. You can turn it off any time from your dashboard.</p>
+       <p style="color:#6f6f6f;font-size:.84rem;line-height:1.7;margin:0 0 24px;">Once your listing is live you'll receive a monthly snapshot email showing your profile views and how many visitors clicked through to your site. You can turn it off any time from your dashboard.</p>
        <a href="${SITE}/dashboard.html?role=${esc(data.listingType)}" style="display:inline-block;background:#bda16f;color:#000;padding:13px 30px;border-radius:6px;text-decoration:none;font-weight:600;">Open your dashboard →</a>`
     )
   }),
@@ -103,8 +125,8 @@ const TEMPLATES = {
     html: shell(
       'Application approved',
       `You're live, ${esc(data.businessName) || 'friend'} 🎉`,
-      `<p style="color:#c9d1d9;line-height:1.7;margin:0 0 20px;">Good news — your ${data.listingType === 'venue' ? 'venue' : 'supplier'} listing <strong style="color:#fff;">${esc(data.businessName) || ''}</strong> is now live in the drinksearcher.net directory${data.matched_existing ? ' (linked to your existing listing)' : ''}.</p>
-       <p style="color:#c9d1d9;line-height:1.7;margin:0 0 20px;">Now's the time to add ${data.listingType === 'venue' ? 'events and booking links' : 'your product catalogue'}, upload imagery, and make your profile stand out.</p>
+      `<p style="color:#3f3f3f;line-height:1.7;margin:0 0 20px;">Good news — your ${data.listingType === 'venue' ? 'venue' : 'supplier'} listing <strong style="color:#161616;">${esc(data.businessName) || ''}</strong> is now live in the drinksearcher.net directory${data.matched_existing ? ' (linked to your existing listing)' : ''}.</p>
+       <p style="color:#3f3f3f;line-height:1.7;margin:0 0 20px;">Now's the time to add ${data.listingType === 'venue' ? 'events and booking links' : 'your product catalogue'}, upload imagery, and make your profile stand out.</p>
        <a href="${SITE}/dashboard.html?role=${esc(data.listingType)}" style="display:inline-block;background:#bda16f;color:#000;padding:13px 30px;border-radius:6px;text-decoration:none;font-weight:600;">Open your dashboard →</a>`
     )
   }),
@@ -115,8 +137,8 @@ const TEMPLATES = {
     html: shell(
       'Application update',
       `Regarding ${esc(data.businessName) || 'your application'}`,
-      `<p style="color:#c9d1d9;line-height:1.7;margin:0 0 20px;">Thanks for your interest in listing on drinksearcher.net. We weren't able to approve your ${data.listingType === 'venue' ? 'venue' : 'supplier'} application at this time.</p>
-       <p style="color:#c9d1d9;line-height:1.7;margin:0;">If you'd like to discuss this or provide more details, just reply to this email — we're happy to take another look.</p>`
+      `<p style="color:#3f3f3f;line-height:1.7;margin:0 0 20px;">Thanks for your interest in listing on drinksearcher.net. We weren't able to approve your ${data.listingType === 'venue' ? 'venue' : 'supplier'} application at this time.</p>
+       <p style="color:#3f3f3f;line-height:1.7;margin:0;">If you'd like to discuss this or provide more details, just reply to this email — we're happy to take another look.</p>`
     )
   }),
 
@@ -130,7 +152,7 @@ const TEMPLATES = {
     const count = Number(data.count) || names.length;
     const many = count > 1;
     const first = esc(names[0] || '');
-    const list = names.slice(0, 15).map((n) => `<li style="color:#c9d1d9;line-height:1.7;">${esc(n)}</li>`).join('');
+    const list = names.slice(0, 15).map((n) => `<li style="color:#3f3f3f;line-height:1.7;">${esc(n)}</li>`).join('');
     const shown = many ? `<ul style="margin:0 0 20px;padding-left:20px;">${list}</ul>` : '';
     const subject = data.status === 'approved'
       ? (many ? `✓ ${count} drinks are now live on drinksearcher.net` : `✓ Your drink "${first}" is now live on drinksearcher.net`)
@@ -142,7 +164,7 @@ const TEMPLATES = {
         data.status === 'approved'
           ? (many ? `✓ ${count} drinks approved` : `✓ ${first}`)
           : (many ? `! ${count} drinks need changes` : `! ${first}`),
-        `<p style="color:#c9d1d9;line-height:1.7;margin:0 0 20px;">${data.status === 'approved'
+        `<p style="color:#3f3f3f;line-height:1.7;margin:0 0 20px;">${data.status === 'approved'
           ? (many ? `${count} of your listings are now live. Customers can discover them, compare prices, and click through to your store.` : 'Your drink is now live. Customers can discover it, compare prices, and click through to your store.')
           : (many ? `${count} of your listings need changes before they can go live. Check your dashboard for what needs updating.` : 'Your drink submission needs a few changes before it can go live. Check your dashboard for what needs updating.')}</p>
          ${shown}
@@ -159,7 +181,7 @@ const TEMPLATES = {
     html: shell(
       data.status === 'approved' ? 'Event approved' : 'Updates needed',
       `${data.status === 'approved' ? '✓' : '!'} ${esc(data.eventName)}`,
-      `<p style="color:#c9d1d9;line-height:1.7;margin:0 0 20px;">${data.status === 'approved'
+      `<p style="color:#3f3f3f;line-height:1.7;margin:0 0 20px;">${data.status === 'approved'
         ? 'Your event is now live in the events directory, so drink lovers can discover and plan around it.'
         : 'Your event submission needs a few changes before it can go live. Check your dashboard for what needs updating.'}</p>
        <a href="${SITE}/dashboard.html?role=venue" style="display:inline-block;background:#bda16f;color:#000;padding:13px 30px;border-radius:6px;text-decoration:none;font-weight:600;">View dashboard →</a>`
@@ -180,12 +202,12 @@ const TEMPLATES = {
         'Inventory import',
         'Your import has finished',
         `<table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
-          <tr style="border-bottom:1px solid rgba(255,255,255,.06);"><td style="padding:10px 0;color:#8b949e;">Rows read</td><td style="padding:10px 0;text-align:right;color:#f1eee6;">${total}</td></tr>
-          <tr style="border-bottom:1px solid rgba(255,255,255,.06);"><td style="padding:10px 0;color:#8b949e;">New listings</td><td style="padding:10px 0;text-align:right;color:#f1eee6;">${inserted}</td></tr>
-          <tr style="border-bottom:1px solid rgba(255,255,255,.06);"><td style="padding:10px 0;color:#8b949e;">Updated</td><td style="padding:10px 0;text-align:right;color:#f1eee6;">${updated}</td></tr>
-          <tr><td style="padding:10px 0;color:#8b949e;">Failed</td><td style="padding:10px 0;text-align:right;color:${failed ? '#ff8fa3' : '#f1eee6'};">${failed}</td></tr>
+          <tr style="border-bottom:1px solid #ecebe7;"><td style="padding:10px 0;color:#6f6f6f;">Rows read</td><td style="padding:10px 0;text-align:right;color:#f1eee6;">${total}</td></tr>
+          <tr style="border-bottom:1px solid #ecebe7;"><td style="padding:10px 0;color:#6f6f6f;">New listings</td><td style="padding:10px 0;text-align:right;color:#f1eee6;">${inserted}</td></tr>
+          <tr style="border-bottom:1px solid #ecebe7;"><td style="padding:10px 0;color:#6f6f6f;">Updated</td><td style="padding:10px 0;text-align:right;color:#f1eee6;">${updated}</td></tr>
+          <tr><td style="padding:10px 0;color:#6f6f6f;">Failed</td><td style="padding:10px 0;text-align:right;color:${failed ? '#ff8fa3' : '#f1eee6'};">${failed}</td></tr>
         </table>
-        <p style="color:#c9d1d9;line-height:1.7;margin:0 0 20px;">${
+        <p style="color:#3f3f3f;line-height:1.7;margin:0 0 20px;">${
           inserted
             ? 'New listings are pending review and appear in the directory once approved.'
             : 'No new listings were added — existing rows were updated in place.'
@@ -202,10 +224,10 @@ const TEMPLATES = {
       'New business lead',
       data.businessName || 'New lead',
       `<table style="width:100%;border-collapse:collapse;">
-        <tr style="border-bottom:1px solid rgba(255,255,255,.04);"><td style="padding:10px 0;color:#8b949e;width:90px;">Business</td><td style="padding:10px 0;color:#c9d1d9;">${esc(data.businessName) || '—'}</td></tr>
-        <tr style="border-bottom:1px solid rgba(255,255,255,.04);"><td style="padding:10px 0;color:#8b949e;">Type</td><td style="padding:10px 0;color:#c9d1d9;">${data.listingType === 'venue' ? 'Bar / Restaurant / Venue' : 'Supplier / Merchant'}</td></tr>
-        <tr style="border-bottom:1px solid rgba(255,255,255,.04);"><td style="padding:10px 0;color:#8b949e;">Contact</td><td style="padding:10px 0;color:#c9d1d9;">${esc(data.contactName) || '—'}</td></tr>
-        <tr><td style="padding:10px 0;color:#8b949e;">Email</td><td style="padding:10px 0;color:#bda16f;">${esc(data.email) || '—'}</td></tr>
+        <tr style="border-bottom:1px solid #f0efec;"><td style="padding:10px 0;color:#6f6f6f;width:90px;">Business</td><td style="padding:10px 0;color:#3f3f3f;">${esc(data.businessName) || '—'}</td></tr>
+        <tr style="border-bottom:1px solid #f0efec;"><td style="padding:10px 0;color:#6f6f6f;">Type</td><td style="padding:10px 0;color:#3f3f3f;">${data.listingType === 'venue' ? 'Bar / Restaurant / Venue' : 'Supplier / Merchant'}</td></tr>
+        <tr style="border-bottom:1px solid #f0efec;"><td style="padding:10px 0;color:#6f6f6f;">Contact</td><td style="padding:10px 0;color:#3f3f3f;">${esc(data.contactName) || '—'}</td></tr>
+        <tr><td style="padding:10px 0;color:#6f6f6f;">Email</td><td style="padding:10px 0;color:#bda16f;">${esc(data.email) || '—'}</td></tr>
       </table>
       <a href="${SITE}/admin.html" style="display:inline-block;background:#bda16f;color:#000;padding:12px 28px;border-radius:6px;text-decoration:none;font-weight:600;margin-top:24px;">View in admin panel →</a>`
     )
@@ -218,9 +240,9 @@ const TEMPLATES = {
       'New event pending',
       data.eventName || 'New event',
       `<table style="width:100%;border-collapse:collapse;">
-        <tr style="border-bottom:1px solid rgba(255,255,255,.04);"><td style="padding:10px 0;color:#8b949e;width:90px;">Event</td><td style="padding:10px 0;color:#c9d1d9;">${esc(data.eventName) || '—'}</td></tr>
-        <tr style="border-bottom:1px solid rgba(255,255,255,.04);"><td style="padding:10px 0;color:#8b949e;">Venue</td><td style="padding:10px 0;color:#c9d1d9;">${esc(data.venue) || '—'}</td></tr>
-        <tr><td style="padding:10px 0;color:#8b949e;">Date</td><td style="padding:10px 0;color:#c9d1d9;">${esc(data.date) || '—'}</td></tr>
+        <tr style="border-bottom:1px solid #f0efec;"><td style="padding:10px 0;color:#6f6f6f;width:90px;">Event</td><td style="padding:10px 0;color:#3f3f3f;">${esc(data.eventName) || '—'}</td></tr>
+        <tr style="border-bottom:1px solid #f0efec;"><td style="padding:10px 0;color:#6f6f6f;">Venue</td><td style="padding:10px 0;color:#3f3f3f;">${esc(data.venue) || '—'}</td></tr>
+        <tr><td style="padding:10px 0;color:#6f6f6f;">Date</td><td style="padding:10px 0;color:#3f3f3f;">${esc(data.date) || '—'}</td></tr>
       </table>
       <a href="${SITE}/admin.html" style="display:inline-block;background:#bda16f;color:#000;padding:12px 28px;border-radius:6px;text-decoration:none;font-weight:600;margin-top:24px;">Review in admin panel →</a>`
     )
