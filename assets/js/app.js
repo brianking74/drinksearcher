@@ -445,6 +445,26 @@ document.addEventListener('click', (ev) => {
   if (runDsAction(el.getAttribute('data-action'))) ev.preventDefault();
 });
 
+// Business types offered on the lead form and in the dashboard. Must stay in
+// step with the allowlist in supabase/functions/submit-lead — the server rejects
+// anything outside it, so a drift here shows up as a silently empty type.
+const BUSINESS_TYPES = {
+  merchant: ['Wine Merchant', 'Wine & Spirits Retailer', 'Spirits Specialist',
+    'Whisky Specialist', 'Sake Specialist', 'Craft Beer & Cider',
+    'Importer / Distributor', 'Non-alcoholic', 'Other'],
+  venue: ['Cocktail Bar', 'Wine Bar', 'Speakeasy', 'Rooftop Bar', 'Hotel Bar / Lounge',
+    'Restaurant', 'Sake & Izakaya', 'Craft Beer Bar', 'Live Music Bar', 'Other']
+};
+function businessTypeOptions(kind, selected) {
+  const key = kind === 'venue' ? 'venue' : 'merchant';
+  return '<option value="">Select a business type</option>' +
+    BUSINESS_TYPES[key].map(t =>
+      `<option value="${safe(t)}"${t === (selected || '') ? ' selected' : ''}>${safe(t)}</option>`
+    ).join('');
+}
+window.BUSINESS_TYPES = BUSINESS_TYPES;
+window.businessTypeOptions = businessTypeOptions;
+
 function navHTML(active = '', user) {
   const links = [
     ['index.html','Home'],
@@ -1512,7 +1532,7 @@ function renderLeadCapturePage() {
     ? `<div class="notice">Signed in as ${user.email}. Your details are prefilled and any submission will appear in your account dashboard.</div>`
     : `<div class="notice">Have an account already? <a class="text-jade" href="signin.html">Sign in</a> to prefill your details and track submissions.</div>`;
   app.innerHTML = `
-    <section class="hero" style="min-height:62vh;"><div class="hero-media" style="background-image:url('${requestedType === 'venue' ? siteImages.rooftop : siteImages.shop}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">List your business / Claim your venue</span><h1>${requestedType === 'venue' ? 'Claim your venue and start turning visibility into bookings.' : 'List your business and start turning discovery into sales.'}</h1><p class="lead">Tell us about your business and we'll help match you with the right listing, profile, and visibility options.</p><div class="hero-actions"><a class="btn btn-primary" href="pricing.html">Back to pricing</a><a class="btn btn-ghost" href="${user ? 'account.html' : 'signin.html'}">${user ? 'My account' : 'Sign in'}</a></div></div><div class="search-shell"><span class="eyebrow">Application form</span>${signedInNote}<div class="notice">Start with the right listing and we’ll organise the details you need for profile, visibility, and next-step setup.</div><form id="lead-form" class="form-grid" style="margin-top:14px;"><select class="select full" name="listingType"><option value="merchant" ${requestedType === 'merchant' ? 'selected' : ''}>Supplier / Merchant</option><option value="venue" ${requestedType === 'venue' ? 'selected' : ''}>Bar / Restaurant / Venue</option></select><input class="input" name="businessName" placeholder="Business name" required /><input class="input" name="contactName" placeholder="Contact name" value="${user?.name || ''}" required /><input class="input" name="email" type="email" placeholder="Email" value="${user?.email || ''}" required />${!user ? '<input class="input full" name="password" type="password" placeholder="Create password (required for new accounts)" required />' : ''}<div class="turnstile-mount" style="margin-top:12px;"></div><button class="btn btn-primary full" type="submit">Create Account</button></form><div id="lead-notice"></div></div></div></section>
+    <section class="hero" style="min-height:62vh;"><div class="hero-media" style="background-image:url('${requestedType === 'venue' ? siteImages.rooftop : siteImages.shop}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">List your business / Claim your venue</span><h1>${requestedType === 'venue' ? 'Claim your venue and start turning visibility into bookings.' : 'List your business and start turning discovery into sales.'}</h1><p class="lead">Tell us about your business and we'll help match you with the right listing, profile, and visibility options.</p><div class="hero-actions"><a class="btn btn-primary" href="pricing.html">Back to pricing</a><a class="btn btn-ghost" href="${user ? 'account.html' : 'signin.html'}">${user ? 'My account' : 'Sign in'}</a></div></div><div class="search-shell"><span class="eyebrow">Application form</span>${signedInNote}<div class="notice">Start with the right listing and we’ll organise the details you need for profile, visibility, and next-step setup.</div><form id="lead-form" class="form-grid" style="margin-top:14px;"><select class="select full" name="listingType"><option value="merchant" ${requestedType === 'merchant' ? 'selected' : ''}>Supplier / Merchant</option><option value="venue" ${requestedType === 'venue' ? 'selected' : ''}>Bar / Restaurant / Venue</option></select><input class="input" name="businessName" placeholder="Business name" required /><input class="input" name="contactName" placeholder="Contact name" value="${user?.name || ''}" required /><input class="input" name="email" type="email" placeholder="Email" value="${user?.email || ''}" required /><select class="select" name="businessType" id="lead-business-type" aria-label="Business type">${businessTypeOptions(requestedType)}</select>${!user ? '<input class="input full" name="password" type="password" placeholder="Create password (required for new accounts)" required />' : ''}<div class="turnstile-mount" style="margin-top:12px;"></div><button class="btn btn-primary full" type="submit">Create Account</button></form><div id="lead-notice"></div></div></div></section>
     <section class="section"><div class="container grid grid-2"><div class="panel"><span class="eyebrow">What happens next</span><h2 style="margin:14px 0;">What happens next.</h2><div class="muted" style="display:grid; gap:12px;"><span>• We review your application and listing details.</span><span>• If you're signed in, your account information pre-fills automatically.</span><span>• We confirm the right plan, profile type, and any featured add-ons.</span><span>• Once approved, your business can appear across the directory, profile pages, and relevant discovery sections.</span></div></div><div class="panel"><span class="eyebrow">Why this matters</span><h2 style="margin:14px 0;">Why list on drinksearcher.net.</h2><p class="muted">This is where suppliers and venues move from browsing to joining — with a clear path into profiles, product visibility, featured placements, and direct customer discovery.</p><div class="inline-actions" style="margin-top:18px;"><a class="btn btn-ghost btn-small" href="suppliers.html">View suppliers</a><a class="btn btn-ghost btn-small" href="bars-restaurants.html">View venues</a></div></div></div></section>`;
 
   mountTurnstile(app);
@@ -1542,6 +1562,12 @@ function renderLeadCapturePage() {
   }
 
   const typeField = $('[name="listingType"]', app);
+  // Suppliers and venues are different kinds of business, so the list changes
+  // with the listing type.
+  if (typeField) typeField.addEventListener('change', () => {
+    const sel = $('#lead-business-type', app);
+    if (sel) sel.innerHTML = businessTypeOptions(typeField.value);
+  });
   const leadNotice = $('#lead-notice', app);
 
   $('#lead-form').addEventListener('submit', async e => {
@@ -1601,6 +1627,7 @@ function renderLeadCapturePage() {
       contactName,
       email,
       source,
+      businessType: form.get('businessType') || '',
       claimedSlug: claimSlug || ''
     };
     let lead = null;
@@ -2163,16 +2190,44 @@ function saveDashboardEvents() {
   renderBusinessDashboardPage();
 }
 
-function saveDashboardProfile() {
+// Persists the business type (and district) to the business row itself. Before
+// this it only wrote to localStorage and announced success, so the directory's
+// business type could never be corrected from the dashboard.
+async function saveDashboardProfile() {
   var s = storage.getDashboardState();
   if (!s) return;
   var nameEl = document.getElementById('dash-profile-name');
   var cityEl = document.getElementById('dash-profile-city');
+  var typeEl = document.getElementById('dash-profile-type');
   if (nameEl) s.profileName = nameEl.value;
   if (cityEl) s.profileCity = cityEl.value;
   storage.setDashboardState(s);
+
   var notice = document.getElementById('dash-profile-notice');
-  if (notice) notice.innerHTML = '<div class="notice">Profile updated.</div>';
+  var say = function (html) { if (notice) notice.innerHTML = html; };
+  say('<div class="notice">Saving…</div>');
+
+  try {
+    var user = await dsAuth.getCurrentUser();
+    if (!user || !user.id) throw new Error('Please sign in again.');
+
+    var role = s.activeRole === 'venue' ? 'venue' : 'merchant';
+    var table = role === 'venue' ? 'venues' : 'suppliers';
+    var col = role === 'venue' ? 'cuisine' : 'specialty';
+
+    var patch = {};
+    if (typeEl && typeEl.value) patch[col] = typeEl.value;
+    if (cityEl && cityEl.value.trim()) patch.area = cityEl.value.trim();
+
+    if (!Object.keys(patch).length) { say('<div class="notice">Profile updated.</div>'); return; }
+
+    var res = await sb.from(table).update(patch).eq('user_id', user.id);
+    if (res && res.error) throw res.error;
+    say('<div class="notice">Profile updated.</div>');
+  } catch (e) {
+    say('<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Could not save: '
+      + safe(e && e.message ? e.message : 'please try again') + '</div>');
+  }
 }
 
 function fillSampleTemplate() {

@@ -91,9 +91,28 @@ Deno.serve(async (req) => {
   if (!businessName) return json({ error: 'Business name is required.' }, 400)
   const listingType = clean(payload.listingType) === 'venue' ? 'venue' : 'merchant'
 
+  // Business type comes from a closed dropdown on the form. Only accept a value
+  // from the matching list, so the directory can never be filled with arbitrary
+  // text from a crafted request — an empty or unknown value is stored as null and
+  // the business simply starts without a type.
+  const BUSINESS_TYPES: Record<string, string[]> = {
+    merchant: [
+      'Wine Merchant', 'Wine & Spirits Retailer', 'Spirits Specialist',
+      'Whisky Specialist', 'Sake Specialist', 'Craft Beer & Cider',
+      'Importer / Distributor', 'Non-alcoholic', 'Other'
+    ],
+    venue: [
+      'Cocktail Bar', 'Wine Bar', 'Speakeasy', 'Rooftop Bar', 'Hotel Bar / Lounge',
+      'Restaurant', 'Sake & Izakaya', 'Craft Beer Bar', 'Live Music Bar', 'Other'
+    ]
+  }
+  const businessTypeRaw = clean(payload.businessType)
+  const businessType = BUSINESS_TYPES[listingType].includes(businessTypeRaw) ? businessTypeRaw : null
+
   const { data, error } = await admin.from('leads').insert({
     account_email: accountEmail,
     listing_type: listingType,
+    business_type: businessType,
     business_name: businessName,
     contact_name: clean(payload.contactName),
     email,
