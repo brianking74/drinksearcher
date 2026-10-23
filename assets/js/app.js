@@ -457,6 +457,14 @@ function galleryImage(src) {
 }
 window.galleryImage = galleryImage;
 
+// The venue gallery is a paid benefit. 'standard' is the free Venue Starter tier,
+// so anything else counts as paid.
+function isPaidVenue(v) {
+  const t = String((v && v.tier) || 'standard').toLowerCase();
+  return t !== 'standard' && t !== 'free' && t !== '';
+}
+window.isPaidVenue = isPaidVenue;
+
 // Gallery arrows are delegated because the carousel only exists on some pages.
 document.addEventListener('click', (ev) => {
   const btn = ev.target && ev.target.closest ? ev.target.closest('.gallery-arrow') : null;
@@ -1804,9 +1812,9 @@ async function renderVenueProfile() {
   const summaryText = v.summary || ((v.specialty ? 'Known for ' + v.specialty.toLowerCase() + '.' : '') + ' A ' + (v.cuisine || 'bar') + (v.area ? ' in ' + v.area : '') + (v.price ? ' with ' + v.price.toLowerCase() + ' pricing' : '') + '.');
   
   app.innerHTML = `
-    <section class="profile-hero"><div class="hero-media" style="background-image:url('${heroBg}')"></div><div class="container profile-content"><div>${logo ? `<img src="${safe(logo)}" alt="Logo" style="width:80px;height:80px;object-fit:cover;border-radius:12px;border:1px solid rgba(255,255,255,.18);margin-bottom:16px;" />` : ''}<span class="kicker">${v.tier === 'enhanced' ? 'Featured venue' : 'Venue'}</span><h1>${safe(v.name)}</h1><p class="lead" style="margin-top:16px;">${safe(v.specialty || v.cuisine || '')}${v.area ? ` in ${safe(v.area)}` : ''}</p>${summaryText ? `<p style="margin-top:14px;max-width:60ch;color:var(--muted);font-size:1.02rem;line-height:1.65;">${safe(summaryText)}</p>` : ''}<div class="info-strip">${v.area ? `<div class="info-chip"><div class="muted">Area</div><strong>${safe(v.area)}</strong></div>` : ''}<div class="info-chip"><div class="muted">Category</div><strong>${safe(v.cuisine || 'Bar')}</strong></div>${v.rating ? `<div class="info-chip"><div class="muted">Rating</div><strong>★ ${safe(v.rating)}</strong></div>` : ''}${v.price ? `<div class="info-chip"><div class="muted">Price</div><strong>${safe(v.price)}</strong></div>` : ''}</div></div><div class="panel"><span class="eyebrow">Quick actions</span><div class="inline-actions" style="margin-top:16px;">${v.booking_url ? `<a class="btn btn-primary" href="${safe(v.booking_url)}" target="_blank" rel="noreferrer"${venueBookingAttrs(v, 'profile')}>Book now</a>` : ''}${website !== '#' ? `<a class="btn ${v.booking_url ? 'btn-ghost' : 'btn-secondary'}" href="${safe(website)}" target="_blank" rel="noreferrer">Visit website</a>` : ''}${saveButton({id:`venue:${slug}`, name:v.name, kind:'venue', href:`venue-template.html?slug=${slug}`, meta:v.area})}</div>${v.phone ? `<hr class="sep"><div class="muted" style="display:grid; gap:8px;"><span>${safe(v.phone)}</span><span>${safe(v.price || '')} · ${safe(v.cuisine || '')}</span></div>` : ''}</div></div></section>
+    <section class="profile-hero"><div class="hero-media" style="background-image:url('${heroBg}')"></div><div class="container profile-content"><div>${logo ? `<img src="${safe(logo)}" alt="Logo" style="width:80px;height:80px;object-fit:cover;border-radius:12px;border:1px solid rgba(255,255,255,.18);margin-bottom:16px;" />` : ''}<span class="kicker">${v.tier === 'enhanced' ? 'Featured venue' : 'Venue'}</span><h1>${safe(v.name)}</h1><p class="lead" style="margin-top:16px;">${safe(v.specialty || v.cuisine || '')}${v.area ? ` in ${safe(v.area)}` : ''}</p>${summaryText ? `<p style="margin-top:14px;max-width:60ch;color:var(--muted);font-size:1.02rem;line-height:1.65;">${safe(summaryText)}</p>` : ''}<div class="info-strip">${v.area ? `<div class="info-chip"><div class="muted">Area</div><strong>${safe(v.area)}</strong></div>` : ''}<div class="info-chip"><div class="muted">Category</div><strong>${safe(v.cuisine || 'Bar')}</strong></div>${v.rating ? `<div class="info-chip"><div class="muted">Rating</div><strong>★ ${safe(v.rating)}</strong></div>` : ''}${v.price ? `<div class="info-chip"><div class="muted">Price</div><strong>${safe(v.price)}</strong></div>` : ''}${v.cuisine_type ? `<div class="info-chip"><div class="muted">Cuisine</div><strong>${safe(v.cuisine_type)}</strong></div>` : ''}</div></div><div class="panel"><span class="eyebrow">Quick actions</span><div class="inline-actions" style="margin-top:16px;">${v.booking_url ? `<a class="btn btn-primary" href="${safe(v.booking_url)}" target="_blank" rel="noreferrer"${venueBookingAttrs(v, 'profile')}>Book now</a>` : ''}${website !== '#' ? `<a class="btn ${v.booking_url ? 'btn-ghost' : 'btn-secondary'}" href="${safe(website)}" target="_blank" rel="noreferrer">Visit website</a>` : ''}${saveButton({id:`venue:${slug}`, name:v.name, kind:'venue', href:`venue-template.html?slug=${slug}`, meta:v.area})}</div>${v.phone ? `<hr class="sep"><div class="muted" style="display:grid; gap:8px;"><span>${safe(v.phone)}</span><span>${safe(v.price || '')} · ${safe(v.cuisine || '')}</span></div>` : ''}</div></div></section>
     <section class="section-tight"><div class="container ${claimed ? '' : 'grid grid-2'}"><div class="panel"><span class="eyebrow">Contact & details</span><h3 style="margin:14px 0;">Plan your visit.</h3><div class="muted" style="display:grid; gap:10px;">${v.phone ? '<span>📞 ' + safe(v.phone) + '</span>' : ''}${v.area ? '<span>' + safe(v.area) + '</span>' : ''}${v.booking ? '<span>📅 Book via ' + safe(v.booking) + '</span>' : ''}</div></div>${claimed ? '' : `<div class="panel"><span class="eyebrow">Claim your venue</span><h3 style="margin:14px 0;">Own this venue?</h3><p class="muted">Add direct booking links, imagery, and promoted placement so guests find you first.</p><div class="inline-actions" style="margin-top:18px;"><a class="btn btn-primary" href="list-your-business.html?type=venue&claim=${encodeURIComponent(slug)}">Claim your venue</a></div></div>`}</div></section>
-    ${Array.isArray(v.gallery) && v.gallery.length ? `
+    ${isPaidVenue(v) && Array.isArray(v.gallery) && v.gallery.length ? `
     <section class="section venue-gallery">
       <div class="container">
         <div class="section-head"><div><span class="eyebrow">Gallery</span><h2>Inside <span class="text-pink headline-script">${safe(v.name)}</span></h2></div><div class="carousel-controls"><button class="carousel-arrow gallery-arrow" type="button" data-dir="-1" aria-label="Previous image">←</button><button class="carousel-arrow gallery-arrow" type="button" data-dir="1" aria-label="Next image">→</button></div></div>
@@ -2327,6 +2335,9 @@ async function saveDashboardProfile() {
     // Booking link drives the "Book now" button in Quick actions.
     var bookEl = document.getElementById('dash-profile-booking');
     if (role === 'venue' && bookEl && bookEl.value.trim()) patch.booking_url = bookEl.value.trim();
+    // Food style, shown as the Cuisine block on the venue page.
+    var cuiEl = document.getElementById('dash-profile-cuisine');
+    if (role === 'venue' && cuiEl && cuiEl.value.trim()) patch.cuisine_type = cuiEl.value.trim();
 
     if (!Object.keys(patch).length) { say('<div class="notice">Profile updated.</div>'); return; }
 

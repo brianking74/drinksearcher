@@ -735,7 +735,10 @@ textarea:focus-visible {
 /* ── Profile Pages ── */
 
 .info-strip {
-  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 20px;
+  /* auto-fit, not a fixed 4: a venue without a price used to leave an empty cell
+     showing the strip's background as a grey box. Any number of chips now fills
+     the row. */
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); gap: 12px; margin-top: 20px;
 }
 .info-chip {
   padding: 14px 16px;
