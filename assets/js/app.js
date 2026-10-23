@@ -1782,22 +1782,19 @@ async function renderVenueProfile() {
   const summaryText = v.summary || ((v.specialty ? 'Known for ' + v.specialty.toLowerCase() + '.' : '') + ' A ' + (v.cuisine || 'bar') + (v.area ? ' in ' + v.area : '') + (v.price ? ' with ' + v.price.toLowerCase() + ' pricing' : '') + '.');
   
   app.innerHTML = `
-    <section class="profile-hero"><div class="hero-media" style="background-image:url('${heroBg}')"></div><div class="container profile-content"><div>${logo ? `<img src="${safe(logo)}" alt="Logo" style="width:80px;height:80px;object-fit:cover;border-radius:12px;border:1px solid rgba(255,255,255,.18);margin-bottom:16px;" />` : ''}<span class="kicker">${v.tier === 'enhanced' ? 'Featured venue' : 'Venue'}</span><h1>${safe(v.name)}</h1><p class="lead" style="margin-top:16px;">${safe(v.specialty || v.cuisine || '')}${v.area ? ` in ${safe(v.area)}` : ''}</p>${summaryText ? `<p style="margin-top:14px;max-width:60ch;color:var(--muted);font-size:1.02rem;line-height:1.65;">${safe(summaryText)}</p>` : ''}<div class="info-strip">${v.area ? `<div class="info-chip"><div class="muted">Area</div><strong>${safe(v.area)}</strong></div>` : ''}<div class="info-chip"><div class="muted">Category</div><strong>${safe(v.cuisine || 'Bar')}</strong></div>${v.rating ? `<div class="info-chip"><div class="muted">Rating</div><strong>★ ${safe(v.rating)}</strong></div>` : ''}<div class="info-chip"><div class="muted">Price</div><strong>${safe(v.price || 'N/A')}</strong></div></div></div><div class="panel"><span class="eyebrow">Quick actions</span><div class="inline-actions" style="margin-top:16px;">${website !== '#' ? `<a class="btn btn-secondary" href="${safe(website)}" target="_blank" rel="noreferrer"${venueBookingAttrs(v)}>${v.booking ? 'Book via ' + safe(v.booking) : 'Visit website'}</a>` : ''}${saveButton({id:`venue:${slug}`, name:v.name, kind:'venue', href:`venue-template.html?slug=${slug}`, meta:v.area})}</div>${v.phone ? `<hr class="sep"><div class="muted" style="display:grid; gap:8px;"><span>${safe(v.phone)}</span><span>${safe(v.price || '')} · ${safe(v.cuisine || '')}</span></div>` : ''}</div></div></section>
+    <section class="profile-hero"><div class="hero-media" style="background-image:url('${heroBg}')"></div><div class="container profile-content"><div>${logo ? `<img src="${safe(logo)}" alt="Logo" style="width:80px;height:80px;object-fit:cover;border-radius:12px;border:1px solid rgba(255,255,255,.18);margin-bottom:16px;" />` : ''}<span class="kicker">${v.tier === 'enhanced' ? 'Featured venue' : 'Venue'}</span><h1>${safe(v.name)}</h1><p class="lead" style="margin-top:16px;">${safe(v.specialty || v.cuisine || '')}${v.area ? ` in ${safe(v.area)}` : ''}</p>${summaryText ? `<p style="margin-top:14px;max-width:60ch;color:var(--muted);font-size:1.02rem;line-height:1.65;">${safe(summaryText)}</p>` : ''}<div class="info-strip">${v.area ? `<div class="info-chip"><div class="muted">Area</div><strong>${safe(v.area)}</strong></div>` : ''}<div class="info-chip"><div class="muted">Category</div><strong>${safe(v.cuisine || 'Bar')}</strong></div>${v.rating ? `<div class="info-chip"><div class="muted">Rating</div><strong>★ ${safe(v.rating)}</strong></div>` : ''}${v.price ? `<div class="info-chip"><div class="muted">Price</div><strong>${safe(v.price)}</strong></div>` : ''}</div></div><div class="panel"><span class="eyebrow">Quick actions</span><div class="inline-actions" style="margin-top:16px;">${v.booking_url ? `<a class="btn btn-primary" href="${safe(v.booking_url)}" target="_blank" rel="noreferrer"${venueBookingAttrs(v, 'profile')}>Book now</a>` : ''}${website !== '#' ? `<a class="btn ${v.booking_url ? 'btn-ghost' : 'btn-secondary'}" href="${safe(website)}" target="_blank" rel="noreferrer">Visit website</a>` : ''}${saveButton({id:`venue:${slug}`, name:v.name, kind:'venue', href:`venue-template.html?slug=${slug}`, meta:v.area})}</div>${v.phone ? `<hr class="sep"><div class="muted" style="display:grid; gap:8px;"><span>${safe(v.phone)}</span><span>${safe(v.price || '')} · ${safe(v.cuisine || '')}</span></div>` : ''}</div></div></section>
     <section class="section-tight"><div class="container ${claimed ? '' : 'grid grid-2'}"><div class="panel"><span class="eyebrow">Contact & details</span><h3 style="margin:14px 0;">Plan your visit.</h3><div class="muted" style="display:grid; gap:10px;">${v.phone ? '<span>📞 ' + safe(v.phone) + '</span>' : ''}${v.area ? '<span>' + safe(v.area) + '</span>' : ''}${v.booking ? '<span>📅 Book via ' + safe(v.booking) + '</span>' : ''}</div></div>${claimed ? '' : `<div class="panel"><span class="eyebrow">Claim your venue</span><h3 style="margin:14px 0;">Own this venue?</h3><p class="muted">Add direct booking links, imagery, and promoted placement so guests find you first.</p><div class="inline-actions" style="margin-top:18px;"><a class="btn btn-primary" href="list-your-business.html?type=venue&claim=${encodeURIComponent(slug)}">Claim your venue</a></div></div>`}</div></section>
-    ${v.tier === 'enhanced' && v.instagram_handle ? `
+    ${v.instagram_handle ? `
     <section class="section instagram-section">
       <div class="container">
         <div class="section-head"><div><span class="eyebrow">Instagram</span><h2>Follow <span class="text-pink headline-script">@${safe(v.instagram_handle.replace('@',''))}</span></h2><p class="lead" style="margin-top:14px;">See what's happening at ${safe(v.name)} — real-time posts, events, and guest moments.</p></div><a class="btn btn-primary" href="https://instagram.com/${safe(v.instagram_handle.replace('@',''))}" target="_blank" rel="noreferrer">Follow on Instagram</a></div>
-        <div class="instagram-feed-grid">
-          ${['','','','','',''].map((_,i) => `
-          <div class="instagram-card">
-            <a href="https://instagram.com/${v.instagram_handle.replace('@','')}" target="_blank" rel="noreferrer">
-              <div class="instagram-post-placeholder" style="background:linear-gradient(135deg, rgba(255,255,255,.04) 0%, rgba(255,255,255,.01) 100%);border:1px solid rgba(255,255,255,.06);border-radius:10px;aspect-ratio:1;display:flex;align-items:center;justify-content:center;">
-                <span style="font-size:2.2rem;opacity:.6;">📸</span>
-              </div>
-            </a>
-          </div>`).join('')}
-        </div>
+        ${Array.isArray(v.instagram_posts) && v.instagram_posts.length ? `
+        <div class="instagram-strip">
+          ${v.instagram_posts.slice(0, 12).map(p => `
+          <a class="instagram-tile" href="${safe(p.permalink || ('https://instagram.com/' + v.instagram_handle.replace('@','')))}" target="_blank" rel="noreferrer">
+            <img src="${safe(p.image || '')}" alt="${safe((p.caption || '').slice(0, 80) || 'Instagram post from ' + v.name)}" loading="lazy" onerror="this.parentNode.style.display='none'" />
+          </a>`).join('')}
+        </div>` : ''}
       </div>
     </section>` : ''}`;
   bindSaveButtons(app);
@@ -2222,6 +2219,9 @@ async function saveDashboardProfile() {
     // name search until this is set.
     var mapsEl = document.getElementById('dash-profile-maps');
     if (role === 'venue' && mapsEl && mapsEl.value.trim()) patch.maps_url = mapsEl.value.trim();
+    // Booking link drives the "Book now" button in Quick actions.
+    var bookEl = document.getElementById('dash-profile-booking');
+    if (role === 'venue' && bookEl && bookEl.value.trim()) patch.booking_url = bookEl.value.trim();
 
     if (!Object.keys(patch).length) { say('<div class="notice">Profile updated.</div>'); return; }
 
