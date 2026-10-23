@@ -407,7 +407,7 @@ window.statBlockHTML = statBlockHTML;
 // CSP (which is what protects this site from injected script), markup emits
 // data-action="fn('arg')" and one delegated handler dispatches it against an
 // explicit allowlist — no eval, and only these names can ever run.
-const DS_ACTIONS = ['addDashboardEvent', 'addDashboardEventRow', 'addDashboardItem', 'adminAddEventFromForm', 'bulkImportEvents', 'closeProductEdit', 'dsDashboardImageRemove', 'dsDashboardImageUpload', 'fetchMissingImages', 'fillSampleTemplate', 'importInventory', 'moderateEvent', 'removeDashboardEvent', 'removeDashboardEventRow', 'removeDashboardItem', 'saveDashboardEventRow', 'saveDashboardEvents', 'saveDashboardItems', 'saveDashboardProfile', 'saveProductEdit', 'signOutNow', 'startCheckout'];
+const DS_ACTIONS = ['addDashboardEvent', 'addDashboardEventRow', 'addDashboardItem', 'adminAddEventFromForm', 'bulkImportEvents', 'closeProductEdit', 'dsDashboardImageRemove', 'dsDashboardImageUpload', 'fetchMissingImages', 'fillSampleTemplate', 'importInventory', 'moderateEvent', 'removeDashboardEvent', 'removeDashboardEventRow', 'removeDashboardItem', 'removeVenueGalleryImage', 'saveDashboardEventRow', 'saveDashboardEvents', 'saveDashboardItems', 'saveDashboardProfile', 'saveProductEdit', 'signOutNow', 'startCheckout'];
 function runDsAction(expr) {
   // Zero-argument actions ("signOutNow") and calls with arguments
   // ("startCheckout('merchant_enhanced')") both have to work. The first version
@@ -443,6 +443,28 @@ document.addEventListener('click', (ev) => {
   const el = ev.target && ev.target.closest ? ev.target.closest('[data-action]') : null;
   if (!el) return;
   if (runDsAction(el.getAttribute('data-action'))) ev.preventDefault();
+});
+
+// Venue gallery tiles are square. Cloudinary does the crop so a portrait phone
+// photo doesn't letterbox inside the carousel.
+function galleryImage(src) {
+  const raw = String(src || '');
+  if (!raw) return '';
+  if (/res\.cloudinary\.com/.test(raw) && !/\/upload\/(c_|w_|h_)/.test(raw)) {
+    return raw.replace('/upload/', '/upload/c_fill,w_800,h_800,q_auto,f_auto/');
+  }
+  return raw;
+}
+window.galleryImage = galleryImage;
+
+// Gallery arrows are delegated because the carousel only exists on some pages.
+document.addEventListener('click', (ev) => {
+  const btn = ev.target && ev.target.closest ? ev.target.closest('.gallery-arrow') : null;
+  if (!btn) return;
+  const track = document.getElementById('venue-gallery');
+  if (!track) return;
+  const step = Math.max(240, Math.round(track.clientWidth * 0.5));
+  track.scrollBy({ left: Number(btn.dataset.dir || 1) * step, behavior: 'smooth' });
 });
 
 // Business types offered on the lead form and in the dashboard. Must stay in
@@ -1784,17 +1806,13 @@ async function renderVenueProfile() {
   app.innerHTML = `
     <section class="profile-hero"><div class="hero-media" style="background-image:url('${heroBg}')"></div><div class="container profile-content"><div>${logo ? `<img src="${safe(logo)}" alt="Logo" style="width:80px;height:80px;object-fit:cover;border-radius:12px;border:1px solid rgba(255,255,255,.18);margin-bottom:16px;" />` : ''}<span class="kicker">${v.tier === 'enhanced' ? 'Featured venue' : 'Venue'}</span><h1>${safe(v.name)}</h1><p class="lead" style="margin-top:16px;">${safe(v.specialty || v.cuisine || '')}${v.area ? ` in ${safe(v.area)}` : ''}</p>${summaryText ? `<p style="margin-top:14px;max-width:60ch;color:var(--muted);font-size:1.02rem;line-height:1.65;">${safe(summaryText)}</p>` : ''}<div class="info-strip">${v.area ? `<div class="info-chip"><div class="muted">Area</div><strong>${safe(v.area)}</strong></div>` : ''}<div class="info-chip"><div class="muted">Category</div><strong>${safe(v.cuisine || 'Bar')}</strong></div>${v.rating ? `<div class="info-chip"><div class="muted">Rating</div><strong>★ ${safe(v.rating)}</strong></div>` : ''}${v.price ? `<div class="info-chip"><div class="muted">Price</div><strong>${safe(v.price)}</strong></div>` : ''}</div></div><div class="panel"><span class="eyebrow">Quick actions</span><div class="inline-actions" style="margin-top:16px;">${v.booking_url ? `<a class="btn btn-primary" href="${safe(v.booking_url)}" target="_blank" rel="noreferrer"${venueBookingAttrs(v, 'profile')}>Book now</a>` : ''}${website !== '#' ? `<a class="btn ${v.booking_url ? 'btn-ghost' : 'btn-secondary'}" href="${safe(website)}" target="_blank" rel="noreferrer">Visit website</a>` : ''}${saveButton({id:`venue:${slug}`, name:v.name, kind:'venue', href:`venue-template.html?slug=${slug}`, meta:v.area})}</div>${v.phone ? `<hr class="sep"><div class="muted" style="display:grid; gap:8px;"><span>${safe(v.phone)}</span><span>${safe(v.price || '')} · ${safe(v.cuisine || '')}</span></div>` : ''}</div></div></section>
     <section class="section-tight"><div class="container ${claimed ? '' : 'grid grid-2'}"><div class="panel"><span class="eyebrow">Contact & details</span><h3 style="margin:14px 0;">Plan your visit.</h3><div class="muted" style="display:grid; gap:10px;">${v.phone ? '<span>📞 ' + safe(v.phone) + '</span>' : ''}${v.area ? '<span>' + safe(v.area) + '</span>' : ''}${v.booking ? '<span>📅 Book via ' + safe(v.booking) + '</span>' : ''}</div></div>${claimed ? '' : `<div class="panel"><span class="eyebrow">Claim your venue</span><h3 style="margin:14px 0;">Own this venue?</h3><p class="muted">Add direct booking links, imagery, and promoted placement so guests find you first.</p><div class="inline-actions" style="margin-top:18px;"><a class="btn btn-primary" href="list-your-business.html?type=venue&claim=${encodeURIComponent(slug)}">Claim your venue</a></div></div>`}</div></section>
-    ${v.instagram_handle ? `
-    <section class="section instagram-section">
+    ${Array.isArray(v.gallery) && v.gallery.length ? `
+    <section class="section venue-gallery">
       <div class="container">
-        <div class="section-head"><div><span class="eyebrow">Instagram</span><h2>Follow <span class="text-pink headline-script">@${safe(v.instagram_handle.replace('@',''))}</span></h2><p class="lead" style="margin-top:14px;">See what's happening at ${safe(v.name)} — real-time posts, events, and guest moments.</p></div><a class="btn btn-primary" href="https://instagram.com/${safe(v.instagram_handle.replace('@',''))}" target="_blank" rel="noreferrer">Follow on Instagram</a></div>
-        ${Array.isArray(v.instagram_posts) && v.instagram_posts.length ? `
-        <div class="instagram-strip">
-          ${v.instagram_posts.slice(0, 12).map(p => `
-          <a class="instagram-tile" href="${safe(p.permalink || ('https://instagram.com/' + v.instagram_handle.replace('@','')))}" target="_blank" rel="noreferrer">
-            <img src="${safe(p.image || '')}" alt="${safe((p.caption || '').slice(0, 80) || 'Instagram post from ' + v.name)}" loading="lazy" onerror="this.parentNode.style.display='none'" />
-          </a>`).join('')}
-        </div>` : ''}
+        <div class="section-head"><div><span class="eyebrow">Gallery</span><h2>Inside <span class="text-pink headline-script">${safe(v.name)}</span></h2></div><div class="carousel-controls"><button class="carousel-arrow gallery-arrow" type="button" data-dir="-1" aria-label="Previous image">←</button><button class="carousel-arrow gallery-arrow" type="button" data-dir="1" aria-label="Next image">→</button></div></div>
+        <div class="gallery-track" id="venue-gallery">
+          ${v.gallery.slice(0, 10).map((src, i) => `<figure class="gallery-slide"><img src="${safe(galleryImage(src))}" alt="${safe(v.name)} gallery image ${i + 1}" loading="lazy" /></figure>`).join('')}
+        </div>
       </div>
     </section>` : ''}`;
   bindSaveButtons(app);
@@ -2185,6 +2203,93 @@ function saveDashboardEvents() {
   });
   storage.setDashboardState(s);
   renderBusinessDashboardPage();
+}
+
+// ── Venue gallery (up to 10 square images) ──────────────────────────────────
+// Files are uploaded through the signed upload-image function (slot 'venues'),
+// which keeps the Cloudinary secret server-side; the resulting URLs are stored
+// on venues.gallery, which the database also caps at 10.
+let _venueGallery = [];
+
+async function loadVenueGallery() {
+  try {
+    const user = await dsAuth.getCurrentUser();
+    if (!user || !user.id) { _venueGallery = []; return _venueGallery; }
+    const res = await sb.from('venues').select('gallery').eq('user_id', user.id).maybeSingle();
+    const g = res && res.data ? res.data.gallery : null;
+    _venueGallery = Array.isArray(g) ? g.slice(0, 10) : [];
+  } catch (e) { _venueGallery = []; }
+  return _venueGallery;
+}
+
+async function saveVenueGallery() {
+  const user = await dsAuth.getCurrentUser();
+  if (!user || !user.id) throw new Error('Please sign in again.');
+  const res = await sb.from('venues').update({ gallery: _venueGallery }).eq('user_id', user.id);
+  if (res && res.error) throw res.error;
+}
+
+async function renderVenueGalleryEditor() {
+  const holder = document.getElementById('venue-gallery-editor');
+  if (!holder) return;
+  await loadVenueGallery();
+  holder.innerHTML = _venueGallery.length
+    ? _venueGallery.map((src, i) => `<figure class="dash-gallery__item"><img src="${safe(galleryImage(src))}" alt="" /><button type="button" class="dash-gallery__remove" data-action="removeVenueGalleryImage(${i})" aria-label="Remove image">×</button></figure>`).join('')
+    : '<p class="muted" style="margin:0;font-size:.88rem;">No images yet — add up to 10 square photos for your gallery.</p>';
+}
+
+async function addVenueGalleryImages(files, input) {
+  const notice = document.getElementById('venue-gallery-notice');
+  const say = (html) => { if (notice) notice.innerHTML = html; };
+  const list = Array.from(files || []);
+  if (!list.length) return;
+  const room = 10 - _venueGallery.length;
+  if (room <= 0) { say('<div class="notice">You already have 10 images — remove one first.</div>'); if (input) input.value = ''; return; }
+  say('<div class="notice">Uploading…</div>');
+  let added = 0, failed = 0;
+  for (const file of list.slice(0, room)) {
+    try {
+      if (!/^image\//.test(file.type)) throw new Error('not an image');
+      if (file.size > 10 * 1024 * 1024) throw new Error('too large');
+      const dataUri = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const session = await sb.auth.getSession();
+      const token = session && session.data && session.data.session ? session.data.session.access_token : '';
+      if (!token) throw new Error('not signed in');
+      const resp = await fetch(SUPABASE_URL + '/functions/v1/upload-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ slot: 'venues', file: dataUri })
+      });
+      const out = await resp.json().catch(() => ({}));
+      if (!resp.ok || !out.url) throw new Error(out.error || 'upload failed');
+      _venueGallery.push(out.url);
+      added++;
+    } catch (e) { failed++; }
+  }
+  try { await saveVenueGallery(); }
+  catch (e) { say('<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Could not save gallery: ' + safe(e.message || '') + '</div>'); return; }
+  await renderVenueGalleryEditor();
+  if (input) input.value = '';
+  say('<div class="notice">Added ' + added + ' image' + (added === 1 ? '' : 's') + (failed ? ' — ' + failed + ' failed' : '') + '.</div>');
+}
+
+async function removeVenueGalleryImage(index) {
+  const i = Number(index);
+  if (!Number.isInteger(i) || i < 0 || i >= _venueGallery.length) return;
+  _venueGallery.splice(i, 1);
+  const notice = document.getElementById('venue-gallery-notice');
+  try {
+    await saveVenueGallery();
+    await renderVenueGalleryEditor();
+    if (notice) notice.innerHTML = '<div class="notice">Image removed.</div>';
+  } catch (e) {
+    if (notice) notice.innerHTML = '<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Could not save: ' + safe(e.message || '') + '</div>';
+  }
 }
 
 // Persists the business type (and district) to the business row itself. Before

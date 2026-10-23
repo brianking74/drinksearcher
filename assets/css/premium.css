@@ -348,23 +348,36 @@ h1,h2,h3,h4{font-family:var(--serif);font-weight:400;letter-spacing:-.025em;colo
   .venue-sub { font-size: .88rem; margin-top: 6px; }
 }
 
-/* Venue Instagram: a horizontal, swipeable strip of real posts. */
-.instagram-strip {
+/* Venue gallery carousel — square slides, snap scrolling. */
+.gallery-track {
   display: flex;
-  gap: 12px;
+  gap: 14px;
   overflow-x: auto;
   scroll-snap-type: x mandatory;
   padding-bottom: 10px;
   scrollbar-width: none;
 }
-.instagram-strip::-webkit-scrollbar { display: none; }
-.instagram-tile {
-  flex: 0 0 clamp(150px, 17vw, 210px);
+.gallery-track::-webkit-scrollbar { display: none; }
+.gallery-slide {
+  flex: 0 0 clamp(200px, 24vw, 320px);
   aspect-ratio: 1;
+  margin: 0;
   border-radius: 10px;
   overflow: hidden;
   scroll-snap-align: start;
   border: 1px solid var(--border, rgba(255,255,255,.07));
   background: #0c0e0f;
 }
-.instagram-tile img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.gallery-slide img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* Dashboard gallery editor */
+.dash-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 10px; }
+.dash-gallery__item { position: relative; margin: 0; aspect-ratio: 1; border-radius: 8px; overflow: hidden; border: 1px solid var(--border, rgba(255,255,255,.07)); background: #0c0e0f; }
+.dash-gallery__item img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.dash-gallery__remove {
+  position: absolute; top: 4px; right: 4px;
+  width: 26px; height: 26px; border-radius: 50%; border: 0;
+  background: rgba(10,10,12,.82); color: #fff;
+  font-size: 15px; line-height: 1; cursor: pointer;
+}
+.dash-gallery__remove:hover { background: #7b3d49; }
