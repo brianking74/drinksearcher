@@ -457,6 +457,16 @@ function galleryImage(src) {
 }
 window.galleryImage = galleryImage;
 
+// "French Café in Central", "Central" when there is no type, and never a bare
+// "in Central" — which is what a venue with no cuisine was rendering.
+function venueSubtitle(v) {
+  const type = (v && (v.specialty || v.cuisine)) || '';
+  const area = (v && v.area) || '';
+  if (type && area) return type + ' in ' + area;
+  return type || area || '';
+}
+window.venueSubtitle = venueSubtitle;
+
 // The venue gallery is a paid benefit. 'standard' is the free Venue Starter tier,
 // so anything else counts as paid.
 function isPaidVenue(v) {
@@ -1812,8 +1822,8 @@ async function renderVenueProfile() {
   const summaryText = v.summary || ((v.specialty ? 'Known for ' + v.specialty.toLowerCase() + '.' : '') + ' A ' + (v.cuisine || 'bar') + (v.area ? ' in ' + v.area : '') + (v.price ? ' with ' + v.price.toLowerCase() + ' pricing' : '') + '.');
   
   app.innerHTML = `
-    <section class="profile-hero"><div class="hero-media" style="background-image:url('${heroBg}')"></div><div class="container profile-content"><div>${logo ? `<img src="${safe(logo)}" alt="Logo" style="width:80px;height:80px;object-fit:cover;border-radius:12px;border:1px solid rgba(255,255,255,.18);margin-bottom:16px;" />` : ''}<span class="kicker">${v.tier === 'enhanced' ? 'Featured venue' : 'Venue'}</span><h1>${safe(v.name)}</h1><p class="lead" style="margin-top:16px;">${safe(v.specialty || v.cuisine || '')}${v.area ? ` in ${safe(v.area)}` : ''}</p>${summaryText ? `<p style="margin-top:14px;max-width:60ch;color:var(--muted);font-size:1.02rem;line-height:1.65;">${safe(summaryText)}</p>` : ''}<div class="info-strip">${v.area ? `<div class="info-chip"><div class="muted">Area</div><strong>${safe(v.area)}</strong></div>` : ''}<div class="info-chip"><div class="muted">Category</div><strong>${safe(v.cuisine || 'Bar')}</strong></div>${v.rating ? `<div class="info-chip"><div class="muted">Rating</div><strong>★ ${safe(v.rating)}</strong></div>` : ''}${v.price ? `<div class="info-chip"><div class="muted">Price</div><strong>${safe(v.price)}</strong></div>` : ''}${v.cuisine_type ? `<div class="info-chip"><div class="muted">Cuisine</div><strong>${safe(v.cuisine_type)}</strong></div>` : ''}</div></div><div class="panel"><span class="eyebrow">Quick actions</span><div class="inline-actions" style="margin-top:16px;">${v.booking_url ? `<a class="btn btn-primary" href="${safe(v.booking_url)}" target="_blank" rel="noreferrer"${venueBookingAttrs(v, 'profile')}>Book now</a>` : ''}${website !== '#' ? `<a class="btn ${v.booking_url ? 'btn-ghost' : 'btn-secondary'}" href="${safe(website)}" target="_blank" rel="noreferrer">Visit website</a>` : ''}${saveButton({id:`venue:${slug}`, name:v.name, kind:'venue', href:`venue-template.html?slug=${slug}`, meta:v.area})}</div>${v.phone ? `<hr class="sep"><div class="muted" style="display:grid; gap:8px;"><span>${safe(v.phone)}</span><span>${safe(v.price || '')} · ${safe(v.cuisine || '')}</span></div>` : ''}</div></div></section>
-    <section class="section-tight"><div class="container ${claimed ? '' : 'grid grid-2'}"><div class="panel"><span class="eyebrow">Contact & details</span><h3 style="margin:14px 0;">Plan your visit.</h3><div class="muted" style="display:grid; gap:10px;">${v.phone ? '<span>📞 ' + safe(v.phone) + '</span>' : ''}${v.area ? '<span>' + safe(v.area) + '</span>' : ''}${v.booking ? '<span>📅 Book via ' + safe(v.booking) + '</span>' : ''}</div></div>${claimed ? '' : `<div class="panel"><span class="eyebrow">Claim your venue</span><h3 style="margin:14px 0;">Own this venue?</h3><p class="muted">Add direct booking links, imagery, and promoted placement so guests find you first.</p><div class="inline-actions" style="margin-top:18px;"><a class="btn btn-primary" href="list-your-business.html?type=venue&claim=${encodeURIComponent(slug)}">Claim your venue</a></div></div>`}</div></section>
+    <section class="profile-hero"><div class="hero-media" style="background-image:url('${heroBg}')"></div><div class="container profile-content"><div>${logo ? `<img src="${safe(logo)}" alt="Logo" style="width:80px;height:80px;object-fit:cover;border-radius:12px;border:1px solid rgba(255,255,255,.18);margin-bottom:16px;" />` : ''}<span class="kicker">${v.tier === 'enhanced' ? 'Featured venue' : 'Venue'}</span><h1>${safe(v.name)}</h1><p class="lead" style="margin-top:16px;">${safe(venueSubtitle(v))}</p>${summaryText ? `<p style="margin-top:14px;max-width:60ch;color:var(--muted);font-size:1.02rem;line-height:1.65;">${safe(summaryText)}</p>` : ''}<div class="info-strip">${v.area ? `<div class="info-chip"><div class="muted">Area</div><strong>${safe(v.area)}</strong></div>` : ''}${v.cuisine ? `<div class="info-chip"><div class="muted">Category</div><strong>${safe(v.cuisine)}</strong></div>` : ''}${v.rating ? `<div class="info-chip"><div class="muted">Rating</div><strong>★ ${safe(v.rating)}</strong></div>` : ''}${v.price ? `<div class="info-chip"><div class="muted">Price</div><strong>${safe(v.price)}</strong></div>` : ''}${v.cuisine_type ? `<div class="info-chip"><div class="muted">Cuisine</div><strong>${safe(v.cuisine_type)}</strong></div>` : ''}</div></div><div class="panel"><span class="eyebrow">Quick actions</span><div class="inline-actions" style="margin-top:16px;">${v.booking_url ? `<a class="btn btn-primary" href="${safe(v.booking_url)}" target="_blank" rel="noreferrer"${venueBookingAttrs(v, 'profile')}>Book now</a>` : ''}${website !== '#' ? `<a class="btn ${v.booking_url ? 'btn-ghost' : 'btn-secondary'}" href="${safe(website)}" target="_blank" rel="noreferrer">Visit website</a>` : ''}${saveButton({id:`venue:${slug}`, name:v.name, kind:'venue', href:`venue-template.html?slug=${slug}`, meta:v.area})}</div>${v.phone ? `<hr class="sep"><div class="muted" style="display:grid; gap:8px;"><span>${safe(v.phone)}</span>${(v.price || v.cuisine) ? `<span>${[v.price, v.cuisine].filter(Boolean).map(safe).join(' · ')}</span>` : ''}</div>` : ''}</div></div></section>
+    <section class="section-tight"><div class="container ${claimed ? '' : 'grid grid-2'}"><div class="panel"><span class="eyebrow">Contact & details</span><h3 style="margin:14px 0;">Plan your visit.</h3><div class="muted" style="display:grid; gap:10px;">${v.phone ? '<span>📞 ' + safe(v.phone) + '</span>' : ''}${v.area ? '<span>' + safe(v.area) + '</span>' : ''}${v.booking ? '<span>📅 Book via ' + safe(v.booking) + '</span>' : ''}</div></div>${claimed ? `<div class="panel"><span class="eyebrow">Find us</span><h3 style="margin:14px 0;">${safe(v.name)}${v.area ? ` · ${safe(v.area)}` : ''}</h3><div style="border-radius:8px;overflow:hidden;border:1px solid var(--border);"><iframe title="Map of ${safe(v.name)}" src="https://maps.google.com/maps?q=${encodeURIComponent(((v.name || '') + ' ' + (v.area || '') + ' Hong Kong').trim())}&output=embed" width="100%" height="300" style="border:0;display:block;" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe></div>${v.maps_url ? `<div class="inline-actions" style="margin-top:14px;"><a class="btn btn-ghost btn-small" href="${safe(v.maps_url)}" target="_blank" rel="noreferrer">Open in Google Maps</a></div>` : ''}</div>` : `<div class="panel"><span class="eyebrow">Claim your venue</span><h3 style="margin:14px 0;">Own this venue?</h3><p class="muted">Add direct booking links, imagery, and promoted placement so guests find you first.</p><div class="inline-actions" style="margin-top:18px;"><a class="btn btn-primary" href="list-your-business.html?type=venue&claim=${encodeURIComponent(slug)}">Claim your venue</a></div></div>`}</div></section>
     ${isPaidVenue(v) && Array.isArray(v.gallery) && v.gallery.length ? `
     <section class="section venue-gallery">
       <div class="container">
@@ -2722,6 +2732,11 @@ async function renderBusinessDashboardPage() {
                   <div id="venue-gallery-notice"></div>
                   <div class="small-note">Square, e.g. 800 × 800 px. Shows as a carousel on your venue page. Available on Venue Enhanced and above.</div>
                 </div>` : ''}
+                ${role === 'venue' ? `<div class="dashboard-field"><span>Category</span><input class="input" id="dash-v-category" placeholder="e.g. French Café" /></div>
+                <div class="dashboard-field"><span>Cuisine</span><input class="input" id="dash-v-cuisine" placeholder="e.g. French" /></div>
+                <div class="dashboard-field"><span>Price band</span><input class="input" id="dash-v-price" placeholder="e.g. $$ or HK$200–400" /></div>
+                <div class="dashboard-field"><span>Booking link</span><input class="input" id="dash-v-booking" placeholder="https://…" /></div>
+                <div class="dashboard-field full" style="grid-column:1/-1;"><span>Google Maps listing</span><input class="input" id="dash-v-maps" placeholder="https://maps.app.goo.gl/…" /></div>` : ''}
                 <button class="btn btn-primary full" type="submit">Save listing settings</button>
               </form>
               <div id="dashboard-notice"></div>
@@ -2958,6 +2973,24 @@ async function renderBusinessDashboardPage() {
           deliveryTime: config.deliveryTime,
           minOrder: config.minOrder
         });
+        // The RPC above doesn't carry the venue display fields, so they are written
+        // straight to the row under the owner's own RLS policy.
+        if (role === 'venue') {
+          const val = (id) => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
+          const patch = {};
+          if (val('dash-v-category')) patch.cuisine = val('dash-v-category');
+          if (val('dash-v-cuisine')) patch.cuisine_type = val('dash-v-cuisine');
+          if (val('dash-v-price')) patch.price = val('dash-v-price');
+          if (val('dash-v-booking')) patch.booking_url = val('dash-v-booking');
+          if (val('dash-v-maps')) patch.maps_url = val('dash-v-maps');
+          if (Object.keys(patch).length) {
+            const cu = await dsAuth.getCurrentUser();
+            if (cu && cu.id) {
+              const res = await sb.from('venues').update(patch).eq('user_id', cu.id);
+              if (res && res.error) throw res.error;
+            }
+          }
+        }
         notice.innerHTML = '<div class="notice">Listing settings saved to your profile.</div>';
       } catch (err) {
         notice.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Saved locally, but server sync failed: ${err.message || err}</div>`;
@@ -3071,6 +3104,23 @@ async function renderBusinessDashboardPage() {
       renderVenueGalleryEditor();
       const gi = document.getElementById('venue-gallery-input');
       if (gi) gi.addEventListener('change', () => addVenueGalleryImages(gi.files, gi));
+      // The venue display fields live on the venues row, not in the local
+      // dashboard state, so they have to be pulled in after render.
+      (async () => {
+        try {
+          const u = await dsAuth.getCurrentUser();
+          if (!u || !u.id) return;
+          const res = await sb.from('venues').select('cuisine,cuisine_type,price,booking_url,maps_url').eq('user_id', u.id).maybeSingle();
+          const d = res && res.data;
+          if (!d) return;
+          const set = (id, v) => { const el = document.getElementById(id); if (el && v) el.value = v; };
+          set('dash-v-category', d.cuisine);
+          set('dash-v-cuisine', d.cuisine_type);
+          set('dash-v-price', d.price);
+          set('dash-v-booking', d.booking_url);
+          set('dash-v-maps', d.maps_url);
+        } catch (e) { /* prefill is best-effort */ }
+      })();
     } catch (e) { /* the gallery editor is optional */ }
   }
   document.documentElement.dataset.appRendered = 'true';
