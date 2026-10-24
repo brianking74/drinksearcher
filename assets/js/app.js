@@ -407,7 +407,7 @@ window.statBlockHTML = statBlockHTML;
 // CSP (which is what protects this site from injected script), markup emits
 // data-action="fn('arg')" and one delegated handler dispatches it against an
 // explicit allowlist — no eval, and only these names can ever run.
-const DS_ACTIONS = ['addDashboardEvent', 'addDashboardEventRow', 'addDashboardItem', 'adminAddEventFromForm', 'bulkImportEvents', 'closeProductEdit', 'dsDashboardImageRemove', 'dsDashboardImageUpload', 'fetchMissingImages', 'fillSampleTemplate', 'importInventory', 'moderateEvent', 'removeDashboardEvent', 'removeDashboardEventRow', 'removeDashboardItem', 'removeVenueGalleryImage', 'saveDashboardEventRow', 'saveDashboardEvents', 'saveDashboardItems', 'saveDashboardProfile', 'saveProductEdit', 'signOutNow', 'startCheckout'];
+const DS_ACTIONS = ['addDashboardEvent', 'addDashboardEventRow', 'addDashboardItem', 'adminAddEventFromForm', 'bulkImportEvents', 'closeProductEdit', 'dsDashboardImageRemove', 'dsDashboardImageUpload', 'fetchMissingImages', 'fillSampleTemplate', 'importInventory', 'moderateEvent', 'removeDashboardEvent', 'removeDashboardEventRow', 'removeDashboardItem', 'removeVenueGalleryImage', 'uploadVenueGalleryImages', 'saveDashboardEventRow', 'saveDashboardEvents', 'saveDashboardItems', 'saveDashboardProfile', 'saveProductEdit', 'signOutNow', 'startCheckout'];
 function runDsAction(expr) {
   // Zero-argument actions ("signOutNow") and calls with arguments
   // ("startCheckout('merchant_enhanced')") both have to work. The first version
@@ -2296,6 +2296,20 @@ async function addVenueGalleryImages(files, input) {
   say('<div class="notice">Added ' + added + ' image' + (added === 1 ? '' : 's') + (failed ? ' — ' + failed + ' failed' : '') + '.</div>');
 }
 
+// Explicit button, mirroring the logo/header uploaders. Relying on the file
+// input's change event alone proved unreliable, so the upload is an action the
+// user presses and can see the result of.
+function uploadVenueGalleryImages() {
+  const input = document.getElementById('venue-gallery-input');
+  const notice = document.getElementById('venue-gallery-notice');
+  if (!input || !input.files || !input.files.length) {
+    if (notice) notice.innerHTML = '<div class="notice">Choose one or more images first, then press Upload images.</div>';
+    return;
+  }
+  addVenueGalleryImages(input.files, input);
+}
+window.uploadVenueGalleryImages = uploadVenueGalleryImages;
+
 async function removeVenueGalleryImage(index) {
   const i = Number(index);
   if (!Number.isInteger(i) || i < 0 || i >= _venueGallery.length) return;
@@ -2728,6 +2742,9 @@ async function renderBusinessDashboardPage() {
                 ${role === 'venue' ? `<div class="dashboard-field full" style="grid-column:1/-1;">
                   <span>Gallery — up to 10 square images</span>
                   <input class="input" type="file" id="venue-gallery-input" accept="image/*" multiple style="margin-top:8px;" />
+                  <div class="inline-actions" style="margin-top:10px;">
+                    <button class="btn btn-secondary btn-small" type="button" data-action="uploadVenueGalleryImages()">Upload images</button>
+                  </div>
                   <div id="venue-gallery-editor" class="dash-gallery" style="margin-top:12px;"></div>
                   <div id="venue-gallery-notice"></div>
                   <div class="small-note">Square, e.g. 800 × 800 px. Shows as a carousel on your venue page. Available on Venue Enhanced and above.</div>
