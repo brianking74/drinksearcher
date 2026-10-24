@@ -2715,6 +2715,13 @@ async function renderBusinessDashboardPage() {
                   <input type="hidden" name="hero_image" id="dashboard-header-input" value="${safe(config.heroImage || '')}" />
                   <div class="small-note">Wide banner, e.g. 1600 × 500 px (about 3:1). JPG, PNG or WebP, up to 5 MB. Shown as the full-width header across the top of your profile page.</div>
                 </div>
+                ${role === 'venue' ? `<div class="dashboard-field full" style="grid-column:1/-1;">
+                  <span>Gallery — up to 10 square images</span>
+                  <input class="input" type="file" id="venue-gallery-input" accept="image/*" multiple style="margin-top:8px;" />
+                  <div id="venue-gallery-editor" class="dash-gallery" style="margin-top:12px;"></div>
+                  <div id="venue-gallery-notice"></div>
+                  <div class="small-note">Square, e.g. 800 × 800 px. Shows as a carousel on your venue page. Available on Venue Enhanced and above.</div>
+                </div>` : ''}
                 <button class="btn btn-primary full" type="submit">Save listing settings</button>
               </form>
               <div id="dashboard-notice"></div>
@@ -3057,6 +3064,15 @@ async function renderBusinessDashboardPage() {
   };
   renderRole(state.activeRole || 'merchant');
   renderDashboardEvents();
+  // Venue gallery: thumbnails + file picker. renderRole rebuilds the DOM on a
+  // role switch, and this runs again with it.
+  if ((state.activeRole || 'merchant') === 'venue') {
+    try {
+      renderVenueGalleryEditor();
+      const gi = document.getElementById('venue-gallery-input');
+      if (gi) gi.addEventListener('change', () => addVenueGalleryImages(gi.files, gi));
+    } catch (e) { /* the gallery editor is optional */ }
+  }
   document.documentElement.dataset.appRendered = 'true';
 }
 
