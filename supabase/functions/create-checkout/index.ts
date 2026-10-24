@@ -84,16 +84,54 @@ serve(async (req) => {
     return json({ error: "Method not allowed" }, 405);
   }
 
-  const user = getUserFromAuth(req.headers.get("Authorization"));
-  if (!user) {
-    return json({ error: "You must be signed in to start checkout." }, 401);
-  }
-
-  let body: { plan?: string; successUrl?: string; cancelUrl?: string };
+  let body: { plan?: string; successUrl?: string; cancelUrl?: string; action?: string };
   try {
     body = await req.json();
   } catch {
     return json({ error: "Invalid JSON body" }, 400);
+  }
+
+  // ── Diagnostic: what will each plan actually charge? ──────────────────────
+  // The charged amount lives in Stripe, not in this repo — a wrong price ID
+  // silently charges the wrong money. This reports the resolved amount per plan.
+  // Read-only: it never creates a session, and it reveals nothing that isn't
+  // already public (the amounts are on pricing.html, and price IDs appear in
+  // every checkout URL). The platform still requires a JWT, so the site's own
+  // anon key is enough — that is what the pricing page uses anyway.
+  if (String(body.action || "") === "diagnose") {
+    const out: Record<string, unknown> = {};
+    for (const [planSlug, envName] of Object.entries(PRICE_ENV)) {
+      const id = Deno.env.get(envName);
+      if (!id) { out[planSlug] = { env: envName, error: "not configured" }; continue; }
+      try {
+        const res = await fetch(`${STRIPE_API}/prices/${id}`, {
+          headers: { Authorization: `Bearer ${STRIPE_SECRET_KEY}` },
+        });
+        const price = await res.json();
+        if (!res.ok) {
+          out[planSlug] = { env: envName, price_id: id, error: price?.error?.message || "lookup failed" };
+          continue;
+        }
+        out[planSlug] = {
+          env: envName,
+          price_id: id,
+          amount: price.unit_amount,
+          display: typeof price.unit_amount === "number" ? price.unit_amount / 100 : null,
+          currency: price.currency,
+          interval: price.recurring?.interval || "one-off",
+          active: price.active,
+          livemode: price.livemode,
+        };
+      } catch (e) {
+        out[planSlug] = { env: envName, error: String((e as Error)?.message || e) };
+      }
+    }
+    return json({ prices: out });
+  }
+
+  const user = getUserFromAuth(req.headers.get("Authorization"));
+  if (!user) {
+    return json({ error: "You must be signed in to start checkout." }, 401);
   }
 
   const plan = String(body.plan || "").trim();
