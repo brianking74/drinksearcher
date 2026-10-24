@@ -124,7 +124,11 @@ Deno.serve(async (req) => {
   const file = String(payload.file || '')
   if (!file) return json({ error: 'Missing file.' }, 400)
   // Accept data URIs, https URLs, and raw base64. Block anything exotic.
-  if (!/^(data:image\/(png|jpe?g|webp|gif);base64,|https:\/\/)/.test(file)) {
+  // Any image/* subtype is allowed: iPhone photos arrive as HEIC, which the old
+  // png|jpeg|webp|gif list rejected outright — so a phone upload failed for every
+  // file with a generic "Only image uploads are allowed". Cloudinary converts
+  // whatever it is given, and the MIME is only a hint.
+  if (!/^(data:image\/[a-z0-9.+-]+;base64,|https:\/\/)/i.test(file)) {
     return json({ error: 'Only image uploads are allowed.' }, 400)
   }
   // Size guard for base64 payloads (4/3 overhead).
