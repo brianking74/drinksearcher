@@ -2831,6 +2831,29 @@ async function renderBusinessDashboardPage() {
               </div>
             </div>
           </div>
+        </section>
+        <section class="section-tight">
+          <div class="container">
+            <div class="panel">
+              <span class="eyebrow">Add a product</span>
+              <h2 style="margin:14px 0;">Add one bottle by hand.</h2>
+              <p class="muted">For anything that isn't in your spreadsheet yet. New products go into moderation and appear on the site once approved.</p>
+              <form id="manual-product-form" class="form-grid">
+                <label class="dashboard-field full"><span>Product name</span><input class="input" name="name" maxlength="160" placeholder="e.g. Château La Tour de Mons Margaux 2022" /></label>
+                <label class="dashboard-field"><span>Category</span><select class="select" name="type"><option value="">Select…</option>${['Red Wine','White Wine','Rosé Wine','Champagne','Sparkling','Fortified Wine','Whisky','Tequila','Mezcal','Sake','Gin','Vodka','Rum','Cognac','Brandy','Liqueurs','Soju','Beer','Cider','Non-Alcoholic'].map(t=>`<option>${t}</option>`).join('')}</select></label>
+                <label class="dashboard-field"><span>Country</span><select class="select" name="origin"><option value="">Select…</option>${['France','Italy','Spain','Portugal','Germany','Austria','Australia','New Zealand','USA','Chile','Argentina','South Africa','Scotland','Ireland','England','Japan','Korea','China','Taiwan','Mexico','Caribbean','Denmark','Other'].map(t=>`<option>${t}</option>`).join('')}</select></label>
+                <label class="dashboard-field"><span>Variety</span><select class="select" name="varietal"><option value="">Not applicable</option>${['Cabernet Sauvignon','Merlot','Pinot Noir','Syrah / Shiraz','Cabernet Franc','Petit Verdot','Malbec','Tempranillo','Sangiovese','Nebbiolo','Grenache','Mourvèdre','Zinfandel','Chardonnay','Sauvignon Blanc','Riesling','Pinot Grigio','Chenin Blanc','Sémillon','Viognier','Glera','Albariño','Grüner Veltliner','Other'].map(t=>`<option>${t}</option>`).join('')}</select></label>
+                <label class="dashboard-field"><span>Availability</span><select class="select" name="availability"><option>In stock</option><option>Pre-order</option></select></label>
+                <label class="dashboard-field"><span>Price (HK$)</span><input class="input" name="price" inputmode="decimal" placeholder="480" /></label>
+                <label class="dashboard-field"><span>ABV</span><input class="input" name="abv" placeholder="e.g. 13.5%" /></label>
+                <label class="dashboard-field full"><span>Image URL</span><input class="input" name="image" placeholder="https://…" /></label>
+                <div class="dashboard-field full"><span>…or upload an image</span><input class="input" type="file" id="manual-image-file" accept="image/*" /><div class="small-note">Square works best. A file here overrides the URL above. Max 10 MB.</div></div>
+                <label class="dashboard-field full"><span>Product link</span><input class="input" name="buy_url" placeholder="https://yourstore.com/product" /></label>
+                <div class="full inline-actions"><button class="btn btn-primary" type="submit">Add product</button></div>
+              </form>
+              <div id="manual-product-notice"></div>
+            </div>
+          </div>
         </section>` : ''}
 
         ${role === 'merchant' ? `
@@ -3143,6 +3166,76 @@ async function renderBusinessDashboardPage() {
       })();
     } catch (e) { /* the gallery editor is optional */ }
   }
+  // Manual product entry: one bottle at a time. Inserts straight into the
+  // moderation queue (status 'pending', submitted_by = owner), so it behaves
+  // exactly like a sheet import row — it appears on the site once approved.
+  (function initManualProductForm(){
+    const form = document.getElementById('manual-product-form');
+    if (!form) return;
+    const notice = document.getElementById('manual-product-notice');
+    const say = (html) => { if (notice) notice.innerHTML = html; };
+    const fileEl = document.getElementById('manual-image-file');
+    const submitBtn = form.querySelector('button[type="submit"]');
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fd = new FormData(form);
+      const val = (k) => String(fd.get(k) || '').trim();
+      const name = val('name');
+      if (!name) { say('<div class="notice">Give the product a name first.</div>'); return; }
+      const original = submitBtn ? submitBtn.textContent : '';
+      if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Adding…'; }
+      say('<div class="notice">Adding product…</div>');
+      try {
+        let image = val('image');
+        const file = fileEl && fileEl.files && fileEl.files[0];
+        if (file) {
+          if (!/^image\//.test(file.type)) throw new Error('That file is not an image.');
+          if (file.size > 10 * 1024 * 1024) throw new Error('Image is over 10 MB.');
+          const dataUri = await new Promise((resolve, reject) => {
+            const r = new FileReader();
+            r.onload = () => resolve(r.result);
+            r.onerror = reject;
+            r.readAsDataURL(file);
+          });
+          const session = await sb.auth.getSession();
+          const token = session && session.data && session.data.session ? session.data.session.access_token : '';
+          if (!token) throw new Error('Please sign in again.');
+          const resp = await fetch(SUPABASE_URL + '/functions/v1/upload-image', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + token },
+            body: JSON.stringify({ slot: 'products', file: dataUri })
+          });
+          const out = await resp.json().catch(() => ({}));
+          if (!resp.ok || !out.url) throw new Error(out.error || 'Image upload failed.');
+          image = out.url;
+        }
+        const user = await dsAuth.getCurrentUser();
+        if (!user || !user.id) throw new Error('Please sign in again.');
+        const row = {
+          name,
+          type: val('type'),
+          origin: val('origin'),
+          varietal: val('varietal'),
+          price: val('price'),
+          abv: val('abv'),
+          availability: val('availability') || 'In stock',
+          buy_url: val('buy_url'),
+          image,
+          status: 'pending',
+          submitted_by: user.id,
+          supplier_name: (config && config.listingName) || user.name || ''
+        };
+        const res = await sb.from('drinks').insert(row);
+        if (res && res.error) throw res.error;
+        form.reset();
+        say('<div class="notice">Added <strong>' + safe(name) + '</strong> — it goes live once approved.</div>');
+      } catch (err) {
+        say('<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Could not add product: ' + safe((err && err.message) || 'unknown error') + '</div>');
+      } finally {
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = original || 'Add product'; }
+      }
+    });
+  })();
   document.documentElement.dataset.appRendered = 'true';
 }
 

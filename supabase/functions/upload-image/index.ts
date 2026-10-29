@@ -37,6 +37,7 @@ const RATE_BUCKETS = new Map<string, { count: number, reset: number }>()
 
 const ALLOWED_SLOTS: Record<string, { folder: string, adminOnly: boolean }> = {
   drinks:     { folder: 'drinks',     adminOnly: true  },
+  products:   { folder: 'supplier-products', adminOnly: false },
   suppliers:  { folder: 'suppliers',  adminOnly: false },
   venues:     { folder: 'venues',     adminOnly: false },
   rehost:     { folder: 'drinks',     adminOnly: true  },
