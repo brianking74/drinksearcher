@@ -2840,6 +2840,7 @@ async function renderBusinessDashboardPage() {
               <p class="muted">For anything that isn't in your spreadsheet yet. New products go into moderation and appear on the site once approved.</p>
               <form id="manual-product-form" class="form-grid">
                 <label class="dashboard-field full"><span>Product name</span><input class="input" name="name" maxlength="160" placeholder="e.g. Château La Tour de Mons Margaux 2022" /></label>
+                <label class="dashboard-field full"><span>Description</span><textarea class="input" name="description" id="manual-description" rows="4" placeholder="A sentence or two on what makes this bottle worth buying…"></textarea><span class="small-note" id="manual-desc-count">0 / 100 words</span></label>
                 <label class="dashboard-field"><span>Category</span><select class="select" name="type"><option value="">Select…</option>${['Red Wine','White Wine','Rosé Wine','Champagne','Sparkling','Fortified Wine','Whisky','Tequila','Mezcal','Sake','Gin','Vodka','Rum','Cognac','Brandy','Liqueurs','Soju','Beer','Cider','Non-Alcoholic'].map(t=>`<option>${t}</option>`).join('')}</select></label>
                 <label class="dashboard-field"><span>Country</span><select class="select" name="origin"><option value="">Select…</option>${['France','Italy','Spain','Portugal','Germany','Austria','Australia','New Zealand','USA','Chile','Argentina','South Africa','Scotland','Ireland','England','Japan','Korea','China','Taiwan','Mexico','Caribbean','Denmark','Other'].map(t=>`<option>${t}</option>`).join('')}</select></label>
                 <label class="dashboard-field"><span>Variety</span><select class="select" name="varietal"><option value="">Not applicable</option>${['Cabernet Sauvignon','Merlot','Pinot Noir','Syrah / Shiraz','Cabernet Franc','Petit Verdot','Malbec','Tempranillo','Sangiovese','Nebbiolo','Grenache','Mourvèdre','Zinfandel','Chardonnay','Sauvignon Blanc','Riesling','Pinot Grigio','Chenin Blanc','Sémillon','Viognier','Glera','Albariño','Grüner Veltliner','Other'].map(t=>`<option>${t}</option>`).join('')}</select></label>
@@ -3175,6 +3176,18 @@ async function renderBusinessDashboardPage() {
     const notice = document.getElementById('manual-product-notice');
     const say = (html) => { if (notice) notice.innerHTML = html; };
     let added = 0; // this session, against the plan cap
+    // Description is capped at 100 words. Count on input so the supplier sees it
+    // before submitting; the cap is enforced again on submit.
+    const descEl = document.getElementById('manual-description');
+    const descCount = document.getElementById('manual-desc-count');
+    const countWords = (s) => String(s || '').trim().split(/\s+/).filter(Boolean).length;
+    if (descEl) descEl.addEventListener('input', () => {
+      const n = countWords(descEl.value);
+      if (descCount) {
+        descCount.textContent = n + ' / 100 words' + (n > 100 ? ' — will be trimmed' : '');
+        descCount.style.color = n > 100 ? '#ffd0e2' : '';
+      }
+    });
     const fileEl = document.getElementById('manual-image-file');
     const submitBtn = form.querySelector('button[type="submit"]');
     form.addEventListener('submit', async (e) => {
@@ -3183,6 +3196,9 @@ async function renderBusinessDashboardPage() {
       const val = (k) => String(fd.get(k) || '').trim();
       const name = val('name');
       if (!name) { say('<div class="notice">Give the product a name first.</div>'); return; }
+      const descWords = String(fd.get('description') || '').trim().split(/\s+/).filter(Boolean);
+      const description = descWords.slice(0, 100).join(' ');
+      const descTrimmed = descWords.length > 100;
       // Same plan cap the sheet import enforces — otherwise this form is a way
       // around a paid listing limit.
       const limit = (state.listingLimit != null) ? state.listingLimit : 10;
@@ -3222,6 +3238,7 @@ async function renderBusinessDashboardPage() {
         if (!user || !user.id) throw new Error('Please sign in again.');
         const row = {
           name,
+          description,
           type: val('type'),
           origin: val('origin'),
           varietal: val('varietal'),
@@ -3238,7 +3255,8 @@ async function renderBusinessDashboardPage() {
         if (res && res.error) throw res.error;
         added++;
         form.reset();
-        say('<div class="notice">Added <strong>' + safe(name) + '</strong> — it goes live once approved.</div>');
+        if (descCount) { descCount.textContent = '0 / 100 words'; descCount.style.color = ''; }
+        say('<div class="notice">Added <strong>' + safe(name) + '</strong> — it goes live once approved.' + (descTrimmed ? ' <span class="muted">Description trimmed to 100 words.</span>' : '') + '</div>');
       } catch (err) {
         say('<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Could not add product: ' + safe((err && err.message) || 'unknown error') + '</div>');
       } finally {
