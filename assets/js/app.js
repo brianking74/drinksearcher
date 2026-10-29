@@ -3176,7 +3176,7 @@ async function renderBusinessDashboardPage() {
     const notice = document.getElementById('manual-product-notice');
     const say = (html) => { if (notice) notice.innerHTML = html; };
     let added = 0; // this session, against the plan cap
-    // Description is capped at 100 words. Count on input so the supplier sees it
+    // Description is capped at 50 words. Count on input so the supplier sees it
     // before submitting; the cap is enforced again on submit.
     const descEl = document.getElementById('manual-description');
     const descCount = document.getElementById('manual-desc-count');
@@ -3184,8 +3184,8 @@ async function renderBusinessDashboardPage() {
     if (descEl) descEl.addEventListener('input', () => {
       const n = countWords(descEl.value);
       if (descCount) {
-        descCount.textContent = n + ' / 100 words' + (n > 100 ? ' — will be trimmed' : '');
-        descCount.style.color = n > 100 ? '#ffd0e2' : '';
+        descCount.textContent = n + ' / 50 words' + (n > 50 ? ' — will be trimmed' : '');
+        descCount.style.color = n > 50 ? '#ffd0e2' : '';
       }
     });
     const fileEl = document.getElementById('manual-image-file');
@@ -3196,9 +3196,13 @@ async function renderBusinessDashboardPage() {
       const val = (k) => String(fd.get(k) || '').trim();
       const name = val('name');
       if (!name) { say('<div class="notice">Give the product a name first.</div>'); return; }
-      const descWords = String(fd.get('description') || '').trim().split(/\s+/).filter(Boolean);
-      const description = descWords.slice(0, 100).join(' ');
-      const descTrimmed = descWords.length > 100;
+      const rawDesc = String(fd.get('description') || '').trim();
+      const descWasWords = countWords(rawDesc);
+      // House standard: the same normaliser the CSV import and scan-catalog use
+      // (strips HTML/award lines, ends on a sentence, caps at 50 words) so a
+      // hand-added bottle reads the same as an imported one.
+      const description = dsNormalizeDescription(rawDesc, 50);
+      const descTrimmed = descWasWords > 50;
       // Same plan cap the sheet import enforces — otherwise this form is a way
       // around a paid listing limit.
       const limit = (state.listingLimit != null) ? state.listingLimit : 10;
@@ -3255,8 +3259,8 @@ async function renderBusinessDashboardPage() {
         if (res && res.error) throw res.error;
         added++;
         form.reset();
-        if (descCount) { descCount.textContent = '0 / 100 words'; descCount.style.color = ''; }
-        say('<div class="notice">Added <strong>' + safe(name) + '</strong> — it goes live once approved.' + (descTrimmed ? ' <span class="muted">Description trimmed to 100 words.</span>' : '') + '</div>');
+        if (descCount) { descCount.textContent = '0 / 50 words'; descCount.style.color = ''; }
+        say('<div class="notice">Added <strong>' + safe(name) + '</strong> — it goes live once approved.' + (descTrimmed ? ' <span class="muted">Description trimmed to 50 words.</span>' : '') + '</div>');
       } catch (err) {
         say('<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Could not add product: ' + safe((err && err.message) || 'unknown error') + '</div>');
       } finally {
