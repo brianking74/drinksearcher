@@ -3174,6 +3174,7 @@ async function renderBusinessDashboardPage() {
     if (!form) return;
     const notice = document.getElementById('manual-product-notice');
     const say = (html) => { if (notice) notice.innerHTML = html; };
+    let added = 0; // this session, against the plan cap
     const fileEl = document.getElementById('manual-image-file');
     const submitBtn = form.querySelector('button[type="submit"]');
     form.addEventListener('submit', async (e) => {
@@ -3182,6 +3183,14 @@ async function renderBusinessDashboardPage() {
       const val = (k) => String(fd.get(k) || '').trim();
       const name = val('name');
       if (!name) { say('<div class="notice">Give the product a name first.</div>'); return; }
+      // Same plan cap the sheet import enforces — otherwise this form is a way
+      // around a paid listing limit.
+      const limit = (state.listingLimit != null) ? state.listingLimit : 10;
+      const used = (state.listingCount != null) ? state.listingCount : (config.items || []).length;
+      if (used + added >= limit) {
+        say('<div class="notice" style="background:rgba(255,193,7,.08);border-color:rgba(255,193,7,.18);color:#ffd27d;">Your plan allows ' + limit + ' listings. <a class="text-gold" href="pricing.html">Upgrade</a> to add more items.</div>');
+        return;
+      }
       const original = submitBtn ? submitBtn.textContent : '';
       if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Adding…'; }
       say('<div class="notice">Adding product…</div>');
@@ -3227,6 +3236,7 @@ async function renderBusinessDashboardPage() {
         };
         const res = await sb.from('drinks').insert(row);
         if (res && res.error) throw res.error;
+        added++;
         form.reset();
         say('<div class="notice">Added <strong>' + safe(name) + '</strong> — it goes live once approved.</div>');
       } catch (err) {
