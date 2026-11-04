@@ -348,6 +348,53 @@ function hkd(v) {
 }
 window.hkd = hkd;
 
+// ── Listing freshness ───────────────────────────────────────────────────────
+// Thresholds mirror public.drinks_health (migration 081) so the site, the daily
+// digest email and the admin panel can never disagree:
+//   <= 7 days fresh · <= 14 days aging · older or never = Unconfirmed
+// Dead rows never reach these helpers — supabase.js filters check_status 'dead'
+// before the renderer sees them, so a 404 can never be shown as a live offer.
+const DS_FRESH_DAYS = 7;
+const DS_STALE_DAYS = 14;
+
+function dsAgeDays(iso) {
+  if (!iso) return null;
+  const t = Date.parse(iso);
+  if (isNaN(t)) return null;
+  return Math.floor((Date.now() - t) / 86400000);
+}
+
+// Numeric price for sorting. The column is free text ("HK$1500"), and ordering
+// it as text put HK$1500 above HK$98, so every "cheapest first" list was wrong.
+function dsPriceNum(v) {
+  const n = parseFloat(String(v === null || v === undefined ? '' : v).replace(/[^0-9.]/g, ''));
+  return isNaN(n) ? null : n;
+}
+
+function dsHealthChip(row) {
+  const r = row || {};
+  if (r.check_status === 'out_of_stock') {
+    return { label: 'Sold out', cls: 'aging', title: r.health_note || 'The supplier shows this as unavailable' };
+  }
+  if (r.check_status === 'blocked' || r.check_status === 'timeout' || r.check_status === 'error') {
+    return { label: 'Unverified', cls: 'aging', title: 'We could not reach the shop on the last check — confirm with the supplier' };
+  }
+  const days = dsAgeDays(r.last_confirmed_at);
+  if (days === null) return { label: 'Unconfirmed', cls: 'stale', title: 'This price has never been verified' };
+  if (days > DS_STALE_DAYS) return { label: 'Unconfirmed', cls: 'stale', title: 'Last confirmed ' + days + ' days ago' };
+  if (days > DS_FRESH_DAYS) return { label: days + 'd ago', cls: 'aging', title: 'Last confirmed ' + days + ' days ago' };
+  if (days <= 0) return { label: 'Confirmed today', cls: 'fresh', title: 'Price and stock verified today' };
+  if (days === 1) return { label: 'Confirmed yesterday', cls: 'fresh', title: 'Price and stock verified yesterday' };
+  return { label: 'Confirmed ' + days + 'd ago', cls: 'fresh', title: 'Last confirmed ' + days + ' days ago' };
+}
+
+function dsHealthBadge(row) {
+  const c = dsHealthChip(row);
+  return '<span class="fresh-badge ' + c.cls + '" title="' + safe(c.title) + '">' + safe(c.label) + '</span>';
+}
+window.dsHealthBadge = dsHealthBadge;
+
+
 function ctaLink(label, url, className = 'btn btn-ghost btn-small', fallbackLabel = 'Coming soon', attrs = '') {
   return hasUsableHref(url)
     ? `<a class="${className}" href="${url}" ${externalLinkAttrs(url)}${attrs}>${label}</a>`
@@ -407,7 +454,7 @@ window.statBlockHTML = statBlockHTML;
 // CSP (which is what protects this site from injected script), markup emits
 // data-action="fn('arg')" and one delegated handler dispatches it against an
 // explicit allowlist — no eval, and only these names can ever run.
-const DS_ACTIONS = ['addDashboardEvent', 'addDashboardEventRow', 'addDashboardItem', 'adminAddEventFromForm', 'bulkImportEvents', 'closeProductEdit', 'dsDashboardImageRemove', 'dsDashboardImageUpload', 'fetchMissingImages', 'fillSampleTemplate', 'importInventory', 'moderateEvent', 'removeDashboardEvent', 'removeDashboardEventRow', 'removeDashboardItem', 'removeVenueGalleryImage', 'uploadVenueGalleryImages', 'saveDashboardEventRow', 'saveDashboardEvents', 'saveDashboardItems', 'saveDashboardProfile', 'saveProductEdit', 'signOutNow', 'startCheckout'];
+const DS_ACTIONS = ['addDashboardEvent', 'addDashboardEventRow', 'addDashboardItem', 'adminAddEventFromForm', 'bulkImportEvents', 'closeProductEdit', 'dsDashboardImageRemove', 'dsDashboardImageUpload', 'fetchMissingImages', 'fillSampleTemplate', 'importInventory', 'moderateEvent', 'removeDashboardEvent', 'removeDashboardEventRow', 'removeDashboardItem', 'removeVenueGalleryImage', 'runLinkCheck', 'uploadVenueGalleryImages', 'saveDashboardEventRow', 'saveDashboardEvents', 'saveDashboardItems', 'saveDashboardProfile', 'saveProductEdit', 'signOutNow', 'startCheckout'];
 function runDsAction(expr) {
   // Zero-argument actions ("signOutNow") and calls with arguments
   // ("startCheckout('merchant_enhanced')") both have to work. The first version
@@ -1079,7 +1126,22 @@ async function renderBottleDetail() {
     const fuzzy = await fetchDrinkByNameSlug(name);
     if (fuzzy) rows = [fuzzy];
   }
-  const supplierRows = rows.filter(r => (r.supplier_name || '').trim() || (r.buy_url || '').trim() || (r.price || '').trim());
+  // Dead links (check_status 'dead', set by the check-links job) never render.
+  // A row we know returns 404 must not appear as a live offer — that is the
+  // whole point of the health columns.
+  const liveRows = rows.filter(r => r.check_status !== 'dead');
+  const supplierRows = liveRows
+    .filter(r => (r.supplier_name || '').trim() || (r.buy_url || '').trim() || (r.price || '').trim())
+    .sort((a, b) => {
+      // Numeric sort: `price` is free text, and ordering it as text put
+      // HK$1,500 above HK$98.
+      const pa = dsPriceNum(a.price);
+      const pb = dsPriceNum(b.price);
+      if (pa === null && pb === null) return 0;
+      if (pa === null) return 1;
+      if (pb === null) return -1;
+      return pa - pb;
+    });
   const supplierCount = supplierRows.length;
 
   // Analytics: one product_view per product page render. The RPC dedupes a
@@ -1164,13 +1226,16 @@ async function renderBottleDetail() {
               <div class="supplier-row">
                 <div class="supplier-row__topline">
                   <span class="supplier-row__name">${safe(s.supplier_name || 'Supplier')}</span>
-                  <span class="supplier-row__price">${safe(hkd(s.price))}</span>
+                  <span class="supplier-row__price">${safe(hkd(s.price))} ${dsHealthBadge(s)}</span>
                 </div>
-                <div class="supplier-row__meta">${[s.supplier_area ? safe(s.supplier_area) : '', s.supplier_min_order ? 'Min. order ' + safe(hkd(s.supplier_min_order)) : ''].filter(Boolean).join(' · ')}</div>
+                <div class="supplier-row__meta">${[s.supplier_area ? safe(s.supplier_area) : '', s.supplier_min_order ? 'Min. order ' + safe(hkd(s.supplier_min_order)) : ''].filter(Boolean).join(' · ')}${s.check_status === 'out_of_stock' ? ' · <span class="supplier-row__oos">listed as unavailable</span>' : ''}</div>
                 <div class="supplier-row__foot">
                   ${s.availability ? `<span class="supplier-row__stock ${s.availability.toLowerCase().includes('stock') ? 'in-stock' : ''}">${safe(s.availability)}</span>` : '<span></span>'}
                 ${(i === 0 || s.buy_url || s.supplier_tier === 'enhanced' || s.supplier_tier === 'featured') ? `<div class="supplier-row__actions">
-                  ${s.buy_url ? `<a href="${safe(s.buy_url)}" target="_blank" rel="noreferrer" class="btn btn-primary btn-small" data-track-id="${safe(s.id)}" data-track-name="${safe(s.name)}" data-track-supplier="${safe(s.supplier_name || '')}">Buy now →</a>` : (s.supplier_tier === 'enhanced' || s.supplier_tier === 'featured') ? `<a href="supplier-template.html?slug=${safe(slugify(s.supplier_name || ''))}" class="btn btn-ghost btn-small">View supplier</a>` : ''}
+                  ${s.check_status === 'out_of_stock'
+                    ? (s.buy_url ? `<a href="${safe(s.buy_url)}" target="_blank" rel="noreferrer" class="btn btn-ghost btn-small" data-track-id="${safe(s.id)}" data-track-name="${safe(s.name)}" data-track-supplier="${safe(s.supplier_name || '')}">Check stock</a>` : '')
+                    : s.buy_url ? `<a href="${safe(s.buy_url)}" target="_blank" rel="noreferrer" class="btn btn-primary btn-small" data-track-id="${safe(s.id)}" data-track-name="${safe(s.name)}" data-track-supplier="${safe(s.supplier_name || '')}">Buy now →</a>` : (s.supplier_tier === 'enhanced' || s.supplier_tier === 'featured') ? `<a href="supplier-template.html?slug=${safe(slugify(s.supplier_name || ''))}" class="btn btn-ghost btn-small">View supplier</a>` : ''}
+                  <a class="supplier-row__report" href="mailto:hello@drinksearcher.net?subject=${encodeURIComponent('Listing report: ' + (s.name || ''))}&body=${encodeURIComponent('This listing looks wrong or the link is broken:\n\n' + (s.name || '') + '\n' + (s.buy_url || ''))}" title="Report a wrong price or a broken link">Report</a>
                 </div>` : ''}
                 </div>
               </div>
@@ -4095,6 +4160,21 @@ async function renderAdminDashboardPage() {
     <section class="section-tight">
       <div class="container">
         <div class="panel">
+          <span class="eyebrow">Listing health</span>
+          <h2 style="margin:14px 0;">Is every listing still real?</h2>
+          <p class="muted" style="margin-bottom:16px;">Dead links are hidden from the site the moment a check finds one. This panel is the 24-hour worklist: fix or replace what is dead, re-confirm what has gone stale.</p>
+          <div class="admin-health-toolbar">
+            <button class="btn btn-primary btn-small" type="button" data-action="runLinkCheck()">Run check now</button>
+            <span id="admin-health-notice" class="muted" style="font-size:.8rem;"></span>
+          </div>
+          <div id="admin-health"><div class="notice">Loading…</div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section-tight">
+      <div class="container">
+        <div class="panel">
           <span class="eyebrow">Subscriptions</span>
           <h2 style="margin:14px 0;">Plan management</h2>
           <div id="admin-subscriptions"><div class="notice">Loading…</div></div>
@@ -4243,7 +4323,81 @@ async function renderAdminDashboardPage() {
   loadAdminSubscriptions();
   loadAdminScanJobs();
   loadAdminSnapshot();
+  loadAdminHealth();
 }
+
+// ── Listing health panel ────────────────────────────────────────────────────
+// Reads public.admin_listing_health() (migration 081): dead rows first, then
+// oldest confirmation. This is the 24-hour worklist, so it sorts by what is
+// most broken rather than by name.
+async function loadAdminHealth() {
+  const box = $('#admin-health');
+  if (!box) return;
+  try {
+    const { data, error } = await sb.rpc('admin_listing_health', { p_limit: 300 });
+    if (error) { box.innerHTML = '<div class="notice">Could not load listing health: ' + safe(error.message) + '</div>'; return; }
+    const rows = data || [];
+    if (!rows.length) { box.innerHTML = '<div class="notice">No approved listings yet.</div>'; return; }
+    const dead = rows.filter(r => r.check_status === 'dead');
+    const stale = rows.filter(r => r.freshness === 'stale' && r.check_status !== 'dead');
+    const never = rows.filter(r => r.freshness === 'never');
+    const fresh = rows.filter(r => r.freshness === 'fresh');
+
+    const head = '<div class="metric-grid" style="margin-bottom:16px;">' +
+      '<div class="metric-card"><strong>' + dead.length + '</strong><span class="muted">dead links (hidden)</span></div>' +
+      '<div class="metric-card"><strong>' + stale.length + '</strong><span class="muted">stale &gt; 14 days</span></div>' +
+      '<div class="metric-card"><strong>' + never.length + '</strong><span class="muted">never confirmed</span></div>' +
+      '<div class="metric-card"><strong>' + fresh.length + '</strong><span class="muted">confirmed this week</span></div>' +
+      '</div>';
+
+    const list = rows.slice(0, 120).map(r => {
+      const isDead = r.check_status === 'dead';
+      const days = r.age_days === null || r.age_days === undefined ? '—' : r.age_days;
+      return '<div class="admin-health-row' + (isDead ? ' is-dead' : '') + '">' +
+        '<div><strong>' + safe(String(r.name || '').slice(0, 60)) + '</strong>' +
+          '<div class="muted" style="font-size:.72rem;">' + safe(r.supplier_name || 'no supplier') + '</div></div>' +
+        '<div>' + safe(r.price || '—') + '</div>' +
+        '<div>' + safe(days) + 'd</div>' +
+        '<div>' + (isDead
+          ? '<span class="fresh-badge stale">' + safe(r.check_status) + '</span>'
+          : dsHealthBadge(r)) +
+          (r.buy_url ? ' <a class="supplier-row__report" href="' + safe(r.buy_url) + '" target="_blank" rel="noreferrer">open</a>' : '') +
+        '</div>' +
+      '</div>';
+    }).join('');
+
+    box.innerHTML = head +
+      '<div class="admin-health-row" style="font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border-strong);">' +
+        '<div>Listing</div><div>Price</div><div>Age</div><div>Status</div></div>' +
+      list;
+  } catch (e) {
+    box.innerHTML = '<div class="notice">Listing health failed: ' + safe(String(e.message || e)) + '</div>';
+  }
+}
+
+async function runLinkCheck() {
+  const out = $('#admin-health-notice');
+  if (out) out.textContent = 'Checking listings — up to a minute…';
+  try {
+    const { data: sess } = await sb.auth.getSession();
+    const token = (sess && sess.session && sess.session.access_token) || SUPABASE_ANON_KEY;
+    const res = await fetch(SUPABASE_URL + '/functions/v1/check-links?limit=40', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + token },
+    });
+    const j = await res.json();
+    if (out) {
+      out.textContent = j.skipped
+        ? j.reason
+        : 'Checked ' + j.checked + ' — ' + j.dead + ' dead, ' + j.price_changed + ' price changes, ' +
+          j.out_of_stock + ' out of stock, ' + j.blocked + ' blocked, ' + j.error + ' errors.';
+    }
+    await loadAdminHealth();
+  } catch (e) {
+    if (out) out.textContent = 'Check failed: ' + String(e.message || e);
+  }
+}
+window.runLinkCheck = runLinkCheck;
 
 async function loadAdminSubscriptions() {
   const holder = $('#admin-subscriptions');

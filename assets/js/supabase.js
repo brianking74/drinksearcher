@@ -95,9 +95,13 @@ async function fetchDrinks(filters = {}) {
     ]);
     const areaByName = new Map((supRows || []).map(s => [s.name, s.area || '']));
     if (!error && Array.isArray(data) && data.length) {
+      // Dead links never reach the UI (migration 081). Filtering here rather
+      // than in .neq() on purpose: check_status is NULL on every unverified
+      // row, and PostgREST's neq drops NULLs, which would empty the catalogue.
+      const live = data.filter(r => r.check_status !== 'dead');
       // Dedupe by name — prefer the row with a Cloudinary image.
       const byName = new Map();
-      data.forEach(r => {
+      live.forEach(r => {
         if (!r.name) return;
         const prev = byName.get(r.name);
         const isCloud = (r.image || '').includes('res.cloudinary.com');
@@ -423,7 +427,10 @@ async function trackClick(drinkId, drinkName, supplier) {
 async function fetchDrinkByName(name) {
   const { data, error } = await sb.from('drinks').select('*').ilike('name', name).eq('status', 'approved').order('price', { ascending: true });
   if (error || !data || !data.length) return null;
-  return data; // Returns ALL supplier rows for this drink, cheapest first
+  // Dead links never render (migration 081). The caller sorts numerically.
+  const live = data.filter(r => r.check_status !== 'dead');
+  if (!live.length) return null;
+  return live; // Returns ALL live supplier rows for this drink
 }
 
 async function fetchDrinkByNameSlug(slug) {

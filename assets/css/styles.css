@@ -1738,3 +1738,60 @@ hr.sep { border: 0; height: 1px; background: rgba(255,255,255,.06); margin: 18px
   }
 }
 
+
+
+/* ── Listing freshness (migration 081) ───────────────────────────────────────
+   Three states only, because three is what a shopper can act on:
+   fresh (verified this week), aging (8-14 days), stale ("Unconfirmed").
+   Colour comes from the existing palette — jade for verified, gold for
+   caution, pink for a claim we cannot stand behind. */
+.fresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: .62rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  white-space: nowrap;
+  vertical-align: middle;
+  line-height: 1.6;
+}
+.fresh-badge::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: 0 0 auto;
+}
+.fresh-badge.fresh { color: #9db8a6; }
+.fresh-badge.aging { color: var(--gold); }
+.fresh-badge.stale { color: #cf8b7f; }
+
+.supplier-row__report {
+  font-size: .7rem;
+  letter-spacing: .04em;
+  color: var(--muted);
+  text-decoration: none;
+  border-bottom: 1px dotted rgba(167, 160, 147, .5);
+  padding-bottom: 1px;
+  white-space: nowrap;
+}
+.supplier-row__report:hover { color: var(--text); border-bottom-color: var(--text); }
+.supplier-row__oos { color: var(--gold); }
+
+.admin-health-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 90px 110px;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: .82rem;
+  align-items: center;
+}
+.admin-health-row.is-dead { color: #cf8b7f; }
+.admin-health-toolbar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
