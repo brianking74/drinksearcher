@@ -30,7 +30,7 @@ Four independent signals, cheapest first. A listing only needs one to stay fresh
    - Every attempt is appended to `offer_checks`, so "when did this last work?" is always answerable.
 2. **Owner edit** — a supplier or admin changing price, availability or buy_url fires `drinks_touch_confirmation()`, which stamps `last_confirmed_at` and `confirmed_source = 'owner'`. Editing a listing *is* verifying it.
 3. **Visitor report** — a `Report` link on every offer row (mailto today). Visitors hit dead links first; this is the cheapest source of truth we have and the one to formalise next.
-4. **Supplier one-tap confirm** *(not built)* — a signed link in a weekly email/WhatsApp: "Still HK$1,480? [Yes] [Change price] [Remove]". No login. This is the only channel that scales to suppliers who will never open a dashboard, and it is the next thing to build.
+4. **Supplier one-tap confirm** — one email per supplier, three links per bottle: `Still available` / `Change price` / `Remove`. No login, no dashboard. The token is the credential: 32 random bytes, stored only as a SHA-256 hash, scoped to one listing, 30-day expiry, single-use for price/remove. A supplier is asked at most once every 7 days (`supplier_pings` is both the rate limit and the audit trail). Runs from the admin panel ("Send confirmation requests") or `POST /supplier-confirm?action=send`. A `dry_run` returns the generated links without sending, which is how the flow is tested without an inbox.
 
 ---
 
@@ -52,9 +52,9 @@ Four independent signals, cheapest first. A listing only needs one to stay fresh
 
 - **A dead link is never visible for 24 hours.** The sweep runs every 6 hours and hiding happens at the moment of detection, so the worst case a visitor can hit is a link that died less than 6 hours ago and has not yet been swept.
 - **The 24 hours is the repair SLA, not the exposure window.** A dead row lands in the admin "Listing health" panel immediately and in the digest email. Fix or replace within 24h, or delete the listing.
-- Escalation ladder (manual today, automatable next):
-  - **T+0** hidden, in the panel, in the digest email
-  - **T+2h** supplier ping (email/WhatsApp) with the one-tap confirm link
+- Escalation ladder:
+  - **T+0** hidden, in the admin panel, and in the immediate dead-link email
+  - **T+2h** supplier ping with the one-tap confirm/remove link *(manual today: "Send confirmation requests")*
   - **T+24h** SLA breach — listing paused, supplier told, tier visibility adjusted if it recurs
   - **T+7d** archived
 
@@ -67,12 +67,16 @@ Four independent signals, cheapest first. A listing only needs one to stay fresh
 - **Vintage rolls are detected, not repaired.** A listing named `... 2022` pointing at `.../shiraz-2019` is flagged (`vintage mismatch`) instead of confirmed. Automatic re-pointing (site search, sitemap, ±1 year URL pattern) is the next build.
 - **`redirect` rows are visible but unconfirmed.** A collection page that loads is not a dead link, but it is also not proof of the offer.
 - **Machine verdicts can be wrong** — the first two sweeps produced 16 false "sold out" verdicts and 6 wrong prices, all caught and rolled back (migrations 082, 084). Treat a `dead` verdict as strong evidence, a `price_changed` verdict as a hint until approved.
+- **The one-tap channel only reaches suppliers with an address.** `suppliers.contact_email` starts empty for everyone; the fallback is the claimed account's email. Suppliers with no address surface in the digest and in the admin "Supplier contacts" block, at the moment their listings need asking — not before, so the list stays short and actionable.
+- **Every listing must carry `supplier_id`.** The queue joins on it; 66 of 86 rows had only a `supplier_name` until migration 087 backfilled it (86/86 now linked). The digest reports any row that still has no supplier link, because those rows can never be asked about.
 
 ---
 
 ## 6. Operating it
 
-- Admin dashboard → **Listing health**: counts of dead / stale / never-confirmed / fresh, plus the worklist sorted dead-first then oldest. "Run check now" fires a sweep on demand (admin JWT, bypasses the lock).
-- Digest email: sent automatically after any sweep that finds a dead link or has stale rows.
+- Admin dashboard → **Listing health**: counts of dead / stale / never-confirmed / fresh, the worklist sorted dead-first then oldest, and three buttons: **Run check now**, **Send confirmation requests**, **Email me the digest**.
+- **Immediate alert** (`check-links`): fires only when a sweep finds a dead link — those need action within the day.
+- **Daily digest** (`listing-digest`, 00:05 UTC / 08:05 HKT): dead, price changes awaiting approval, stale >14 days, suppliers to ask, suppliers with no address, listings with no supplier link. 20-hour single-flight lock so it cannot be triggered in a loop.
+- Supplier contacts: the block under the health panel lists suppliers whose unconfirmed listings cannot be asked about, with an inline email field and Save.
 - Manual sweep: `curl -X POST "https://kktlbznmhxaortogqspy.supabase.co/functions/v1/check-links?limit=40" -H "apikey: <anon>" -H "Authorization: Bearer <anon>"`.
 - Audit: `offer_checks` (service role only) — one row per attempt, plus `calibration` rows whenever a verdict was rolled back.
