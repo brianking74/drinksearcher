@@ -413,6 +413,12 @@ verify_jwt = false
 [functions.analytics-snapshot]
 verify_jwt = false
 
+# supplier-confirm is opened by a shop owner clicking a link in their inbox,
+# which carries no Supabase key. The token in the URL is the credential and is
+# validated (hashed, scoped to one listing, 30-day expiry) inside the function.
+[functions.supplier-confirm]
+verify_jwt = false
+
 # create-checkout MUST keep JWT verification on (default): it is called by the
 # signed-in user's browser and reads their session to key the subscription.
 

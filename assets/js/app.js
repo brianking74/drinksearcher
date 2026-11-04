@@ -454,7 +454,7 @@ window.statBlockHTML = statBlockHTML;
 // CSP (which is what protects this site from injected script), markup emits
 // data-action="fn('arg')" and one delegated handler dispatches it against an
 // explicit allowlist — no eval, and only these names can ever run.
-const DS_ACTIONS = ['addDashboardEvent', 'addDashboardEventRow', 'addDashboardItem', 'adminAddEventFromForm', 'bulkImportEvents', 'closeProductEdit', 'dsDashboardImageRemove', 'dsDashboardImageUpload', 'fetchMissingImages', 'fillSampleTemplate', 'importInventory', 'moderateEvent', 'removeDashboardEvent', 'removeDashboardEventRow', 'removeDashboardItem', 'removeVenueGalleryImage', 'runLinkCheck', 'uploadVenueGalleryImages', 'saveDashboardEventRow', 'saveDashboardEvents', 'saveDashboardItems', 'saveDashboardProfile', 'saveProductEdit', 'signOutNow', 'startCheckout'];
+const DS_ACTIONS = ['addDashboardEvent', 'saveSupplierEmail', 'sendListingDigest', 'sendSupplierConfirmations', 'addDashboardEventRow', 'addDashboardItem', 'adminAddEventFromForm', 'bulkImportEvents', 'closeProductEdit', 'dsDashboardImageRemove', 'dsDashboardImageUpload', 'fetchMissingImages', 'fillSampleTemplate', 'importInventory', 'moderateEvent', 'removeDashboardEvent', 'removeDashboardEventRow', 'removeDashboardItem', 'removeVenueGalleryImage', 'runLinkCheck', 'uploadVenueGalleryImages', 'saveDashboardEventRow', 'saveDashboardEvents', 'saveDashboardItems', 'saveDashboardProfile', 'saveProductEdit', 'signOutNow', 'startCheckout'];
 function runDsAction(expr) {
   // Zero-argument actions ("signOutNow") and calls with arguments
   // ("startCheckout('merchant_enhanced')") both have to work. The first version
@@ -4165,9 +4165,12 @@ async function renderAdminDashboardPage() {
           <p class="muted" style="margin-bottom:16px;">Dead links are hidden from the site the moment a check finds one. This panel is the 24-hour worklist: fix or replace what is dead, re-confirm what has gone stale.</p>
           <div class="admin-health-toolbar">
             <button class="btn btn-primary btn-small" type="button" data-action="runLinkCheck()">Run check now</button>
+            <button class="btn btn-ghost btn-small" type="button" data-action="sendSupplierConfirmations()">Send confirmation requests</button>
+            <button class="btn btn-ghost btn-small" type="button" data-action="sendListingDigest()">Email me the digest</button>
             <span id="admin-health-notice" class="muted" style="font-size:.8rem;"></span>
           </div>
           <div id="admin-health"><div class="notice">Loading…</div></div>
+          <div id="admin-supplier-contacts" style="margin-top:26px;"></div>
         </div>
       </div>
     </section>
@@ -4370,6 +4373,7 @@ async function loadAdminHealth() {
       '<div class="admin-health-row" style="font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border-strong);">' +
         '<div>Listing</div><div>Price</div><div>Age</div><div>Status</div></div>' +
       list;
+    loadSupplierContacts();
   } catch (e) {
     box.innerHTML = '<div class="notice">Listing health failed: ' + safe(String(e.message || e)) + '</div>';
   }
@@ -4398,6 +4402,108 @@ async function runLinkCheck() {
   }
 }
 window.runLinkCheck = runLinkCheck;
+
+// ── Supplier confirmation requests ──────────────────────────────────────────
+// One email per supplier with one-tap links per bottle. The token in the link is
+// the credential, so nothing here needs the supplier to have an account.
+async function dsFunctionCall(name, query, body) {
+  const { data: sess } = await sb.auth.getSession();
+  const token = (sess && sess.session && sess.session.access_token) || SUPABASE_ANON_KEY;
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/${name}${query || ''}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: 'Bearer ' + token,
+    },
+    body: JSON.stringify(body || {}),
+  });
+  const text = await res.text();
+  try { return JSON.parse(text); } catch (e) { return { ok: false, error: text.slice(0, 300) }; }
+}
+
+async function sendSupplierConfirmations() {
+  const out = $('#admin-health-notice');
+  if (out) out.textContent = 'Sending confirmation requests…';
+  try {
+    const j = await dsFunctionCall('supplier-confirm', '?action=send', { limit: 25 });
+    if (j.error) { if (out) out.textContent = 'Failed: ' + j.error; return; }
+    const sent = (j.results || []).filter(r => r.sent).length;
+    const skipped = (j.results || []).filter(r => r.skipped).length;
+    if (out) {
+      out.textContent = sent
+        ? `Sent ${sent} request${sent === 1 ? '' : 's'}${skipped ? `, ${skipped} skipped` : ''}.`
+        : (j.note || `Nothing sent${skipped ? ` — ${skipped} skipped` : ''}.`);
+    }
+    await loadAdminHealth();
+  } catch (e) {
+    if (out) out.textContent = 'Failed: ' + String(e.message || e);
+  }
+}
+window.sendSupplierConfirmations = sendSupplierConfirmations;
+
+async function sendListingDigest() {
+  const out = $('#admin-health-notice');
+  if (out) out.textContent = 'Sending the digest…';
+  try {
+    const j = await dsFunctionCall('listing-digest', '?action=digest', {});
+    if (out) {
+      out.textContent = j.sent
+        ? `Digest sent to ${j.to} — ${j.totals.dead} dead, ${j.totals.stale} stale, ${j.totals.review} awaiting approval.`
+        : (j.skipped ? j.reason : ('Digest failed: ' + (j.error || 'unknown error')));
+    }
+  } catch (e) {
+    if (out) out.textContent = 'Failed: ' + String(e.message || e);
+  }
+}
+window.sendListingDigest = sendListingDigest;
+
+async function saveSupplierEmail(supplierId, inputId) {
+  const input = document.getElementById(inputId);
+  const value = (input && input.value || '').trim();
+  const out = $('#admin-health-notice');
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value)) {
+    if (out) out.textContent = 'That does not look like an email address.';
+    return;
+  }
+  const { error } = await sb.from('suppliers').update({ contact_email: value }).eq('id', supplierId);
+  if (error) { if (out) out.textContent = 'Could not save: ' + error.message; return; }
+  if (out) out.textContent = 'Contact saved — that supplier can be asked now.';
+  await loadAdminHealth();
+}
+window.saveSupplierEmail = saveSupplierEmail;
+
+// Suppliers we cannot reach: without an address the one-tap channel is dead for
+// them, so collecting one is the whole job of this block.
+async function loadSupplierContacts() {
+  const box = $('#admin-supplier-contacts');
+  if (!box) return;
+  try {
+    const { data, error } = await sb.rpc('admin_suppliers_missing_contact', { p_limit: 40 });
+    if (error) { box.innerHTML = '<div class="notice">Could not load supplier contacts: ' + safe(error.message) + '</div>'; return; }
+    const rows = data || [];
+    if (!rows.length) {
+      box.innerHTML = '<span class="eyebrow">Supplier contacts</span><p class="muted" style="margin-top:8px;font-size:.82rem;">Every supplier with unconfirmed listings has an address. Nothing to collect.</p>';
+      return;
+    }
+    box.innerHTML = '<span class="eyebrow">Supplier contacts</span>' +
+      '<p class="muted" style="margin:8px 0 12px;font-size:.82rem;">' +
+        rows.length + ' supplier' + (rows.length === 1 ? '' : 's') +
+        ' cannot be asked for a confirmation until an email is on file.</p>' +
+      rows.map(r => {
+        const inputId = 'sup-email-' + String(r.supplier_id).slice(0, 8);
+        return '<div class="admin-health-row" style="grid-template-columns:1.4fr 90px 1.6fr auto;">' +
+          '<div><strong>' + safe(r.name) + '</strong></div>' +
+          '<div class="muted">' + (r.listings || 0) + ' listing' + (r.listings === 1 ? '' : 's') + '</div>' +
+          '<div><input class="input" id="' + inputId + '" type="email" placeholder="orders@supplier.hk" style="padding:8px 10px;font-size:.82rem;"></div>' +
+          '<div><button class="btn btn-ghost btn-small" type="button" data-action="saveSupplierEmail(\'' +
+            String(r.supplier_id) + "','" + inputId + "')\">Save</button></div>" +
+        '</div>';
+      }).join('');
+  } catch (e) {
+    box.innerHTML = '<div class="notice">Supplier contacts failed: ' + safe(String(e.message || e)) + '</div>';
+  }
+}
 
 async function loadAdminSubscriptions() {
   const holder = $('#admin-subscriptions');

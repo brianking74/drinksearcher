@@ -393,7 +393,9 @@ function fmtPrice(n: number | null): string {
 
 // ---------------------------------------------------------------------- email
 async function sendDigest(dead: any[], staleCount: number, summary: any) {
-  if (!RESEND_API_KEY || (!dead.length && !staleCount)) return false
+  // Immediate alert on dead links only. Staleness is the daily listing-digest's
+  // job; mailing both would double up on the same rows every six hours.
+  if (!RESEND_API_KEY || !dead.length) return false
   const rows = dead.map(d => `
     <tr>
       <td style="padding:8px 10px;border-bottom:1px solid #eee">${String(d.name || '').slice(0, 70)}</td>
