@@ -40,6 +40,10 @@ const ALLOWED_SLOTS: Record<string, { folder: string, adminOnly: boolean }> = {
   products:   { folder: 'supplier-products', adminOnly: false },
   suppliers:  { folder: 'suppliers',  adminOnly: false },
   venues:     { folder: 'venues',     adminOnly: false },
+  // Menu pages: photographed menus (image) or a PDF from the venue's designer.
+  // PDFs are accepted here and only here, because a menu is the one upload where
+  // the venue already owns a print-ready file.
+  menus:      { folder: 'venues/menus', adminOnly: false },
   rehost:     { folder: 'drinks',     adminOnly: true  },
 }
 
@@ -54,7 +58,7 @@ async function isAdmin(userId: string): Promise<boolean> {
 // Cloudinary signed upload via the Admin API (secret never leaves the server).
 // `file` may be a data: URI, https: URL, or base64 payload — Cloudinary accepts
 // all in the `file` form field.
-async function signedUpload(file: string, folder: string): Promise<{ url: string } | null> {
+async function signedUpload(file: string, folder: string): Promise<{ url: string, format?: string, pages?: number } | null> {
   if (!API_KEY || !API_SECRET || !CLOUD_NAME) return null
   const timestamp = Math.round(Date.now() / 1000)
   const toSign = `folder=${folder}&timestamp=${timestamp}${API_SECRET}`
@@ -79,7 +83,9 @@ async function signedUpload(file: string, folder: string): Promise<{ url: string
     return null
   }
   const data = await res.json()
-  return data.secure_url ? { url: data.secure_url } : null
+  // `pages` is only present for multi-page sources (PDFs); the client stores it
+  // so the venue page can say "3 pages" without re-reading the file.
+  return data.secure_url ? { url: data.secure_url, format: data.format, pages: data.pages } : null
 }
 
 Deno.serve(async (req) => {
@@ -129,8 +135,16 @@ Deno.serve(async (req) => {
   // png|jpeg|webp|gif list rejected outright — so a phone upload failed for every
   // file with a generic "Only image uploads are allowed". Cloudinary converts
   // whatever it is given, and the MIME is only a hint.
-  if (!/^(data:image\/[a-z0-9.+-]+;base64,|https:\/\/)/i.test(file)) {
-    return json({ error: 'Only image uploads are allowed.' }, 400)
+  // Images everywhere; PDFs only in the menus slot. Cloudinary rasterises a PDF
+  // on upload, so the stored URL stays usable for a page-1 preview while the
+  // original file is still what opens when a diner taps the slide.
+  const isPdf = /^data:application\/pdf;base64,/i.test(file)
+  const isImage = /^(data:image\/[a-z0-9.+-]+;base64,|https:\/\/)/i.test(file)
+  if (isPdf && slot !== 'menus') {
+    return json({ error: 'PDFs are only accepted for menu uploads.' }, 400)
+  }
+  if (!isPdf && !isImage) {
+    return json({ error: 'Only image uploads are allowed (PDFs for menus).' }, 400)
   }
   // Size guard for base64 payloads (4/3 overhead).
   if (file.startsWith('data:') && (file.length - file.indexOf(',') - 1) * 0.75 > MAX_BYTES) {
@@ -144,7 +158,7 @@ Deno.serve(async (req) => {
   const folder = rule.folder + (sub ? `/${sub}` : '')
 
   const result = await signedUpload(file, folder)
-  if (!result) return json({ error: 'Image upload failed. Please try again.' }, 502)
+  if (!result) return json({ error: 'Upload failed. Please try again.' }, 502)
 
-  return json({ ok: true, url: result.url })
+  return json({ ok: true, url: result.url, format: result.format || null, pages: result.pages || null })
 })

@@ -454,7 +454,7 @@ window.statBlockHTML = statBlockHTML;
 // CSP (which is what protects this site from injected script), markup emits
 // data-action="fn('arg')" and one delegated handler dispatches it against an
 // explicit allowlist — no eval, and only these names can ever run.
-const DS_ACTIONS = ['addDashboardEvent', 'saveSupplierEmail', 'sendListingDigest', 'sendSupplierConfirmations', 'addDashboardEventRow', 'addDashboardItem', 'adminAddEventFromForm', 'bulkImportEvents', 'closeProductEdit', 'dsDashboardImageRemove', 'dsDashboardImageUpload', 'fetchMissingImages', 'fillSampleTemplate', 'importInventory', 'moderateEvent', 'removeDashboardEvent', 'removeDashboardEventRow', 'removeDashboardItem', 'removeVenueGalleryImage', 'runLinkCheck', 'uploadVenueGalleryImages', 'saveDashboardEventRow', 'saveDashboardEvents', 'saveDashboardItems', 'saveDashboardProfile', 'saveProductEdit', 'signOutNow', 'startCheckout'];
+const DS_ACTIONS = ['addDashboardEvent', 'removeVenueMenuItem', 'uploadVenueMenuFiles', 'saveSupplierEmail', 'sendListingDigest', 'sendSupplierConfirmations', 'addDashboardEventRow', 'addDashboardItem', 'adminAddEventFromForm', 'bulkImportEvents', 'closeProductEdit', 'dsDashboardImageRemove', 'dsDashboardImageUpload', 'fetchMissingImages', 'fillSampleTemplate', 'importInventory', 'moderateEvent', 'removeDashboardEvent', 'removeDashboardEventRow', 'removeDashboardItem', 'removeVenueGalleryImage', 'runLinkCheck', 'uploadVenueGalleryImages', 'saveDashboardEventRow', 'saveDashboardEvents', 'saveDashboardItems', 'saveDashboardProfile', 'saveProductEdit', 'signOutNow', 'startCheckout'];
 function runDsAction(expr) {
   // Zero-argument actions ("signOutNow") and calls with arguments
   // ("startCheckout('merchant_enhanced')") both have to work. The first version
@@ -504,6 +504,27 @@ function galleryImage(src) {
 }
 window.galleryImage = galleryImage;
 
+// ── Venue menus ─────────────────────────────────────────────────────────────
+// A menu page is stored as { url, type: 'image'|'pdf', name }. Older rows may
+// hold a bare URL string, so every reader goes through menuUrl().
+function menuUrl(item) {
+  return typeof item === 'string' ? item : ((item && item.url) || '');
+}
+function menuIsPdf(item) {
+  return !!item && typeof item === 'object' && (item.type === 'pdf' || /\.pdf($|\?)/i.test(menuUrl(item)));
+}
+// Cloudinary rasterises PDFs, so page 1 can be shown as an image while the link
+// still opens the real file. Non-Cloudinary PDFs have no preview — the card
+// falls back to a labelled placeholder rather than a broken <img>.
+function menuSrc(item) {
+  const url = menuUrl(item);
+  if (!url) return '';
+  if (!menuIsPdf(item)) return url;
+  const m = url.match(/^(https:\/\/res\.cloudinary\.com\/[^/]+\/image\/upload\/)(.+?)\.pdf(\?.*)?$/i);
+  return m ? m[1] + 'pg_1,w_900,q_auto,f_jpg/' + m[2] + '.jpg' : '';
+}
+window.menuSrc = menuSrc;
+
 // "French Café in Central", "Central" when there is no type, and never a bare
 // "in Central" — which is what a venue with no cuisine was rendering.
 function venueSubtitle(v) {
@@ -526,7 +547,8 @@ window.isPaidVenue = isPaidVenue;
 document.addEventListener('click', (ev) => {
   const btn = ev.target && ev.target.closest ? ev.target.closest('.gallery-arrow') : null;
   if (!btn) return;
-  const track = document.getElementById('venue-gallery');
+  // The menu carousel reuses these arrows, so the track is named on the button.
+  const track = document.getElementById(btn.dataset.target || 'venue-gallery');
   if (!track) return;
   const step = Math.max(240, Math.round(track.clientWidth * 0.5));
   track.scrollBy({ left: Number(btn.dataset.dir || 1) * step, behavior: 'smooth' });
@@ -1906,6 +1928,21 @@ async function renderVenueProfile() {
         </div>
       </div>
     </section>` : ''}
+    ${isPaidVenue(v) && Array.isArray(v.menus) && v.menus.length ? `
+    <section class="section venue-menus">
+      <div class="container">
+        <div class="section-head"><div><span class="eyebrow">Menu</span><h2>What's pouring at <span class="text-pink headline-script">${safe(v.name)}</span></h2></div><div class="carousel-controls"><button class="carousel-arrow gallery-arrow" type="button" data-dir="-1" data-target="venue-menus" aria-label="Previous menu page">←</button><button class="carousel-arrow gallery-arrow" type="button" data-dir="1" data-target="venue-menus" aria-label="Next menu page">→</button></div></div>
+        <div class="menu-track" id="venue-menus">
+          ${v.menus.slice(0, 6).map((m, i) => {
+            const href = menuUrl(m);
+            const src = menuSrc(m);
+            const pdf = menuIsPdf(m);
+            const label = safe((m && m.name) || (v.name + ' menu'));
+            return `<figure class="menu-slide"><a class="menu-link" href="${safe(href)}" target="_blank" rel="noreferrer" aria-label="${label}">${src ? `<img src="${safe(src)}" alt="${label} — page ${i + 1}" loading="lazy" />` : `<span class="menu-fallback">${pdf ? 'PDF menu' : 'Menu page'}</span>`}${pdf ? '<span class="menu-flag">PDF</span>' : ''}</a></figure>`;
+          }).join('')}
+        </div>
+      </div>
+    </section>` : ''}
     <section class="section-tight"><div class="container${claimed ? '' : ' grid grid-2'}">${claimed ? `<div class="panel"><span class="eyebrow">Find us</span><h3 style="margin:14px 0;">${safe(v.name)}${v.area ? ` · ${safe(v.area)}` : ''}</h3><div style="border-radius:8px;overflow:hidden;border:1px solid var(--border);"><iframe title="Map of ${safe(v.name)}" src="https://maps.google.com/maps?q=${encodeURIComponent(((v.name || '') + ' ' + (v.area || '') + ' Hong Kong').trim())}&output=embed" width="100%" height="300" style="border:0;display:block;" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe></div>${v.maps_url ? `<div class="inline-actions" style="margin-top:14px;"><a class="btn btn-ghost btn-small" href="${safe(v.maps_url)}" target="_blank" rel="noreferrer">Open in Google Maps</a></div>` : ''}</div>` : `<div class="panel"><span class="eyebrow">Claim your venue</span><h3 style="margin:14px 0;">Own this venue?</h3><p class="muted">Add direct booking links, imagery, and promoted placement so guests find you first.</p><div class="inline-actions" style="margin-top:18px;"><a class="btn btn-primary" href="list-your-business.html?type=venue&claim=${encodeURIComponent(slug)}">Claim your venue</a></div></div>`}</div></section>
 `;
   bindSaveButtons(app);
@@ -2399,6 +2436,139 @@ async function removeVenueGalleryImage(index) {
   }
 }
 
+// ── Venue menu pages (up to 6, portrait) ────────────────────────────────────
+// Menu pages are a Venue Enhanced / Venue Enhanced + Events benefit. The
+// database enforces the cap and the tier (migration 088); this editor is the
+// friendly layer in front of it. Uploads go through the signed upload-image
+// function with slot 'menus', which is the only slot that accepts a PDF.
+const VENUE_MENU_MAX = 6;
+const VENUE_MENU_PAID_TIERS = ['enhanced', 'featured', 'premium'];
+let _venueMenus = [];
+let _venueMenuTier = 'standard';
+
+async function loadVenueMenus() {
+  try {
+    const user = await dsAuth.getCurrentUser();
+    if (!user || !user.id) { _venueMenus = []; return _venueMenus; }
+    const res = await sb.from('venues').select('menus,tier').eq('user_id', user.id).maybeSingle();
+    const d = res && res.data;
+    _venueMenus = d && Array.isArray(d.menus) ? d.menus.slice(0, VENUE_MENU_MAX) : [];
+    _venueMenuTier = (d && d.tier) || 'standard';
+  } catch (e) { _venueMenus = []; }
+  return _venueMenus;
+}
+
+async function saveVenueMenus() {
+  const user = await dsAuth.getCurrentUser();
+  if (!user || !user.id) throw new Error('Please sign in again.');
+  const res = await sb.from('venues').update({ menus: _venueMenus }).eq('user_id', user.id);
+  if (res && res.error) throw res.error;
+}
+
+async function renderVenueMenuEditor() {
+  const holder = document.getElementById('venue-menu-editor');
+  if (!holder) return;
+  await loadVenueMenus();
+  const paid = VENUE_MENU_PAID_TIERS.includes(String(_venueMenuTier || '').toLowerCase());
+  const input = document.getElementById('venue-menu-input');
+  const btn = document.querySelector('[data-action="uploadVenueMenuFiles()"]');
+  if (!paid) {
+    holder.innerHTML = '<p class="muted" style="margin:0;font-size:.88rem;">Menu pages are part of <a href="pricing.html">Venue Enhanced</a> and Venue Enhanced + Events. Upgrade to put your menu on your page.</p>';
+    if (input) input.disabled = true;
+    if (btn) btn.disabled = true;
+    return;
+  }
+  if (input) input.disabled = false;
+  if (btn) btn.disabled = false;
+  holder.innerHTML = _venueMenus.length
+    ? _venueMenus.map((m, i) => {
+        const src = menuSrc(m);
+        const pdf = menuIsPdf(m);
+        const thumb = src
+          ? `<img src="${safe(src)}" alt="${safe((m && m.name) || 'Menu page ' + (i + 1))}" />`
+          : `<span class="dash-menu__fallback">${pdf ? 'PDF' : 'Page'}</span>`;
+        return `<figure class="dash-gallery__item dash-menu__item">${thumb}${pdf ? '<span class="dash-menu__flag">PDF</span>' : ''}<button type="button" class="dash-gallery__remove" data-action="removeVenueMenuItem(${i})" aria-label="Remove menu page">×</button></figure>`;
+      }).join('')
+    : '<p class="muted" style="margin:0;font-size:.88rem;">No menu pages yet — add up to 6 portrait pages, or a PDF.</p>';
+}
+
+async function uploadVenueMenuFiles() {
+  const input = document.getElementById('venue-menu-input');
+  const notice = document.getElementById('venue-menu-notice');
+  const say = (html) => { if (notice) notice.innerHTML = html; };
+  if (!VENUE_MENU_PAID_TIERS.includes(String(_venueMenuTier || '').toLowerCase())) {
+    say('<div class="notice">Menu pages are part of Venue Enhanced and Venue Enhanced + Events.</div>');
+    return;
+  }
+  if (!input || !input.files || !input.files.length) {
+    say('<div class="notice">Choose one or more files first, then press Upload menu pages.</div>');
+    return;
+  }
+  const room = VENUE_MENU_MAX - _venueMenus.length;
+  if (room <= 0) {
+    say('<div class="notice">You already have ' + VENUE_MENU_MAX + ' menu pages — remove one first.</div>');
+    input.value = '';
+    return;
+  }
+  say('<div class="notice">Uploading…</div>');
+  const list = Array.from(input.files).slice(0, room);
+  let added = 0, failed = 0, lastError = '';
+  for (const file of list) {
+    try {
+      const isPdf = /pdf$/i.test(file.type) || /\.pdf$/i.test(file.name);
+      if (!isPdf && !/^image\//.test(file.type)) throw new Error('not an image or PDF');
+      if (file.size > 10 * 1024 * 1024) throw new Error('over 10 MB');
+      const dataUri = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const session = await sb.auth.getSession();
+      const token = session && session.data && session.data.session ? session.data.session.access_token : '';
+      if (!token) throw new Error('please sign in again');
+      const resp = await fetch(SUPABASE_URL + '/functions/v1/upload-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + token },
+        body: JSON.stringify({ slot: 'menus', file: dataUri }),
+      });
+      const out = await resp.json().catch(() => ({}));
+      if (!resp.ok || !out.url) throw new Error(out.error || 'upload failed');
+      _venueMenus.push({
+        url: out.url,
+        type: (out.format === 'pdf' || isPdf) ? 'pdf' : 'image',
+        name: String(file.name || 'Menu').replace(/\.[a-z0-9]+$/i, '').slice(0, 80),
+      });
+      added++;
+    } catch (e) { failed++; lastError = String((e && e.message) || e); }
+  }
+  try { await saveVenueMenus(); }
+  catch (e) {
+    say('<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Could not save the menu: ' + safe((e && e.message) || '') + '</div>');
+    return;
+  }
+  await renderVenueMenuEditor();
+  if (input) input.value = '';
+  say('<div class="notice">Added ' + added + ' menu page' + (added === 1 ? '' : 's') +
+    (failed ? ' — ' + failed + ' failed' + (lastError ? ' (' + safe(lastError) + ')' : '') : '') + '.</div>');
+}
+window.uploadVenueMenuFiles = uploadVenueMenuFiles;
+
+async function removeVenueMenuItem(index) {
+  const i = Number(index);
+  if (!Number.isInteger(i) || i < 0 || i >= _venueMenus.length) return;
+  _venueMenus.splice(i, 1);
+  const notice = document.getElementById('venue-menu-notice');
+  try {
+    await saveVenueMenus();
+    await renderVenueMenuEditor();
+    if (notice) notice.innerHTML = '<div class="notice">Menu page removed.</div>';
+  } catch (e) {
+    if (notice) notice.innerHTML = '<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Could not save: ' + safe((e && e.message) || '') + '</div>';
+  }
+}
+window.removeVenueMenuItem = removeVenueMenuItem;
+
 // Persists the business type (and district) to the business row itself. Before
 // this it only wrote to localStorage and announced success, so the directory's
 // business type could never be corrected from the dashboard.
@@ -2823,6 +2993,16 @@ async function renderBusinessDashboardPage() {
                   <div id="venue-gallery-editor" class="dash-gallery" style="margin-top:12px;"></div>
                   <div id="venue-gallery-notice"></div>
                   <div class="small-note">Square, e.g. 800 × 800 px. Shows as a carousel on your venue page. Available on Venue Enhanced and above.</div>
+                </div>
+                <div class="dashboard-field full" style="grid-column:1/-1;">
+                  <span>Menu — up to 6 portrait pages</span>
+                  <input class="input" type="file" id="venue-menu-input" accept="image/*,application/pdf" multiple style="margin-top:8px;" />
+                  <div class="inline-actions" style="margin-top:10px;">
+                    <button class="btn btn-secondary btn-small" type="button" data-action="uploadVenueMenuFiles()">Upload menu pages</button>
+                  </div>
+                  <div id="venue-menu-editor" class="dash-gallery dash-menu" style="margin-top:12px;"></div>
+                  <div id="venue-menu-notice"></div>
+                  <div class="small-note">Portrait pages, e.g. 800 × 1100 px — or a PDF, which shows its first page in the carousel and opens the full file when tapped. Up to 6 pages. Available on Venue Enhanced and Venue Enhanced + Events.</div>
                 </div>` : ''}
                 ${role === 'venue' ? `<div class="dashboard-field"><span>Category</span><input class="input" id="dash-v-category" placeholder="e.g. French Café" /></div>
                 <div class="dashboard-field"><span>Cuisine</span><input class="input" id="dash-v-cuisine" placeholder="e.g. French" /></div>
@@ -3217,6 +3397,13 @@ async function renderBusinessDashboardPage() {
   // than on state.activeRole — the form can be rendered from ?role=venue while
   // activeRole is still 'merchant', which silently skipped this whole block and
   // left the file picker with no handler.
+  if (document.getElementById('venue-menu-input')) {
+    try {
+      renderVenueMenuEditor();
+      const mi = document.getElementById('venue-menu-input');
+      if (mi) mi.addEventListener('change', () => uploadVenueMenuFiles());
+    } catch (e) { console.error('Menu editor failed', e); }
+  }
   if (document.getElementById('venue-gallery-input')) {
     try {
       renderVenueGalleryEditor();

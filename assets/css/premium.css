@@ -381,3 +381,57 @@ h1,h2,h3,h4{font-family:var(--serif);font-weight:400;letter-spacing:-.025em;colo
   font-size: 15px; line-height: 1; cursor: pointer;
 }
 .dash-gallery__remove:hover { background: #7b3d49; }
+
+/* Venue menu carousel — portrait pages (3:4). Same snap rhythm as the gallery
+   above, but taller slides, because a menu is a page, not a photo. */
+.menu-track {
+  display: flex;
+  gap: 14px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  padding-bottom: 10px;
+  scrollbar-width: none;
+}
+.menu-track::-webkit-scrollbar { display: none; }
+.menu-slide {
+  flex: 0 0 clamp(170px, 19vw, 250px);
+  margin: 0;
+  scroll-snap-align: start;
+}
+.menu-link {
+  position: relative;
+  display: block;
+  aspect-ratio: 3 / 4;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--border, rgba(255,255,255,.07));
+  background: #0c0e0f;
+  box-shadow: 0 10px 30px rgba(0,0,0,.22);
+}
+.menu-link img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.menu-link:hover { border-color: rgba(189,161,111,.35); }
+.menu-fallback {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  font-size: .72rem; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--muted, #a7a093);
+}
+.menu-flag {
+  position: absolute; left: 10px; top: 10px;
+  background: #f3efe6; color: #0d0d10;
+  font-size: .6rem; font-weight: 700; letter-spacing: .1em;
+  padding: 3px 7px; border-radius: 3px;
+}
+
+/* Dashboard menu editor — portrait thumbs so the owner sees the real shape. */
+.dash-menu .dash-gallery__item { aspect-ratio: 3 / 4; }
+.dash-menu__fallback {
+  display: grid; place-items: center; width: 100%; height: 100%;
+  font-size: .62rem; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--muted, #a7a093);
+}
+.dash-menu__flag {
+  position: absolute; left: 4px; top: 4px;
+  background: #f3efe6; color: #0d0d10;
+  font-size: .52rem; font-weight: 700; letter-spacing: .06em;
+  padding: 2px 5px; border-radius: 3px;
+}
