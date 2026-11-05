@@ -606,7 +606,20 @@ textarea:focus-visible {
   border-color: rgba(189,161,111,.14);
   box-shadow: 0 16px 48px rgba(0,0,0,.26);
 }
-.venue-card .card-media { aspect-ratio: 4 / 3; }
+/* Venue cards match the supplier cards: a square image block, so the two
+   rows on the homepage read as one system instead of two different shapes. */
+.venue-card .card-media { aspect-ratio: 1 / 1; }
+.venue-card .card-media img { object-fit: cover; }
+
+/* The venue type sits over photography, so it is a solid light banner with
+   black text rather than a translucent maroon chip: legible on any image and
+   it reads as a label, not a badge. */
+.venue-card .badge {
+  background: #f3efe6;
+  border-color: transparent;
+  color: #0d0d10;
+  box-shadow: 0 2px 10px rgba(0,0,0,.18);
+}
 .venue-card .card-overlay {
   background: linear-gradient(180deg, rgba(7,8,13,.04) 0%, rgba(7,8,13,.18) 48%, rgba(7,8,13,.84) 100%);
 }

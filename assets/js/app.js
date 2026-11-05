@@ -720,11 +720,17 @@ function renderCard(item, options = {}) {
       : type === 'event'
         ? [item.tierLabel || item.type, primaryMeta].filter(Boolean).join(' · ')
         : '';
-  const detailTags = type === 'supplier'
-    ? [secondaryMeta, item.specialty].filter(Boolean)
-    : type === 'venue'
-      ? [item.booking].filter(Boolean)
-      : [];
+  // Supplier cards were stacking three copies of the same facts: a "Distributor"
+  // badge, the same word again in the kicker, then pills for "Shop direct" and
+  // the specialty. The pills are the wasted space, so they are opt-out.
+  const hideMetaPills = options.hideMetaPills === true;
+  const detailTags = hideMetaPills
+    ? []
+    : type === 'supplier'
+      ? [secondaryMeta, item.specialty].filter(Boolean)
+      : type === 'venue'
+        ? [item.booking].filter(Boolean)
+        : [];
   const showBadge = options.showBadge !== false;
   const showDescription = options.showDescription !== false;
   const badgeTone = type === 'venue' ? 'pink' : type === 'event' ? 'jade' : 'gold';
@@ -736,11 +742,15 @@ function renderCard(item, options = {}) {
   const fallbackMeta = (item.price || item.phone || item.booking)
     ? `<div class="meta">${item.price ? `<span>${safe(item.price)}</span>` : ''}${item.phone ? `<span>${safe(item.phone)}</span>` : ''}${item.booking ? `<span>${safe(item.booking)}</span>` : ''}</div>`
     : '';
-  const inlineMeta = type === 'supplier'
-    ? `<div class="card-inline-meta">${secondaryMeta ? `<span class="info-pill subtle-pill">${safe(secondaryMeta)}</span>` : ''}<span class="info-pill subtle-pill">Shop direct</span></div>`
-    : type === 'venue'
-      ? `<div class="card-inline-meta">${item.rating ? `<span class="info-pill rating-pill">★ ${safe(item.rating)}</span>` : ''}${item.specialty ? `<span class="info-pill">${safe(item.specialty)}</span>` : ''}</div>`
-      : type === 'event'
+  // Venue cards no longer show a star rating: the number was decorative (it is
+  // not a live aggregate) and it competed with the venue type for attention.
+  const inlineMeta = hideMetaPills
+    ? ''
+    : type === 'supplier'
+      ? `<div class="card-inline-meta">${secondaryMeta ? `<span class="info-pill subtle-pill">${safe(secondaryMeta)}</span>` : ''}<span class="info-pill subtle-pill">Shop direct</span></div>`
+      : type === 'venue'
+        ? `${item.specialty ? `<div class="card-inline-meta"><span class="info-pill">${safe(item.specialty)}</span></div>` : ''}`
+        : type === 'event'
         ? `${item.venue ? `<div class="card-inline-meta"><span class="info-pill subtle-pill">${safe(item.venue)}</span></div>` : ''}`
         : fallbackMeta;
 
@@ -874,7 +884,7 @@ async function renderHomepage() {
     <section class="section homepage-suppliers-section">
       <div class="container">
         <div class="section-head section-head-center"><div><span class="eyebrow">Directory</span><h2>Premium <span class="text-gold headline-script">suppliers</span></h2><p class="lead" style="margin-top:14px;">Merchants, specialists, and local producers worth knowing — browse by neighbourhood, style, or specialty.</p></div></div>
-        <div class="grid grid-4">${featuredSuppliers.map(s => renderCard(s, {type:'supplier', href:`supplier-template.html?slug=${s.slug}`, cta:`<a class="btn btn-primary btn-small" href="supplier-template.html?slug=${s.slug}">View</a>`})).join('')}</div>
+        <div class="grid grid-4">${featuredSuppliers.map(s => renderCard(s, {type:'supplier', hideMetaPills:true, href:`supplier-template.html?slug=${s.slug}`, cta:`<a class="btn btn-primary btn-small" href="supplier-template.html?slug=${s.slug}">View</a>`})).join('')}</div>
       </div>
     </section>
 
@@ -1057,8 +1067,8 @@ async function renderSupplierDirectory() {
     const enhanced = sData.enhanced.filter(s => match(s.area, s.specialty, 'enhanced', [s.name, s.area, s.specialty]));
     const featured = sData.featured.filter(s => match(s.area, s.specialty, 'featured', [s.name, s.area, s.specialty]));
     const standard = sData.standard.filter(s => match(s[1], s[3], 'standard', [s[0], s[1], s[3]]));
-    $('#supplier-enhanced').innerHTML = enhanced.length ? enhanced.map(s => renderCard({...s, tierLabel:'Enhanced'}, {type:'supplier', href:`supplier-template.html?slug=${s.slug}`, cta:`<a class="btn btn-primary btn-small" href="supplier-template.html?slug=${s.slug}">View</a>`})).join('') : '<div class="empty-state">No enhanced suppliers match these filters.</div>';
-    $('#supplier-featured').innerHTML = featured.length ? featured.map(s => renderCard({...s, tierLabel:'Featured'}, {type:'supplier', small:true, href:hasUsableHref(s.website) ? s.website : buildSearchHref('suppliers.html', s.name, s.area), cta:hasUsableHref(s.website) ? ctaLink('Visit website', s.website, 'btn btn-ghost btn-small') : ctaLink('View listing', buildSearchHref('suppliers.html', s.name, s.area), 'btn btn-ghost btn-small')})).join('') : '<div class="empty-state">No featured suppliers match these filters.</div>';
+    $('#supplier-enhanced').innerHTML = enhanced.length ? enhanced.map(s => renderCard({...s, tierLabel:'Enhanced'}, {type:'supplier', hideMetaPills:true, href:`supplier-template.html?slug=${s.slug}`, cta:`<a class="btn btn-primary btn-small" href="supplier-template.html?slug=${s.slug}">View</a>`})).join('') : '<div class="empty-state">No enhanced suppliers match these filters.</div>';
+    $('#supplier-featured').innerHTML = featured.length ? featured.map(s => renderCard({...s, tierLabel:'Featured'}, {type:'supplier', hideMetaPills:true, small:true, href:hasUsableHref(s.website) ? s.website : buildSearchHref('suppliers.html', s.name, s.area), cta:hasUsableHref(s.website) ? ctaLink('Visit website', s.website, 'btn btn-ghost btn-small') : ctaLink('View listing', buildSearchHref('suppliers.html', s.name, s.area), 'btn btn-ghost btn-small')})).join('') : '<div class="empty-state">No featured suppliers match these filters.</div>';
     $('#supplier-standard').innerHTML = standard.length ? standard.map(row => `<div class="list-row"><div><strong>${row[0]}</strong></div><div>${row[1]}</div><div>${row[2]}</div><div>${row[3]}</div></div>`).join('') : '<div class="empty-state">No standard suppliers match these filters.</div>';
     const totalMatches = enhanced.length + featured.length + standard.length;
     $('#supplier-results-note').innerHTML = `<div class="notice">Showing <strong>${totalMatches}</strong> matching suppliers${queryInput?.value ? ` for “${queryInput.value}”` : ''}${area.value !== 'all' ? ` in ${area.value}` : ''}.</div>`;
