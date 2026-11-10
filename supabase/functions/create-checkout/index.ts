@@ -129,6 +129,52 @@ serve(async (req) => {
     return json({ prices: out });
   }
 
+  // ── Diagnostic: what has Stripe actually seen? (service role only) ────────
+  // Answers the only questions that matter when an upgrade "doesn't stick":
+  //   was a checkout session created, did it get paid, and does a webhook
+  //   endpoint exist that Stripe is allowed to deliver to?
+  // Read-only. Requires the service-role key because it returns customer email
+  // and session metadata.
+  if (String(body.action || "") === "stripe_probe") {
+    const auth = req.headers.get("Authorization") || "";
+    const bearer = auth.replace(/^Bearer\s+/i, "").trim();
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+    if (!serviceKey || bearer !== serviceKey) {
+      return json({ error: "service role required" }, 403);
+    }
+    const sGet = async (path: string) => {
+      const r = await fetch(`${STRIPE_API}${path}`, { headers: { Authorization: `Bearer ${STRIPE_SECRET_KEY}` } });
+      const j = await r.json().catch(() => ({}));
+      return r.ok ? j : { error: j?.error?.message || `HTTP ${r.status}` };
+    };
+    const [hooks, events, sessions] = await Promise.all([
+      sGet("/webhook_endpoints?limit=10"),
+      sGet("/events?limit=10"),
+      sGet("/checkout/sessions?limit=5"),
+    ]);
+    return json({
+      key_mode: STRIPE_SECRET_KEY.startsWith("sk_live") ? "live" : STRIPE_SECRET_KEY.startsWith("sk_test") ? "test" : "unknown",
+      webhook_endpoints: (hooks?.data || []).map((h: any) => ({
+        id: h.id, url: h.url, status: h.status, livemode: h.livemode,
+        events: h.enabled_events, description: h.description || null,
+      })),
+      recent_events: (events?.data || []).map((e: any) => ({
+        id: e.id, type: e.type, created: new Date(e.created * 1000).toISOString(),
+        livemode: e.livemode, pending_webhooks: e.pending_webhooks,
+      })),
+      recent_sessions: (sessions?.data || []).map((s: any) => ({
+        id: s.id, status: s.status, payment_status: s.payment_status,
+        amount_total: s.amount_total, currency: s.currency,
+        created: new Date(s.created * 1000).toISOString(),
+        client_reference_id: s.client_reference_id,
+        plan: s.metadata?.plan || null,
+        subscription: s.subscription || null,
+        customer_email: s.customer_details?.email || s.customer_email || null,
+      })),
+      errors: [hooks?.error, events?.error, sessions?.error].filter(Boolean),
+    });
+  }
+
   const user = getUserFromAuth(req.headers.get("Authorization"));
   if (!user) {
     return json({ error: "You must be signed in to start checkout." }, 401);

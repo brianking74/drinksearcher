@@ -31,6 +31,53 @@ const ENTITLEMENTS: Record<string, { listing_limit: number | null; directory_tie
 };
 
 // ------------------------------------------------------------
+// Delivery audit
+//
+// Every attempt is recorded, whatever the outcome. A handler that answers 200
+// and writes nothing is indistinguishable from success to Stripe (it only
+// retries non-2xx), which is exactly how an upgrade can "complete" and leave the
+// account untouched. stripe_webhook_log (089) makes that impossible to miss.
+// ------------------------------------------------------------
+async function logAttempt(eventId: string, type: string | null, signatureOk: boolean, outcome: string, detail?: string) {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !eventId) return;
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/stripe_webhook_log?on_conflict=event_id`, {
+      method: "POST",
+      headers: {
+        apikey: SUPABASE_SERVICE_ROLE_KEY,
+        Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+        "Content-Type": "application/json",
+        Prefer: "resolution=merge-duplicates,return=minimal",
+      },
+      body: JSON.stringify({
+        event_id: eventId,
+        type,
+        signature_ok: signatureOk,
+        outcome,
+        detail: detail ? String(detail).slice(0, 500) : null,
+        received_at: new Date().toISOString(),
+      }),
+    });
+  } catch (e) {
+    console.error("stripe_webhook_log write failed:", e);
+  }
+}
+
+async function alreadyProcessed(eventId: string): Promise<boolean> {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) return false;
+  try {
+    const r = await fetch(
+      `${SUPABASE_URL}/rest/v1/stripe_webhook_log?event_id=eq.${encodeURIComponent(eventId)}&outcome=eq.processed&select=event_id`,
+      { headers: { apikey: SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}` } },
+    );
+    const rows = await r.json();
+    return Array.isArray(rows) && rows.length > 0;
+  } catch {
+    return false;
+  }
+}
+
+// ------------------------------------------------------------
 // Stripe webhook signature verification (HMAC-SHA256)
 // ------------------------------------------------------------
 async function verifySignature(rawBody: string, sigHeader: string, secret: string): Promise<boolean> {
@@ -71,6 +118,8 @@ function json(body: unknown, status = 200): Response {
 // ------------------------------------------------------------
 // Upsert a subscription row (by unique user_id) as service_role
 // ------------------------------------------------------------
+let lastUpsertError: string | null = null;
+
 async function upsertSubscription(row: Record<string, unknown>): Promise<boolean> {
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
     console.error("Missing SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY");
@@ -82,15 +131,24 @@ async function upsertSubscription(row: Record<string, unknown>): Promise<boolean
       "apikey": SUPABASE_SERVICE_ROLE_KEY,
       "Authorization": `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
       "Content-Type": "application/json",
-      "Prefer": "return=minimal",
+      // merge-duplicates is what makes this an UPSERT. Without it PostgREST
+      // treats the POST as a plain INSERT, and any user who already has a
+      // subscription row — i.e. every Starter account trying to upgrade — gets
+      // 23505 duplicate key on subscriptions_user_id_key. First-time purchases
+      // worked, upgrades never did, and the function answered 200 either way.
+      "Prefer": "resolution=merge-duplicates,return=minimal",
     },
     body: JSON.stringify(row),
   });
   if (!res.ok) {
     const text = await res.text();
     console.error("subscriptions upsert failed:", res.status, text);
+    // Surface the PostgREST reason: "upsert failed" alone sent us looking at
+    // Stripe for hours while the database was refusing the row.
+    lastUpsertError = `HTTP ${res.status}: ${text.slice(0, 300)}`;
     return false;
   }
+  lastUpsertError = null;
   return true;
 }
 
@@ -113,17 +171,17 @@ function mapStatus(stripeStatus: string): string {
 // ------------------------------------------------------------
 // Event handlers
 // ------------------------------------------------------------
-async function handleCheckoutCompleted(session: any) {
+async function handleCheckoutCompleted(session: any): Promise<string> {
   const userId = session.client_reference_id || session.metadata?.user_id;
   const plan = session.metadata?.plan;
   if (!userId || !plan) {
     console.error("checkout.session.completed missing user_id/plan metadata");
-    return;
+    return "ignored:missing_metadata";
   }
   const ent = ENTITLEMENTS[plan];
   if (!ent) {
     console.error("unknown plan in checkout metadata:", plan);
-    return;
+    return "ignored:unknown_plan";
   }
 
   // Fetch the subscription to get the real current_period_end
@@ -135,14 +193,17 @@ async function handleCheckoutCompleted(session: any) {
       });
       if (subRes.ok) {
         const sub = await subRes.json();
-        periodEnd = sub.current_period_end ? new Date(sub.current_period_end * 1000).toISOString() : null;
+        // Stripe moved current_period_end onto the subscription item in recent
+        // API versions; read both so the renewal date is not silently null.
+        const rawEnd = sub.current_period_end ?? sub.items?.data?.[0]?.current_period_end;
+        periodEnd = rawEnd ? new Date(rawEnd * 1000).toISOString() : null;
       }
     } catch (e) {
       console.error("failed to fetch subscription period:", e);
     }
   }
 
-  await upsertSubscription({
+  const ok = await upsertSubscription({
     user_id: userId,
     stripe_subscription_id: session.subscription || null,
     stripe_customer_id: session.customer || null,
@@ -154,6 +215,10 @@ async function handleCheckoutCompleted(session: any) {
     founding: true,
     updated_at: new Date().toISOString(),
   });
+  // A failed write must throw so the caller can answer 500 and Stripe retries.
+  // Answering 200 here is what made the original bug silent.
+  if (!ok) throw new Error("subscriptions upsert failed — " + (lastUpsertError || "unknown error"));
+  return "processed";
 }
 
 async function handleSubscriptionUpdated(subscription: any) {
@@ -227,41 +292,78 @@ async function handleSubscriptionDeleted(subscription: any) {
 }
 
 // ------------------------------------------------------------
+// Run one event. Returns an outcome string for the audit log; throws only when
+// the write failed, so the caller can answer 500 and let Stripe retry.
+async function processEvent(event: any): Promise<string> {
+  switch (event.type) {
+    case "checkout.session.completed":
+      return await handleCheckoutCompleted(event.data.object);
+    case "customer.subscription.updated":
+      await handleSubscriptionUpdated(event.data.object);
+      return "processed";
+    case "customer.subscription.deleted":
+      await handleSubscriptionDeleted(event.data.object);
+      return "processed";
+    default:
+      return "ignored:unhandled_type";
+  }
+}
+
 serve(async (req) => {
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
 
-  const sig = req.headers.get("stripe-signature") || "";
   const rawBody = await req.text();
+  let parsed: any = null;
+  try { parsed = JSON.parse(rawBody); } catch { /* handled below */ }
 
+  // ── Admin replay ──────────────────────────────────────────────────────────
+  // Stripe only retries non-2xx responses, so an event that was answered 200
+  // but not written can never be re-delivered. This path re-fetches the event
+  // from Stripe and runs the same handler, gated on the service-role key. It is
+  // a repair tool, not a second auth path for Stripe itself.
+  const replayKey = req.headers.get("x-ds-replay-key") || "";
+  if (replayKey && SUPABASE_SERVICE_ROLE_KEY && replayKey === SUPABASE_SERVICE_ROLE_KEY) {
+    const eventId = String(parsed?.replay_event || "");
+    if (!/^evt_/.test(eventId)) return json({ error: "replay_event (evt_...) required" }, 400);
+    const r = await fetch(`https://api.stripe.com/v1/events/${eventId}`, {
+      headers: { Authorization: `Bearer ${STRIPE_SECRET_KEY}` },
+    });
+    const event = await r.json().catch(() => ({}));
+    if (!r.ok) return json({ error: event?.error?.message || `HTTP ${r.status}` }, 502);
+    try {
+      const outcome = await processEvent(event);
+      await logAttempt(event.id, event.type, true, outcome, "manual replay");
+      return json({ replayed: event.id, type: event.type, outcome });
+    } catch (err) {
+      const msg = String((err as Error)?.message || err);
+      await logAttempt(event.id, event.type, true, "error", msg);
+      return json({ error: msg }, 500);
+    }
+  }
+
+  const sig = req.headers.get("stripe-signature") || "";
   if (!(await verifySignature(rawBody, sig, STRIPE_WEBHOOK_SECRET))) {
+    await logAttempt(parsed?.id || `unsigned-${Date.now()}`, parsed?.type || null, false, "invalid_signature",
+      "HMAC did not verify — STRIPE_WEBHOOK_SECRET does not match this endpoint's signing secret");
     return json({ error: "Invalid signature" }, 400);
   }
 
-  let event: any;
-  try {
-    event = JSON.parse(rawBody);
-  } catch {
-    return json({ error: "Invalid JSON" }, 400);
+  const event = parsed;
+  if (!event || !event.id) return json({ error: "Invalid JSON" }, 400);
+
+  if (await alreadyProcessed(event.id)) {
+    await logAttempt(event.id, event.type, true, "duplicate");
+    return json({ received: true, duplicate: true });
   }
 
   try {
-    switch (event.type) {
-      case "checkout.session.completed":
-        await handleCheckoutCompleted(event.data.object);
-        break;
-      case "customer.subscription.updated":
-        await handleSubscriptionUpdated(event.data.object);
-        break;
-      case "customer.subscription.deleted":
-        await handleSubscriptionDeleted(event.data.object);
-        break;
-      default:
-        // ignore other event types
-        break;
-    }
-    return json({ received: true });
+    const outcome = await processEvent(event);
+    await logAttempt(event.id, event.type, true, outcome);
+    return json({ received: true, outcome });
   } catch (err) {
-    console.error("webhook handler error:", err);
-    return json({ error: err.message }, 500);
+    const msg = String((err as Error)?.message || err);
+    console.error("webhook handler error:", msg);
+    await logAttempt(event.id, event.type, true, "error", msg);
+    return json({ error: msg }, 500);
   }
 });
