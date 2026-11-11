@@ -202,6 +202,16 @@ serve(async (req) => {
 
   const plan = String(body.plan || "").trim();
 
+  // Venue plans are built but switched off while the site is drinks-first: the
+  // venue directory and profile pages are hidden, so selling a venue listing
+  // would take money for a page nobody can reach. This is the server-side gate —
+  // removing the pricing cards is only presentation. Delete this block (and the
+  // venue_* entries in PRICE_ENV) when the venue side comes back.
+  const VENUE_PLANS_OFF = new Set(["venue_enhanced", "venue_enhanced_events", "venue_starter"]);
+  if (VENUE_PLANS_OFF.has(plan)) {
+    return json({ error: "Venue listings are not open yet. Join the supplier directory, or contact us to be told when venues launch." }, 400);
+  }
+
   // Premium is configured in Stripe but the secret may not be set yet. Gate on
   // the price existing rather than on the plan name, so the tier opens for
   // purchase the moment STRIPE_PRICE_MERCHANT_PREMIUM is present and stays a

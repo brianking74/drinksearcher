@@ -155,6 +155,10 @@ async function fetchSuppliers() {
 
 // --- Venues ---
 async function fetchVenues() {
+  // Switched off while the site is drinks-first (assets/js/features.js). Returning
+  // an empty set means a call site that forgets to check the flag still paints
+  // nothing, instead of resurrecting a hidden section.
+  if (!dsFeature('venues')) return { enhanced: [], featured: [], standard: [] };
   try {
     const { data, error } = await sb.from('venues').select('*').order('name').limit(1000);
     if (!error && Array.isArray(data) && data.length) {
@@ -173,6 +177,10 @@ async function fetchVenues() {
 
 // --- Events ---
 async function fetchEvents() {
+  // Off with the venue side. It also removed a quiet problem: with the events
+  // table empty this fell back to the bundled seed events, so the calendar was
+  // advertising events that did not exist.
+  if (!dsFeature('events')) return [];
   try {
     const today = new Date().toISOString().slice(0, 10);
     const { data, error } = await sb.from('events').select('*').eq('status', 'approved').gte('date', today).order('date', { ascending: true }).limit(200);
@@ -454,6 +462,7 @@ async function fetchDrinkByNameSlug(slug) {
 }
 
 async function fetchVenuesForDrink(drinkId) {
+  if (!dsFeature('venues')) return [];
   const { data, error } = await sb
     .from('venue_drinks')
     .select('venue_id, verified, venues!inner(id, slug, name, area, phone, cuisine, rating, booking, specialty, image, website, tier)')

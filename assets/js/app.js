@@ -462,7 +462,7 @@ function statBlockHTML(counts) {
   return `<div class="stats-row homepage-stats">` +
     `<div class="stat"><strong>${c.bottles}</strong><span class="muted">Bottles indexed</span></div>` +
     `<div class="stat"><strong>${c.suppliers}</strong><span class="muted">HK suppliers</span></div>` +
-    `<div class="stat"><strong>${c.venues}</strong><span class="muted">Bars &amp; restaurants</span></div>` +
+    (dsFeature('venues') ? `<div class="stat"><strong>${c.venues}</strong><span class="muted">Bars &amp; restaurants</span></div>` : '') +
     `</div>`;
 }
 window.statBlockHTML = statBlockHTML;
@@ -595,14 +595,16 @@ window.BUSINESS_TYPES = BUSINESS_TYPES;
 window.businessTypeOptions = businessTypeOptions;
 
 function navHTML(active = '', user) {
+  // Venues and events are built but not advertised while the site is drinks-first
+  // (assets/js/features.js). Flip the flag and both links come back.
   const links = [
     ['index.html','Home'],
     ['drinks.html','Drinks'],
-    ['bars-restaurants.html','Bars & Restaurants'],
-    ['events.html','Events'],
+    dsFeature('venues') ? ['bars-restaurants.html','Bars & Restaurants'] : null,
+    dsFeature('events') ? ['events.html','Events'] : null,
     ['blog.html','Blog'],
     ['pricing.html','Pricing'],
-    ];
+    ].filter(Boolean);
   const authActions = user
     ? `<a class="btn btn-ghost btn-small" href="account.html">My Account</a>`
     : `<a class="btn btn-ghost btn-small" href="signin.html">Sign In / Create Account</a>`;
@@ -634,15 +636,16 @@ function footerHTML() {
       <div class="container footer-grid">
         <div>
           <a class="logo brand-logo footer-brand" href="index.html" aria-label="DrinkSearcher home"><img src="assets/brand/drinksearcher-logo.webp" alt="DrinkSearcher"></a>
-          <p class="muted">Discover bottles, bars, restaurants, and tastings worth your time — all focused on Hong Kong.</p>
+          <p class="muted">Discover bottles worth your time, in stock across Hong Kong right now.</p>
         </div>
         <div>
           <h3 style="font-size:1.1rem; margin-bottom:10px;">Explore</h3>
           <div class="muted" style="display:grid; gap:8px;">
             <a href="drinks.html">Drinks</a>
-            <a href="events.html">Events</a>
-            <a href="bars-restaurants.html">Bars & Restaurants</a>
+            ${dsFeature('events') ? '<a href="events.html">Events</a>' : ''}
+            ${dsFeature('venues') ? '<a href="bars-restaurants.html">Bars & Restaurants</a>' : ''}
             <a href="suppliers.html">Suppliers</a>
+            <a href="blog.html">Blog</a>
             <a href="pricing.html">Pricing</a>
           </div>
         </div>
@@ -650,14 +653,14 @@ function footerHTML() {
           <h3 style="font-size:1.1rem; margin-bottom:10px;">Trade</h3>
           <div class="muted" style="display:grid; gap:8px;">
             <a href="list-your-business.html?type=merchant">Join as supplier</a>
-            <a href="list-your-business.html?type=venue">Claim your venue</a>
-            <a href="events.html">Promote an event</a>
+            ${dsFeature('venues') ? '<a href="list-your-business.html?type=venue">Claim your venue</a>' : ''}
+            ${dsFeature('events') ? '<a href="events.html">Promote an event</a>' : ''}
             <a href="pricing.html">Membership pricing</a>
           </div>
         </div>
         <div>
           <h3 style="font-size:1.1rem; margin-bottom:10px;">About</h3>
-          <small>Local bottle discovery, bar recommendations, and events worth booking — built around real Hong Kong demand.</small>
+          <small>Local bottle discovery — verified Hong Kong stock, honest pricing, direct links to the suppliers who sell it.</small>
         </div>
       </div>
     </footer>`;
@@ -905,12 +908,11 @@ async function renderHomepage() {
         <div class="search-shell homepage-search-shell">
           <div class="search-tabs" id="home-search-tabs">
             <button class="search-tab active" type="button" data-home-search-type="drinks">🍷 Drinks</button>
-            <button class="search-tab" type="button" data-home-search-type="events">🎉 Events</button>
-            <button class="search-tab" type="button" data-home-search-type="venues">🥂 Bars & Restaurants</button>
+            ${dsFeature('events') ? '<button class="search-tab" type="button" data-home-search-type="events">🎉 Events</button>' : ''}
+            ${dsFeature('venues') ? '<button class="search-tab" type="button" data-home-search-type="venues">🥂 Bars & Restaurants</button>' : ''}
           </div>
           <div class="search-box">
             <input class="input" id="home-search-input" placeholder="Search Château Margaux, Yamazaki 12, Hibiki..." />
-            <select class="select" id="home-search-location"><option value="">All Hong Kong</option><option>Central</option><option>Sheung Wan</option><option>Causeway Bay</option></select>
             <button class="btn btn-primary" id="home-search-submit" type="button">Search</button>
           </div>
           <div style="margin-top:14px" class="chip-row">
@@ -948,28 +950,28 @@ async function renderHomepage() {
       </div>
     </section>
 
-    <section class="section homepage-venues-section">
+    ${dsFeature('venues') ? `<section class="section homepage-venues-section">
       <div class="container">
         <div class="section-head section-head-center"><div><span class="eyebrow">Venue discovery</span><h2>Where Hong Kong <span class="text-pink headline-script">drinks</span></h2><p class="lead" style="margin-top:14px;">Cocktail bars, rooftops, hotel lounges, and neighbourhood favourites — compare by area, style, and drinks focus.</p></div></div>
         <div class="chip-row section-filter-pills"><span class="chip chip-active">All Venues</span><span class="chip">Cocktail Bars</span><span class="chip">Wine Bars</span><span class="chip">Rooftop</span><span class="chip">Hidden Speakeasies</span></div>
         <div class="grid grid-4">${featuredVenues.map(v => renderCard(v, {type:'venue', href:`venue-template.html?slug=${v.slug}`, cta:`${ctaLink('View', `venue-template.html?slug=${v.slug}`, 'btn btn-primary btn-small')}${ctaLink('Book', v.website, 'btn btn-ghost btn-small', 'Book', venueBookingAttrs(v, 'homepage_block'))}`})).join('')}</div>
       </div>
-    </section>
+    </section>` : ''}
 
-    <section class="section">
+    ${dsFeature('events') ? `<section class="section">
       <div class="container">
         <div class="section-head"><div><span class="eyebrow">Calendar</span><h2>Upcoming <em>Events</em></h2></div><a class="btn btn-ghost" href="events.html">Open events page</a></div>
         <div class="grid grid-4">${events.map(evt => renderCard({name:evt.name, area:'Hong Kong', venue:evt.venue, date:evt.date, image:evt.image, description:evt.venue, tierLabel:evt.type}, {type:'event', className:'event-card', href:buildSearchHref('events.html', evt.name), cta:ctaLink('View', buildSearchHref('events.html', evt.name), 'btn btn-primary btn-small')})).join('')}</div>
       </div>
-    </section>
+    </section>` : ''}
 
     <section class="section">
       <div class="container">
         <div class="section-head"><div><span class="eyebrow">For Consumers</span><h2>How it <em>works</em></h2></div></div>
         <div class="grid grid-3">
-          <div class="panel"><span class="badge gold">1</span><h3 style="margin:10px 0 12px;">Search</h3><p class="muted">Find specific bottles, upcoming tastings, or the best cocktail bars across Hong Kong.</p></div>
-          <div class="panel"><span class="badge gold">2</span><h3 style="margin:10px 0 12px;">Verify</h3><p class="muted">See real-time stock availability, local pricing without hidden shipping fees, and honest venue context.</p></div>
-          <div class="panel"><span class="badge gold">3</span><h3 style="margin:10px 0 12px;">Buy or book</h3><p class="muted">Click straight to the supplier's store to purchase, or head directly to the venue to plan your next night out.</p></div>
+          <div class="panel"><span class="badge gold">1</span><h3 style="margin:10px 0 12px;">Search</h3><p class="muted">Find a specific bottle, label, or grape across every Hong Kong supplier we track.</p></div>
+          <div class="panel"><span class="badge gold">2</span><h3 style="margin:10px 0 12px;">Verify</h3><p class="muted">See real stock availability and honest Hong Kong pricing, in dollars, with no hidden shipping.</p></div>
+          <div class="panel"><span class="badge gold">3</span><h3 style="margin:10px 0 12px;">Buy or book</h3><p class="muted">Click straight through to the supplier's own store to buy from the shop that actually holds the stock.</p></div>
         </div>
       </div>
     </section>
@@ -977,7 +979,7 @@ async function renderHomepage() {
     <section class="section" id="join-trade">
       <div class="container grid grid-2">
         <div class="panel"><span class="eyebrow">For drinks suppliers</span><h3 style="margin:14px 0;">Reach buyers already searching for what you stock.</h3><p class="muted">Start with a free directory listing, list your first 10 products for free, and upgrade when you want stronger visibility.</p><div class="inline-actions" style="margin-top:18px;"><a class="btn btn-primary btn-small" href="pricing.html">View pricing</a><a class="btn btn-ghost btn-small" href="list-your-business.html?type=merchant">List as supplier</a></div></div>
-        <div class="panel"><span class="eyebrow">For bar owners</span><h3 style="margin:14px 0;">Get discovered by locals and visitors looking for their next favorite spot.</h3><p class="muted">Create a free venue profile, add booking links, promote events, and feature your bar on neighbourhood discovery lists.</p><div class="inline-actions" style="margin-top:18px;"><a class="btn btn-secondary btn-small" href="pricing.html">Venue pricing</a><a class="btn btn-ghost btn-small" href="list-your-business.html?type=venue">Claim venue</a></div></div>
+        ${dsFeature('venues') ? `<div class="panel"><span class="eyebrow">For bar owners</span><h3 style="margin:14px 0;">Get discovered by locals and visitors looking for their next favorite spot.</h3><p class="muted">Create a free venue profile, add booking links, promote events, and feature your bar on neighbourhood discovery lists.</p><div class="inline-actions" style="margin-top:18px;"><a class="btn btn-secondary btn-small" href="pricing.html">Venue pricing</a><a class="btn btn-ghost btn-small" href="list-your-business.html?type=venue">Claim venue</a></div></div>` : ''}
       </div>
     </section>
 
@@ -1299,7 +1301,7 @@ async function renderBottleDetail() {
     </section>
   </div>
 
-    ${venues.length ? `
+    ${dsFeature('venues') && venues.length ? `
     <section class="section bottle-venues">
       <div class="container">
         <div class="section-head" style="margin-bottom:52px;">
@@ -1326,7 +1328,7 @@ async function renderBottleDetail() {
         </div>
       </div>
     </section>
-    ` : `
+    ` : (dsFeature('venues') ? `
     <section class="section bottle-venues">
       <div class="container">
         <div class="section-head">
@@ -1335,7 +1337,7 @@ async function renderBottleDetail() {
         <p class="muted">Know a bar that pours this? <a href="signup.html">Join as a venue</a> and tag it.</p>
       </div>
     </section>
-    `}
+    ` : '')}
 
     <section class="section bottle-reviews">
       <div class="container">
@@ -1504,12 +1506,12 @@ async function renderPricingPage() {
         <div class="hero-copy">
           <span class="kicker">Business memberships</span>
           <h1 class="pricing-hero-title">Turn local discovery into measurable demand.</h1>
-          <p class="lead">Plans for Hong Kong suppliers and venues that want credible profiles, direct customer actions and better visibility.</p>
+          <p class="lead">Plans for Hong Kong suppliers who want credible profiles, direct customer actions and better visibility.</p>
           <div class="pricing-toggle" style="margin-top:28px"><span class="badge jade">Founding offer</span></div>
           <p class="muted" style="margin-top:12px">Founding members lock today's lower price for life — standard rates return once the launch window closes. Most approved profiles can be ready in 2–5 working days after content and verification are complete.</p>
           <div class="hero-actions" style="margin-top:30px">
             <a class="btn btn-primary" href="list-your-business.html?type=merchant">Start your application</a>
-            <a class="btn btn-ghost" href="list-your-business.html?type=venue">Claim your venue</a>
+            ${dsFeature('venues') ? '<a class="btn btn-ghost" href="list-your-business.html?type=venue">Claim your venue</a>' : ''}
           </div>
         </div>
       </div>
@@ -1585,7 +1587,7 @@ async function renderPricingPage() {
       </div>
     </section>
 
-    <section class="section-tight">
+    ${dsFeature('venues') ? `<section class="section-tight">
       <div class="container">
         <div class="section-head section-head-single"><div><span class="eyebrow">Bar & restaurant memberships</span><h2>Simple venue plans with booking and event upside.</h2></div></div>
         <div class="grid grid-3 pricing-grid">
@@ -1646,7 +1648,7 @@ async function renderPricingPage() {
         </div>
       </div>
     </section>
-    </section>
+    </section>` : ''}
 
   `;
 
@@ -1665,7 +1667,9 @@ function renderLeadCapturePage() {
   const app = $('#app');
   const user = storage.getCurrentUser();
   if (!user) storage.setPostAuthRedirect(currentPagePath());
-  const requestedType = queryParam('type') || 'merchant';
+  // Venue onboarding is off with the venue directory: a venue that signed up now
+  // would land on a profile nobody can reach.
+  const requestedType = (queryParam('type') === 'venue' && !dsFeature('venues')) ? 'merchant' : (queryParam('type') || 'merchant');
   const requestedPlan = queryParam('plan') || (requestedType === 'venue' ? 'venue-enhanced' : 'merchant-enhanced');
   const source = queryParam('source') || 'site';
   const claimSlug = queryParam('claim') || '';
@@ -1688,7 +1692,7 @@ function renderLeadCapturePage() {
     ? `<div class="notice">Signed in as ${user.email}. Your details are prefilled and any submission will appear in your account dashboard.</div>`
     : `<div class="notice">Have an account already? <a class="text-jade" href="signin.html">Sign in</a> to prefill your details and track submissions.</div>`;
   app.innerHTML = `
-    <section class="hero" style="min-height:62vh;"><div class="hero-media" style="background-image:url('${requestedType === 'venue' ? siteImages.rooftop : siteImages.shop}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">List your business / Claim your venue</span><h1>${requestedType === 'venue' ? 'Claim your venue and start turning visibility into bookings.' : 'List your business and start turning discovery into sales.'}</h1><p class="lead">Tell us about your business and we'll help match you with the right listing, profile, and visibility options.</p><div class="hero-actions"><a class="btn btn-primary" href="pricing.html">Back to pricing</a><a class="btn btn-ghost" href="${user ? 'account.html' : 'signin.html'}">${user ? 'My account' : 'Sign in'}</a></div></div><div class="search-shell"><span class="eyebrow">Application form</span>${signedInNote}<div class="notice">Start with the right listing and we’ll organise the details you need for profile, visibility, and next-step setup.</div><form id="lead-form" class="form-grid" style="margin-top:14px;"><select class="select full" name="listingType"><option value="merchant" ${requestedType === 'merchant' ? 'selected' : ''}>Supplier / Merchant</option><option value="venue" ${requestedType === 'venue' ? 'selected' : ''}>Bar / Restaurant / Venue</option></select><input class="input" name="businessName" placeholder="Business name" required /><input class="input" name="contactName" placeholder="Contact name" value="${user?.name || ''}" required /><input class="input" name="email" type="email" placeholder="Email" value="${user?.email || ''}" required /><select class="select" name="businessType" id="lead-business-type" aria-label="Business type">${businessTypeOptions(requestedType)}</select>${!user ? '<input class="input full" name="password" type="password" placeholder="Create password (required for new accounts)" required />' : ''}<div class="turnstile-mount" style="margin-top:12px;"></div><button class="btn btn-primary full" type="submit">Create Account</button></form><div id="lead-notice"></div></div></div></section>
+    <section class="hero" style="min-height:62vh;"><div class="hero-media" style="background-image:url('${requestedType === 'venue' ? siteImages.rooftop : siteImages.shop}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">List your business / Claim your venue</span><h1>${requestedType === 'venue' ? 'Claim your venue and start turning visibility into bookings.' : 'List your business and start turning discovery into sales.'}</h1><p class="lead">Tell us about your business and we'll help match you with the right listing, profile, and visibility options.</p><div class="hero-actions"><a class="btn btn-primary" href="pricing.html">Back to pricing</a><a class="btn btn-ghost" href="${user ? 'account.html' : 'signin.html'}">${user ? 'My account' : 'Sign in'}</a></div></div><div class="search-shell"><span class="eyebrow">Application form</span>${signedInNote}<div class="notice">Start with the right listing and we’ll organise the details you need for profile, visibility, and next-step setup.</div><form id="lead-form" class="form-grid" style="margin-top:14px;"><select class="select full" name="listingType"><option value="merchant" ${requestedType === 'merchant' ? 'selected' : ''}>Supplier / Merchant</option>${dsFeature('venues') ? `<option value="venue" ${requestedType === 'venue' ? 'selected' : ''}>Bar / Restaurant / Venue</option>` : ''}</select><input class="input" name="businessName" placeholder="Business name" required /><input class="input" name="contactName" placeholder="Contact name" value="${user?.name || ''}" required /><input class="input" name="email" type="email" placeholder="Email" value="${user?.email || ''}" required /><select class="select" name="businessType" id="lead-business-type" aria-label="Business type">${businessTypeOptions(requestedType)}</select>${!user ? '<input class="input full" name="password" type="password" placeholder="Create password (required for new accounts)" required />' : ''}<div class="turnstile-mount" style="margin-top:12px;"></div><button class="btn btn-primary full" type="submit">Create Account</button></form><div id="lead-notice"></div></div></div></section>
     <section class="section"><div class="container grid grid-2"><div class="panel"><span class="eyebrow">What happens next</span><h2 style="margin:14px 0;">What happens next.</h2><div class="muted" style="display:grid; gap:12px;"><span>• We review your application and listing details.</span><span>• If you're signed in, your account information pre-fills automatically.</span><span>• We confirm the right plan, profile type, and any featured add-ons.</span><span>• Once approved, your business can appear across the directory, profile pages, and relevant discovery sections.</span></div></div><div class="panel"><span class="eyebrow">Why this matters</span><h2 style="margin:14px 0;">Why list on drinksearcher.net.</h2><p class="muted">This is where suppliers and venues move from browsing to joining — with a clear path into profiles, product visibility, featured placements, and direct customer discovery.</p><div class="inline-actions" style="margin-top:18px;"><a class="btn btn-ghost btn-small" href="suppliers.html">View suppliers</a><a class="btn btn-ghost btn-small" href="bars-restaurants.html">View venues</a></div></div></div></section>`;
 
   mountTurnstile(app);
@@ -2107,13 +2111,13 @@ async function renderSignInPage() {
   const hasPending = !!storage.getPendingSave() || new URLSearchParams(window.location.search).get('intent') === 'save';
   if (currentUser) {
     app.innerHTML = `
-      <section class="hero" style="min-height:50vh;"><div class="hero-media" style="background-image:url('${siteImages.hero}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Already signed in</span><h1>Welcome back, ${currentUser.name || 'friend'}.</h1><p class="lead">Your account is already active in this browser. Head to your dashboard to manage saved drinks, events, and venues.</p></div><div class="search-shell">${authErrorNotice}<div class="inline-actions"><a class="btn btn-primary btn-block" href="account.html">Go to account</a><button id="inline-signout" class="btn btn-ghost btn-block" type="button">Sign out first</button></div></div></div></section>`;
+      <section class="hero" style="min-height:50vh;"><div class="hero-media" style="background-image:url('${siteImages.hero}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Already signed in</span><h1>Welcome back, ${currentUser.name || 'friend'}.</h1><p class="lead">Your account is already active in this browser. Head to your dashboard to manage your saved drinks.</p></div><div class="search-shell">${authErrorNotice}<div class="inline-actions"><a class="btn btn-primary btn-block" href="account.html">Go to account</a><button id="inline-signout" class="btn btn-ghost btn-block" type="button">Sign out first</button></div></div></div></section>`;
     $('#inline-signout').addEventListener('click', () => { signOutNow(); });
     return;
   }
 
   app.innerHTML = `
-    <section class="hero" style="min-height:56vh;"><div class="hero-media" style="background-image:url('${siteImages.hero}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Sign in</span><h1>Access your profile and saved nightlife shortlist.</h1><p class="lead">Sign in to save drinks, events, and bars to your account, manage enquiries, and access your business dashboard.</p></div><div class="search-shell"><span class="eyebrow">Account sign in</span>${authErrorNotice}${hasPending ? '<div class="notice">Sign in to finish saving the item you just selected.</div>' : ''}<form id="signin-form" class="form-grid" style="margin-top:14px;"><input class="input full" name="email" type="email" placeholder="Email" required /><input class="input full" name="password" type="password" placeholder="Password" required /><div class="turnstile-mount" style="margin-top:12px;"></div><button class="btn btn-primary full" type="submit">Sign In</button></form><div id="signin-notice"></div><p class="muted" style="margin-top:16px;"><button class="btn btn-ghost btn-small" id="forgot-password-btn" type="button">Forgot password?</button></p><p class="muted">New here? <a class="text-jade" href="signup.html">Create an account</a></p></div></div></section>`;
+    <section class="hero" style="min-height:56vh;"><div class="hero-media" style="background-image:url('${siteImages.hero}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Sign in</span><h1>Access your profile and saved bottle shortlist.</h1><p class="lead">Sign in to save bottles to your account, manage enquiries, and access your business dashboard.</p></div><div class="search-shell"><span class="eyebrow">Account sign in</span>${authErrorNotice}${hasPending ? '<div class="notice">Sign in to finish saving the item you just selected.</div>' : ''}<form id="signin-form" class="form-grid" style="margin-top:14px;"><input class="input full" name="email" type="email" placeholder="Email" required /><input class="input full" name="password" type="password" placeholder="Password" required /><div class="turnstile-mount" style="margin-top:12px;"></div><button class="btn btn-primary full" type="submit">Sign In</button></form><div id="signin-notice"></div><p class="muted" style="margin-top:16px;"><button class="btn btn-ghost btn-small" id="forgot-password-btn" type="button">Forgot password?</button></p><p class="muted">New here? <a class="text-jade" href="signup.html">Create an account</a></p></div></div></section>`;
   mountTurnstile(app);
   $('#signin-form').addEventListener('submit', async e => {
     e.preventDefault();
@@ -2168,7 +2172,7 @@ async function renderSignUpPage() {
   const app = $('#app');
   try { await dsAuth.signOut(); } catch {}
   app.innerHTML = `
-    <section class="hero" style="min-height:58vh;"><div class="hero-media" style="background-image:url('${siteImages.event}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Create account</span><h1>Create your account.</h1><p class="lead">Create an account to save bottles, venues, and events, track enquiries, and manage your business profile in one place.</p></div><div class="search-shell"><span class="eyebrow">Sign up</span><form id="signup-form" class="form-grid" style="margin-top:14px;"><input class="input" name="name" placeholder="Full name" required /><input class="input" name="city" placeholder="Preferred district" required /><input class="input full" name="email" type="email" placeholder="Email" required /><input class="input full" name="password" type="password" placeholder="Create password" required /><div class="turnstile-mount" style="margin-top:12px;"></div><button class="btn btn-primary full" type="submit">Create account</button></form><div id="signup-notice"></div><p class="muted" style="margin-top:16px;">Already have an account? <a class="text-jade" href="signin.html">Sign in</a></p></div></div></section>`;
+    <section class="hero" style="min-height:58vh;"><div class="hero-media" style="background-image:url('${siteImages.event}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Create account</span><h1>Create your account.</h1><p class="lead">Create an account to save bottles, track enquiries, and manage your supplier profile in one place.</p></div><div class="search-shell"><span class="eyebrow">Sign up</span><form id="signup-form" class="form-grid" style="margin-top:14px;"><input class="input" name="name" placeholder="Full name" required /><input class="input" name="city" placeholder="Preferred district" required /><input class="input full" name="email" type="email" placeholder="Email" required /><input class="input full" name="password" type="password" placeholder="Create password" required /><div class="turnstile-mount" style="margin-top:12px;"></div><button class="btn btn-primary full" type="submit">Create account</button></form><div id="signup-notice"></div><p class="muted" style="margin-top:16px;">Already have an account? <a class="text-jade" href="signin.html">Sign in</a></p></div></div></section>`;
   mountTurnstile(app);
   const form = $('#signup-form');
   const notice = $('#signup-notice');
@@ -2236,8 +2240,8 @@ async function renderAccountPage() {
     return;
   }
   app.innerHTML = `
-    <section class="hero" style="min-height:48vh;"><div class="hero-media" style="background-image:url('${siteImages.rooftop}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">My account</span><h1>${user.name || 'Your account'} <span class="text-jade">dashboard</span>.</h1><p class="lead">Manage your profile, keep a shortlist of drinks and venues, and stay on top of your enquiries and saved discoveries.</p></div><div class="search-shell"><span class="eyebrow">Profile details</span><form id="account-form" class="form-grid" style="margin-top:14px;"><input class="input" name="name" value="${user.name || ''}" placeholder="Full name" required /><input class="input" name="city" value="${user.city || ''}" placeholder="Preferred district" required /><input class="input full" value="${user.email}" disabled /><button class="btn btn-primary full" type="submit">Update profile</button></form><div id="account-notice"></div></div></div></section>
-    <section class="section"><div class="container grid grid-2"><div class="panel"><span class="eyebrow">Saved items</span><h2 style="margin:14px 0;">Your shortlist</h2><div id="saved-items"></div></div><div class="panel"><span class="eyebrow">Account actions</span><h2 style="margin:14px 0;">Keep track of what matters.</h2><div class="muted" style="display:grid; gap:12px;"><span>• Save bottles, bars, and events for later.</span><span>• Review your enquiries and listing requests.</span><span>• Access your business dashboard if you manage a supplier or venue profile.</span></div><div class="inline-actions" style="margin-top:18px;"><a class="btn btn-ghost" href="drinks.html">Save more drinks</a><button class="btn btn-secondary" id="account-signout-btn" type="button" data-action="signOutNow">Sign Out</button></div></div></div></section>
+    <section class="hero" style="min-height:48vh;"><div class="hero-media" style="background-image:url('${siteImages.rooftop}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">My account</span><h1>${user.name || 'Your account'} <span class="text-jade">dashboard</span>.</h1><p class="lead">Manage your profile, keep a shortlist of bottles, and stay on top of your enquiries.</p></div><div class="search-shell"><span class="eyebrow">Profile details</span><form id="account-form" class="form-grid" style="margin-top:14px;"><input class="input" name="name" value="${user.name || ''}" placeholder="Full name" required /><input class="input" name="city" value="${user.city || ''}" placeholder="Preferred district" required /><input class="input full" value="${user.email}" disabled /><button class="btn btn-primary full" type="submit">Update profile</button></form><div id="account-notice"></div></div></div></section>
+    <section class="section"><div class="container grid grid-2"><div class="panel"><span class="eyebrow">Saved items</span><h2 style="margin:14px 0;">Your shortlist</h2><div id="saved-items"></div></div><div class="panel"><span class="eyebrow">Account actions</span><h2 style="margin:14px 0;">Keep track of what matters.</h2><div class="muted" style="display:grid; gap:12px;"><span>• Save bottles for later.</span><span>• Review your enquiries and listing requests.</span><span>• Access your business dashboard if you manage a supplier profile.</span></div><div class="inline-actions" style="margin-top:18px;"><a class="btn btn-ghost" href="drinks.html">Save more drinks</a><button class="btn btn-secondary" id="account-signout-btn" type="button" data-action="signOutNow">Sign Out</button></div></div></div></section>
     <section class="section-tight"><div class="container"><div class="panel"><span class="eyebrow">My business enquiries</span><h2 style="margin:14px 0;">Submitted lead capture forms</h2><div id="account-leads"></div></div></div></section>`;
   $('#account-form').addEventListener('submit', async e => {
     e.preventDefault();
@@ -2255,7 +2259,7 @@ async function renderAccountSaved() {
   if (!holder) return;
   let saved = [];
   try { saved = await fetchSavedItems(); } catch { saved = []; }
-  holder.innerHTML = saved.length ? `<div class="saved-grid">${saved.map(item => `<div class="panel"><div class="eyebrow">${safe(item.kind)}</div><h3 style="margin:12px 0;">${safe(item.name)}</h3><div class="inline-actions" style="margin-top:16px;">${item.href ? ctaLink('Open', item.href, 'btn btn-ghost btn-small', 'Saved item') : ''}<button class="btn btn-secondary btn-small" data-remove="${safe(item.id)}">Remove</button></div></div>`).join('')}</div>` : '<div class="empty-state">You have not saved any drinks, events, suppliers, or venues yet.</div>';
+  holder.innerHTML = saved.length ? `<div class="saved-grid">${saved.map(item => `<div class="panel"><div class="eyebrow">${safe(item.kind)}</div><h3 style="margin:12px 0;">${safe(item.name)}</h3><div class="inline-actions" style="margin-top:16px;">${item.href ? ctaLink('Open', item.href, 'btn btn-ghost btn-small', 'Saved item') : ''}<button class="btn btn-secondary btn-small" data-remove="${safe(item.id)}">Remove</button></div></div>`).join('')}</div>` : '<div class="empty-state">You have not saved any drinks yet.</div>';
   $$('[data-remove]', holder).forEach(btn => btn.addEventListener('click', async () => {
     try { await removeSavedItem(btn.dataset.remove); _savedItemIds.delete(btn.dataset.remove); } catch {}
     renderAccountSaved();
@@ -5041,15 +5045,15 @@ function renderNotFoundPage() {
         <div class="panel" style="margin-bottom:24px;">
           <span class="eyebrow">Search instead</span>
           <div class="search-box" style="margin-top:14px;">
-            <input class="input" id="notfound-query" type="search" placeholder="Search bottles, bars or events" value="${safe(priorQuery)}" aria-label="Search DrinkSearcher" />
+            <input class="input" id="notfound-query" type="search" placeholder="Search Château Margaux, Yamazaki 12, Hibiki..." value="${safe(priorQuery)}" aria-label="Search DrinkSearcher" />
             <button class="btn btn-primary" id="notfound-search" type="button">Search</button>
           </div>
         </div>
 
         <div class="grid grid-3">
           <a class="panel" href="/drinks.html"><span class="eyebrow">Browse</span><h3 style="margin:10px 0 6px;">Drinks</h3><p class="muted" style="margin:0;">Compare bottles in stock across Hong Kong.</p></a>
-          <a class="panel" href="/bars-restaurants.html"><span class="eyebrow">Browse</span><h3 style="margin:10px 0 6px;">Bars &amp; restaurants</h3><p class="muted" style="margin:0;">Find somewhere worth going tonight.</p></a>
-          <a class="panel" href="/events.html"><span class="eyebrow">Browse</span><h3 style="margin:10px 0 6px;">Events</h3><p class="muted" style="margin:0;">Tastings, guest shifts and launches.</p></a>
+          ${dsFeature('venues') ? `<a class="panel" href="/bars-restaurants.html"><span class="eyebrow">Browse</span><h3 style="margin:10px 0 6px;">Bars &amp; restaurants</h3><p class="muted" style="margin:0;">Find somewhere worth going tonight.</p></a>` : ''}
+          ${dsFeature('events') ? `<a class="panel" href="/events.html"><span class="eyebrow">Browse</span><h3 style="margin:10px 0 6px;">Events</h3><p class="muted" style="margin:0;">Tastings, guest shifts and launches.</p></a>` : ''}
         </div>
 
         <div class="inline-actions" style="margin-top:28px;">
@@ -5090,6 +5094,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     'venue-profile': 'Bars & Restaurants',
     'supplier-profile': 'Suppliers'
   };
+  // Venues and events are switched off while the site is drinks-first
+  // (assets/js/features.js). Redirect before any chrome renders, so a stale
+  // bookmark never paints an empty page. vercel.json 301s the same URLs.
+  if ((page === 'venues' && !dsFeature('venues'))
+      || (page === 'events' && !dsFeature('events'))
+      || (page === 'venue-profile' && !dsFeature('venues'))) {
+    location.replace('drinks.html');
+    return;
+  }
   setupChrome(activeMap[page] || '');
   const premiumMainPages = ['home', 'venues', 'suppliers', 'drinks', 'events'];
   if (premiumMainPages.includes(page) && window.DrinkSearcherPremium) {
