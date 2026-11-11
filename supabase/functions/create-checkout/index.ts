@@ -147,10 +147,30 @@ serve(async (req) => {
       const j = await r.json().catch(() => ({}));
       return r.ok ? j : { error: j?.error?.message || `HTTP ${r.status}` };
     };
+    // Optional: look up one account's history. Stripe has no "sessions by
+    // client_reference_id" query, so we page back through sessions and filter.
+    const wantUser = String((body as any).user_id || "").trim();
+    const wantEmail = String((body as any).email || "").trim().toLowerCase();
+    let sessionRows: any[] = [];
+    if (wantUser || wantEmail) {
+      let startingAfter = "";
+      for (let page = 0; page < 5; page++) {
+        const qs = `/checkout/sessions?limit=100${startingAfter ? `&starting_after=${startingAfter}` : ""}`;
+        const batch = await sGet(qs);
+        const rows = batch?.data || [];
+        sessionRows = sessionRows.concat(rows);
+        if (!rows.length || !batch?.has_more) break;
+        startingAfter = rows[rows.length - 1].id;
+      }
+      sessionRows = sessionRows.filter((s: any) =>
+        (wantUser && s.client_reference_id === wantUser) ||
+        (wantEmail && String(s.customer_details?.email || s.customer_email || "").toLowerCase() === wantEmail));
+    }
+
     const [hooks, events, sessions] = await Promise.all([
       sGet("/webhook_endpoints?limit=10"),
       sGet("/events?limit=10"),
-      sGet("/checkout/sessions?limit=5"),
+      wantUser || wantEmail ? Promise.resolve({ data: sessionRows }) : sGet("/checkout/sessions?limit=5"),
     ]);
     return json({
       key_mode: STRIPE_SECRET_KEY.startsWith("sk_live") ? "live" : STRIPE_SECRET_KEY.startsWith("sk_test") ? "test" : "unknown",
