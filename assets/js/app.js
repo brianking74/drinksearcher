@@ -371,21 +371,40 @@ function dsPriceNum(v) {
   return isNaN(n) ? null : n;
 }
 
+// The chip states WHEN we last checked, not whether we trust the supplier.
+// "Unconfirmed" on a listing the owner had just uploaded read as an accusation,
+// and a supplier who typed the price minutes ago is the most reliable source we
+// have. Freshness is therefore expressed as elapsed time, and the colour alone
+// carries the staleness signal.
 function dsHealthChip(row) {
   const r = row || {};
   if (r.check_status === 'out_of_stock') {
     return { label: 'Sold out', cls: 'aging', title: r.health_note || 'The supplier shows this as unavailable' };
   }
   if (r.check_status === 'blocked' || r.check_status === 'timeout' || r.check_status === 'error') {
-    return { label: 'Unverified', cls: 'aging', title: 'We could not reach the shop on the last check — confirm with the supplier' };
+    return { label: "Couldn't check", cls: 'aging', title: 'We could not reach the shop on the last check' };
   }
-  const days = dsAgeDays(r.last_confirmed_at);
-  if (days === null) return { label: 'Unconfirmed', cls: 'stale', title: 'This price has never been verified' };
-  if (days > DS_STALE_DAYS) return { label: 'Unconfirmed', cls: 'stale', title: 'Last confirmed ' + days + ' days ago' };
-  if (days > DS_FRESH_DAYS) return { label: days + 'd ago', cls: 'aging', title: 'Last confirmed ' + days + ' days ago' };
-  if (days <= 0) return { label: 'Confirmed today', cls: 'fresh', title: 'Price and stock verified today' };
-  if (days === 1) return { label: 'Confirmed yesterday', cls: 'fresh', title: 'Price and stock verified yesterday' };
-  return { label: 'Confirmed ' + days + 'd ago', cls: 'fresh', title: 'Last confirmed ' + days + ' days ago' };
+  const ts = r.last_confirmed_at ? Date.parse(r.last_confirmed_at) : NaN;
+  if (isNaN(ts)) {
+    return { label: 'Not checked yet', cls: 'stale', title: 'This listing has not been checked yet' };
+  }
+  const mins = Math.max(0, Math.floor((Date.now() - ts) / 60000));
+  const days = Math.floor(mins / 1440);
+  const cls = days <= DS_FRESH_DAYS ? 'fresh' : (days <= DS_STALE_DAYS ? 'aging' : 'stale');
+  let label;
+  if (mins < 60) label = 'Checked just now';
+  else if (mins < 1440) label = 'Checked ' + Math.floor(mins / 60) + 'h ago';
+  else if (days === 1) label = 'Checked yesterday';
+  else if (days < 30) label = 'Checked ' + days + ' days ago';
+  else if (days < 365) {
+    const m = Math.floor(days / 30);
+    label = 'Checked ' + m + ' month' + (m > 1 ? 's' : '') + ' ago';
+  } else {
+    const y = Math.floor(days / 365);
+    label = 'Checked ' + y + ' year' + (y > 1 ? 's' : '') + ' ago';
+  }
+  const exact = new Date(ts).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  return { label, cls, title: 'Last checked ' + exact };
 }
 
 function dsHealthBadge(row) {

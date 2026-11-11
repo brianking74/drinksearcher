@@ -310,16 +310,23 @@ h1,h2,h3,h4{font-family:var(--serif);font-weight:400;letter-spacing:-.025em;colo
   .supplier-compare-table { margin-top: 16px; }
   .supplier-row {
     display: flex; align-items: center; flex-wrap: nowrap;
-    gap: 16px; padding: 18px 22px;
+    /* Wide gutters: this line carries six facts, and at 16px they read as one
+       run-on sentence. 28px between groups, 22px of vertical padding so the
+       row has a shape of its own rather than a strip of text. */
+    gap: 28px; padding: 22px 28px; min-height: 92px;
   }
   .supplier-row__topline,
   .supplier-row__foot { display: contents; }
   .supplier-row__name { order: 1; font-size: 1.05rem; white-space: nowrap; }
-  .supplier-row__meta { order: 2; margin: 0; font-size: .9rem; white-space: nowrap; }
+  .supplier-row__meta { order: 2; margin: 0; font-size: .9rem; white-space: nowrap; color: var(--muted, #a7a093); }
   .supplier-row__stock { order: 3; white-space: nowrap; }
-  .supplier-row__price { order: 4; margin-left: auto; font-size: 1.35rem; white-space: nowrap; }
-  .supplier-row__actions { order: 5; margin: 0; display: block; }
+  .supplier-row__price {
+    order: 4; margin-left: auto; font-size: 1.35rem; white-space: nowrap;
+    display: inline-flex; align-items: center; gap: 14px;
+  }
+  .supplier-row__actions { order: 5; margin: 0; display: flex; align-items: center; gap: 20px; }
   .supplier-row__actions .btn { white-space: nowrap; }
+  .supplier-row__report { padding: 0 4px; }
 }
 
 /* Below desktop the mockup does not apply: keep the image above the copy, as
