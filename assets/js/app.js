@@ -2090,15 +2090,6 @@ async function renderSignInPage() {
     return;
   }
 
-  const currentUser = storage.getCurrentUser();
-  const hasPending = !!storage.getPendingSave() || new URLSearchParams(window.location.search).get('intent') === 'save';
-  if (currentUser) {
-    app.innerHTML = `
-      <section class="hero" style="min-height:50vh;"><div class="hero-media" style="background-image:url('${siteImages.hero}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Already signed in</span><h1>Welcome back, ${currentUser.name || 'friend'}.</h1><p class="lead">Your account is already active in this browser. Head to your dashboard to manage saved drinks, events, and venues.</p></div><div class="search-shell"><div class="inline-actions"><a class="btn btn-primary btn-block" href="account.html">Go to account</a><button id="inline-signout" class="btn btn-ghost btn-block" type="button">Sign out first</button></div></div></div></section>`;
-    $('#inline-signout').addEventListener('click', () => { signOutNow(); });
-    return;
-  }
-
   // GoTrue redirects a rejected recovery link back here with
   // #error=access_denied&error_code=otp_expired. Nothing read that hash, so the
   // page fell through to a bare sign-in form and a used or scanner-consumed link
@@ -2107,13 +2098,22 @@ async function renderSignInPage() {
   if (authError) {
     const expiredLink = /expired|otp_expired|access_denied/i.test(`${authErrorCode} ${authErrorDesc}`);
     authErrorNotice = expiredLink
-      ? '<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">That reset link has expired or has already been used. Sign in below, or press <strong>Forgot password?</strong> and open the newest email straight away &mdash; some mail scanners consume the link before you do.</div>'
+      ? '<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">That reset link has expired or has already been used. Open the newest email straight away &mdash; some mail scanners consume the link before you do. Still stuck? Press <strong>Forgot password?</strong> for a fresh one.</div>'
       : `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">${safe(authErrorDesc || 'That link could not be used. Request a new one with Forgot password?')}</div>`;
+    window.history.replaceState({}, document.title, location.pathname + location.search);
+  }
+
+  const currentUser = storage.getCurrentUser();
+  const hasPending = !!storage.getPendingSave() || new URLSearchParams(window.location.search).get('intent') === 'save';
+  if (currentUser) {
+    app.innerHTML = `
+      <section class="hero" style="min-height:50vh;"><div class="hero-media" style="background-image:url('${siteImages.hero}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Already signed in</span><h1>Welcome back, ${currentUser.name || 'friend'}.</h1><p class="lead">Your account is already active in this browser. Head to your dashboard to manage saved drinks, events, and venues.</p></div><div class="search-shell">${authErrorNotice}<div class="inline-actions"><a class="btn btn-primary btn-block" href="account.html">Go to account</a><button id="inline-signout" class="btn btn-ghost btn-block" type="button">Sign out first</button></div></div></div></section>`;
+    $('#inline-signout').addEventListener('click', () => { signOutNow(); });
+    return;
   }
 
   app.innerHTML = `
     <section class="hero" style="min-height:56vh;"><div class="hero-media" style="background-image:url('${siteImages.hero}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Sign in</span><h1>Access your profile and saved nightlife shortlist.</h1><p class="lead">Sign in to save drinks, events, and bars to your account, manage enquiries, and access your business dashboard.</p></div><div class="search-shell"><span class="eyebrow">Account sign in</span>${authErrorNotice}${hasPending ? '<div class="notice">Sign in to finish saving the item you just selected.</div>' : ''}<form id="signin-form" class="form-grid" style="margin-top:14px;"><input class="input full" name="email" type="email" placeholder="Email" required /><input class="input full" name="password" type="password" placeholder="Password" required /><div class="turnstile-mount" style="margin-top:12px;"></div><button class="btn btn-primary full" type="submit">Sign In</button></form><div id="signin-notice"></div><p class="muted" style="margin-top:16px;"><button class="btn btn-ghost btn-small" id="forgot-password-btn" type="button">Forgot password?</button></p><p class="muted">New here? <a class="text-jade" href="signup.html">Create an account</a></p></div></div></section>`;
-  if (authError) window.history.replaceState({}, document.title, location.pathname + location.search);
   mountTurnstile(app);
   $('#signin-form').addEventListener('submit', async e => {
     e.preventDefault();

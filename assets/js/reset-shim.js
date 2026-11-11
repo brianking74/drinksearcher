@@ -13,7 +13,9 @@
 // the query string intact. The fragment has to survive the redirect, which is why
 // this is a script and not a meta refresh.
 (function () {
-  var tail = window.location.hash + window.location.search;
+  // query string first, then the fragment — the other order puts the query
+  // inside the hash and the token parser never sees it
+  var tail = window.location.search + window.location.hash;
   var link = document.getElementById('reset-shim-link');
   if (link) link.setAttribute('href', 'signin.html' + tail);
   window.location.replace('signin.html' + tail);
