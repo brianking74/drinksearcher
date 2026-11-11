@@ -79,23 +79,28 @@ function normalise(raw: string): string {
   if (u.protocol !== "https:") throw new Error("Only https:// links can be imported.");
 
   const host = u.hostname;
+  // Google inserts /u/<n>/ when the person is signed into more than one account,
+  // so /spreadsheets/u/0/d/<id>/edit is the same document.
+  // The /u/<n>/ segment sits after /spreadsheets/, not at the start, so strip it
+  // wherever it appears.
+  const path = u.pathname.replace(/\/u\/\d+\//, "/");
   if (host === "docs.google.com") {
     // Published sheets live at /spreadsheets/d/e/<long-id>/pubhtml. That "e" is
     // a marker, not a document id: treating it as one produced
     // /spreadsheets/d/e/export?format=csv, which is a 404. Published links
     // already serve CSV with output=csv, so keep the path and set the param.
-    const published = u.pathname.match(/^\/spreadsheets\/d\/e\/([^/]+)(?:\/(pubhtml|pub))?/);
+    const published = path.match(/^\/spreadsheets\/d\/e\/([^/]+)(?:\/(pubhtml|pub))?/);
     if (published) {
       const gid = u.searchParams.get("gid") || (u.hash.match(/gid=(\d+)/) || [])[1] || "";
       return `https://docs.google.com/spreadsheets/d/e/${published[1]}/pub?output=csv${gid ? `&gid=${gid}` : ""}`;
     }
-    const doc = u.pathname.match(/^\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+    const doc = path.match(/^\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
     if (doc) {
       const gid = u.searchParams.get("gid") || (u.hash.match(/gid=(\d+)/) || [])[1] || "0";
       return `https://docs.google.com/spreadsheets/d/${doc[1]}/export?format=csv&gid=${gid}`;
     }
   }
-  const drive = u.pathname.match(/^\/file\/d\/([a-zA-Z0-9-_]+)/);
+  const drive = path.match(/^\/file\/d\/([a-zA-Z0-9-_]+)/);
   if (host === "drive.google.com" && drive) {
     return `https://drive.google.com/uc?export=download&id=${drive[1]}`;
   }
@@ -147,7 +152,13 @@ serve(async (req) => {
         : res.status === 404
         ? " — the file was not found. Check the link."
         : "";
-      return json({ error: `The sheet returned HTTP ${res.status}${hint}`, attempted: target }, 502);
+      return json({
+        // Name the URL we actually fetched: for a rewritten Google link, the
+        // difference between the link pasted and the URL requested is the whole
+        // diagnosis.
+        error: `The sheet returned HTTP ${res.status}${hint} (tried ${target})`,
+        attempted: target,
+      }, 502);
     }
 
     const finalUrl = new URL(res.url || target);
