@@ -351,7 +351,8 @@ window.hkd = hkd;
 // ── Listing freshness ───────────────────────────────────────────────────────
 // Thresholds mirror public.drinks_health (migration 081) so the site, the daily
 // digest email and the admin panel can never disagree:
-//   <= 7 days fresh · <= 14 days aging · older or never = Unconfirmed
+//   <= 7 days fresh · <= 14 days aging · older or never = stale
+//   The label is a last-checked timescale; the class carries the judgement.
 // Dead rows never reach these helpers — supabase.js filters check_status 'dead'
 // before the renderer sees them, so a 404 can never be shown as a live offer.
 const DS_FRESH_DAYS = 7;
