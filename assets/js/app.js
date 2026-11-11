@@ -2838,6 +2838,12 @@ async function renderBusinessDashboardPage() {
     const sub = await fetchMySubscription();
     state.directoryTier = (sub && sub.directory_tier) || state.directoryTier || 'standard';
     if (sub && sub.plan) state.plan = sub.plan;
+    // A comped plan renews on its own (migration 090). Surface that so a
+    // merchant on a comp is not told to "manage billing via Stripe" for a
+    // subscription that does not exist there.
+    state.gifted = !!(sub && sub.gifted);
+    state.compInterval = (sub && sub.comp_interval) || null;
+    state.compRenewsAt = (sub && sub.current_period_end) || null;
     state.listingLimit = (sub && sub.listing_limit != null) ? sub.listing_limit : 10;
     state.listingCount = await countMyListings();
   } catch (e) {
@@ -3042,8 +3048,11 @@ async function renderBusinessDashboardPage() {
                 <div class="dashboard-field">
                   <span>Current plan</span>
                   <div style="margin-top:8px;font-family:var(--serif);font-size:1.3rem;">${planName}</div>
+                  ${state.compInterval ? `<div class="muted" style="font-size:.82rem;margin-top:6px;">Comped · renews ${state.compRenewsAt ? new Date(state.compRenewsAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'monthly'}</div>` : ''}
                 </div>
-                <div class="small-note" style="margin-top:16px;">${isEnhanced ? 'Events and Website scan are included. Manage billing via Stripe.' : 'Your free plan includes your profile and up to 10 product listings. Upgrade to unlock Events, Website scan, and more.'}</div>
+                <div class="small-note" style="margin-top:16px;">${state.compInterval
+                  ? 'This plan is comped by DrinkSearcher. It renews automatically — no payment is taken and there is nothing to cancel.'
+                  : (isEnhanced ? 'Events and Website scan are included. Manage billing via Stripe.' : 'Your free plan includes your profile and up to 10 product listings. Upgrade to unlock Events, Website scan, and more.')}</div>
                 <div class="inline-actions" style="margin-top:18px;">
                   <a class="btn ${isEnhanced ? 'btn-ghost' : 'btn-primary'}" href="pricing.html">${isEnhanced ? 'Manage plan' : 'Upgrade plan'}</a>
                 </div>

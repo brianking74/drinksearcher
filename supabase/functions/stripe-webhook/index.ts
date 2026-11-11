@@ -213,6 +213,11 @@ async function handleCheckoutCompleted(session: any): Promise<string> {
     status: "active",
     current_period_end: periodEnd,
     founding: true,
+    // A real payment replaces any comp on this account: clear the comp fields,
+    // otherwise the daily comp-renewal job would keep renewing a subscription
+    // that Stripe is now billing (and re-assert the tier after a cancellation).
+    gifted: false,
+    comp_interval: null,
     updated_at: new Date().toISOString(),
   });
   // A failed write must throw so the caller can answer 500 and Stripe retries.
