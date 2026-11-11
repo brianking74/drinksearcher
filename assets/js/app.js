@@ -2040,21 +2040,19 @@ async function renderSupplierProfile() {
 
 async function renderSignInPage() {
   const app = $('#app');
-  const currentUser = storage.getCurrentUser();
-  const hasPending = !!storage.getPendingSave() || new URLSearchParams(window.location.search).get('intent') === 'save';
-  if (currentUser) {
-    app.innerHTML = `
-      <section class="hero" style="min-height:50vh;"><div class="hero-media" style="background-image:url('${siteImages.hero}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Already signed in</span><h1>Welcome back, ${currentUser.name || 'friend'}.</h1><p class="lead">Your account is already active in this browser. Head to your dashboard to manage saved drinks, events, and venues.</p></div><div class="search-shell"><div class="inline-actions"><a class="btn btn-primary btn-block" href="account.html">Go to account</a><button id="inline-signout" class="btn btn-ghost btn-block" type="button">Sign out first</button></div></div></div></section>`;
-    $('#inline-signout').addEventListener('click', () => { signOutNow(); });
-    return;
-  }
-
   const hash = window.location.hash || '';
   const hashParams = new URLSearchParams(hash.replace('#', ''));
   const queryParams = new URLSearchParams(window.location.search || '');
   const accessToken = hashParams.get('access_token') || queryParams.get('access_token');
   const refreshToken = hashParams.get('refresh_token') || queryParams.get('refresh_token');
   const recoveryType = hashParams.get('type') || queryParams.get('type');
+  const authError = hashParams.get('error') || queryParams.get('error');
+  const authErrorCode = hashParams.get('error_code') || queryParams.get('error_code');
+  const authErrorDesc = hashParams.get('error_description') || queryParams.get('error_description');
+
+  // The reset email's link carries its own one-time token, so it is handled
+  // BEFORE the "already signed in" branch: ordered the other way, any browser
+  // holding a session renders "Welcome back" and the reset form is unreachable.
   if ((recoveryType === 'recovery' || recoveryType === 'magiclink' || accessToken) && accessToken && refreshToken) {
     app.innerHTML = `
       <section class="hero" style="min-height:52vh;"><div class="hero-media" style="background-image:url('${siteImages.hero}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Account</span><h1>Choose a new password.</h1><p class="lead">Enter a new password for your account.</p></div><div class="search-shell"><span class="eyebrow">Reset password</span><form id="recovery-form" class="form-grid" style="margin-top:14px;"><input class="input full" name="password" type="password" placeholder="New password" required minlength="8" /><input class="input full" name="confirm" type="password" placeholder="Confirm new password" required minlength="8" /><button class="btn btn-primary full" type="submit">Update password</button></form><div id="recovery-notice"></div><p class="muted" style="margin-top:16px;"><a class="text-jade" href="signin.html">Back to sign in</a></p></div></div></section>`;
@@ -2062,8 +2060,8 @@ async function renderSignInPage() {
     if (form) {
       form.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const password = form.password.value.trim();
-        const confirm = form.confirm.value.trim();
+        const password = form.password.value;
+        const confirm = form.confirm.value;
         const notice = document.getElementById('recovery-notice');
         if (!notice) return;
         if (!password || password.length < 8) {
@@ -2091,8 +2089,31 @@ async function renderSignInPage() {
     }
     return;
   }
+
+  const currentUser = storage.getCurrentUser();
+  const hasPending = !!storage.getPendingSave() || new URLSearchParams(window.location.search).get('intent') === 'save';
+  if (currentUser) {
+    app.innerHTML = `
+      <section class="hero" style="min-height:50vh;"><div class="hero-media" style="background-image:url('${siteImages.hero}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Already signed in</span><h1>Welcome back, ${currentUser.name || 'friend'}.</h1><p class="lead">Your account is already active in this browser. Head to your dashboard to manage saved drinks, events, and venues.</p></div><div class="search-shell"><div class="inline-actions"><a class="btn btn-primary btn-block" href="account.html">Go to account</a><button id="inline-signout" class="btn btn-ghost btn-block" type="button">Sign out first</button></div></div></div></section>`;
+    $('#inline-signout').addEventListener('click', () => { signOutNow(); });
+    return;
+  }
+
+  // GoTrue redirects a rejected recovery link back here with
+  // #error=access_denied&error_code=otp_expired. Nothing read that hash, so the
+  // page fell through to a bare sign-in form and a used or scanner-consumed link
+  // read as "my password must be wrong".
+  let authErrorNotice = '';
+  if (authError) {
+    const expiredLink = /expired|otp_expired|access_denied/i.test(`${authErrorCode} ${authErrorDesc}`);
+    authErrorNotice = expiredLink
+      ? '<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">That reset link has expired or has already been used. Sign in below, or press <strong>Forgot password?</strong> and open the newest email straight away &mdash; some mail scanners consume the link before you do.</div>'
+      : `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">${safe(authErrorDesc || 'That link could not be used. Request a new one with Forgot password?')}</div>`;
+  }
+
   app.innerHTML = `
-    <section class="hero" style="min-height:56vh;"><div class="hero-media" style="background-image:url('${siteImages.hero}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Sign in</span><h1>Access your profile and saved nightlife shortlist.</h1><p class="lead">Sign in to save drinks, events, and bars to your account, manage enquiries, and access your business dashboard.</p></div><div class="search-shell"><span class="eyebrow">Account sign in</span>${hasPending ? '<div class="notice">Sign in to finish saving the item you just selected.</div>' : ''}<form id="signin-form" class="form-grid" style="margin-top:14px;"><input class="input full" name="email" type="email" placeholder="Email" required /><input class="input full" name="password" type="password" placeholder="Password" required /><div class="turnstile-mount" style="margin-top:12px;"></div><button class="btn btn-primary full" type="submit">Sign In</button></form><div id="signin-notice"></div><p class="muted" style="margin-top:16px;"><button class="btn btn-ghost btn-small" id="forgot-password-btn" type="button">Forgot password?</button></p><p class="muted">New here? <a class="text-jade" href="signup.html">Create an account</a></p></div></div></section>`;
+    <section class="hero" style="min-height:56vh;"><div class="hero-media" style="background-image:url('${siteImages.hero}')"></div><div class="container hero-grid"><div class="hero-copy"><span class="kicker">Sign in</span><h1>Access your profile and saved nightlife shortlist.</h1><p class="lead">Sign in to save drinks, events, and bars to your account, manage enquiries, and access your business dashboard.</p></div><div class="search-shell"><span class="eyebrow">Account sign in</span>${authErrorNotice}${hasPending ? '<div class="notice">Sign in to finish saving the item you just selected.</div>' : ''}<form id="signin-form" class="form-grid" style="margin-top:14px;"><input class="input full" name="email" type="email" placeholder="Email" required /><input class="input full" name="password" type="password" placeholder="Password" required /><div class="turnstile-mount" style="margin-top:12px;"></div><button class="btn btn-primary full" type="submit">Sign In</button></form><div id="signin-notice"></div><p class="muted" style="margin-top:16px;"><button class="btn btn-ghost btn-small" id="forgot-password-btn" type="button">Forgot password?</button></p><p class="muted">New here? <a class="text-jade" href="signup.html">Create an account</a></p></div></div></section>`;
+  if (authError) window.history.replaceState({}, document.title, location.pathname + location.search);
   mountTurnstile(app);
   $('#signin-form').addEventListener('submit', async e => {
     e.preventDefault();
