@@ -79,11 +79,21 @@ function normalise(raw: string): string {
   if (u.protocol !== "https:") throw new Error("Only https:// links can be imported.");
 
   const host = u.hostname;
-  const sheets = u.pathname.match(/^\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
-  if (host === "docs.google.com" && sheets) {
-    const id = sheets[1];
-    const gid = u.searchParams.get("gid") || (u.hash.match(/gid=(\d+)/) || [])[1] || "0";
-    return `https://docs.google.com/spreadsheets/d/${id}/export?format=csv&gid=${gid}`;
+  if (host === "docs.google.com") {
+    // Published sheets live at /spreadsheets/d/e/<long-id>/pubhtml. That "e" is
+    // a marker, not a document id: treating it as one produced
+    // /spreadsheets/d/e/export?format=csv, which is a 404. Published links
+    // already serve CSV with output=csv, so keep the path and set the param.
+    const published = u.pathname.match(/^\/spreadsheets\/d\/e\/([^/]+)(?:\/(pubhtml|pub))?/);
+    if (published) {
+      const gid = u.searchParams.get("gid") || (u.hash.match(/gid=(\d+)/) || [])[1] || "";
+      return `https://docs.google.com/spreadsheets/d/e/${published[1]}/pub?output=csv${gid ? `&gid=${gid}` : ""}`;
+    }
+    const doc = u.pathname.match(/^\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+    if (doc) {
+      const gid = u.searchParams.get("gid") || (u.hash.match(/gid=(\d+)/) || [])[1] || "0";
+      return `https://docs.google.com/spreadsheets/d/${doc[1]}/export?format=csv&gid=${gid}`;
+    }
   }
   const drive = u.pathname.match(/^\/file\/d\/([a-zA-Z0-9-_]+)/);
   if (host === "drive.google.com" && drive) {

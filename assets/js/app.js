@@ -2643,7 +2643,8 @@ async function fetchCsvText(url) {
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok || !data || !data.text) {
-    throw new Error((data && data.error) || 'Could not read that sheet. Upload the CSV file instead.');
+    const base = (data && data.error) || 'Could not read that sheet. Upload the CSV file instead.';
+    throw new Error(data && data.attempted ? base + ' (fetched: ' + data.attempted + ')' : base);
   }
   return data.text;
 }
