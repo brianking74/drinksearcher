@@ -2627,6 +2627,28 @@ function fillSampleTemplate() {
     + 'Barolo Riserva,Red Wine,Nebbiolo,Piedmont Italy,688,In stock,14.5%,"Classic Barolo from Nebbiolo grown on calcareous marl: rose, tar, dried cherry and firm, fine-grained tannins.",https://example.com/products/barolo-riserva,https://example.com/barolo.jpg';
 }
 
+// A Google Sheets / Drive / file-host URL cannot be fetched from the browser:
+// those hosts send no Access-Control-Allow-Origin header, so the request is
+// blocked and all the supplier sees is "Failed to fetch". The import-csv
+// function fetches it server-side and returns the text, turning share links
+// into the CSV they point at on the way through.
+async function fetchCsvText(url) {
+  const session = await sb.auth.getSession();
+  const token = (session && session.data && session.data.session) ? session.data.session.access_token : '';
+  if (!token) throw new Error('Please sign in again, then retry the import.');
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/import-csv`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ url })
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data || !data.text) {
+    throw new Error((data && data.error) || 'Could not read that sheet. Upload the CSV file instead.');
+  }
+  return data.text;
+}
+window.fetchCsvText = fetchCsvText;
+
 async function importInventory() {
   const source = document.getElementById('sheet-import-source')?.value?.trim();
   const mode = document.getElementById('sheet-import-mode')?.value || 'append';
@@ -2638,7 +2660,7 @@ async function importInventory() {
   }
   setNotice('<div class="notice">Importing…</div>');
   try {
-    const text = /^https?:\/\//i.test(source) ? await (await fetch(source)).text() : source;
+    const text = /^https?:\/\//i.test(source) ? await fetchCsvText(source) : source;
     const items = importItemsFromCSV(text);
     if (!items.length) throw new Error('No inventory rows detected — check the column headers (Name, Price, Image…).');
     const state = storage.getDashboardState();
@@ -3038,7 +3060,8 @@ async function renderBusinessDashboardPage() {
               <span class="eyebrow">Google Sheets import</span>
               <h2 style="margin:14px 0;">Load inventory from a supplier sheet.</h2>
               <p class="muted">Paste a published CSV URL from Google Sheets or paste CSV rows directly. This is the fastest path for suppliers who already manage stock in a spreadsheet. Columns: <strong>Name, Type, Varietal, Origin, Price, Availability, ABV, Description, Buy URL, Image</strong> — only Name is required. Descriptions are trimmed to about 50 words automatically.</p>
-              <label class="dashboard-field"><span>Google Sheet CSV URL or pasted CSV</span><textarea class="input" rows="6" id="sheet-import-source" placeholder="https://docs.google.com/.../export?format=csv or pasted CSV rows"></textarea></label>
+              <label class="dashboard-field"><span>Upload a CSV file</span><input class="input" type="file" id="sheet-import-file" accept=".csv,text/csv,text/plain" style="margin-top:8px;" /><span class="small-note" style="display:block;margin-top:6px;">Exported from Excel, Numbers or your stock system. Nothing leaves your browser until you press Import inventory.</span></label>
+              <label class="dashboard-field"><span>…or paste a Google Sheet URL / CSV rows</span><textarea class="input" rows="6" id="sheet-import-source" placeholder="https://docs.google.com/spreadsheets/d/... or pasted CSV rows"></textarea></label>
               <label class="dashboard-field"><span>Import mode</span><select class="select" id="sheet-import-mode"><option value="append">Append to current inventory</option><option value="replace">Replace current inventory</option></select></label>
               <div class="admin-inline"><button class="btn btn-primary" id="sheet-import-btn" type="button" data-action="importInventory()">Import inventory</button><button class="btn btn-ghost" id="sheet-template-btn" type="button" data-action="fillSampleTemplate()">Insert sample template</button></div>
               <div class="small-note">Recommended columns: Name, Price, Availability. You can extend the mapping later for SKU, size, pack, ABV, and product URL.</div>
@@ -3397,6 +3420,25 @@ async function renderBusinessDashboardPage() {
   // than on state.activeRole — the form can be rendered from ?role=venue while
   // activeRole is still 'merchant', which silently skipped this whole block and
   // left the file picker with no handler.
+  if (document.getElementById('sheet-import-file')) {
+    // A file the supplier picks on disk needs no network at all — read it into
+    // the same textarea the URL path uses, so Import inventory has one input.
+    const fi = document.getElementById('sheet-import-file');
+    fi.addEventListener('change', async () => {
+      const file = fi.files && fi.files[0];
+      if (!file) return;
+      const holder = document.getElementById('sheet-import-notice');
+      try {
+        const text = await file.text();
+        const ta = document.getElementById('sheet-import-source');
+        if (ta) ta.value = text;
+        const rows = Math.max(0, text.split(/\r?\n/).filter(l => l.trim()).length - 1);
+        if (holder) holder.innerHTML = '<div class="notice">Loaded <strong>' + safe(file.name) + '</strong> — ' + rows + ' row' + (rows === 1 ? '' : 's') + ' detected. Press Import inventory to save.</div>';
+      } catch (e) {
+        if (holder) holder.innerHTML = '<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Could not read that file: ' + safe((e && e.message) || '') + '</div>';
+      }
+    });
+  }
   if (document.getElementById('venue-menu-input')) {
     try {
       renderVenueMenuEditor();
