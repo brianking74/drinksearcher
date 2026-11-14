@@ -58,6 +58,15 @@ function takeImportNotice() {
   return m || '';
 }
 
+// Same pattern for the catalogue panel: a re-render wipes the DOM, so the result
+// of a save/sync is parked in sessionStorage and read back on the next paint.
+function setCatalogueNotice(html) { try { sessionStorage.setItem('ds_catalogue_notice', html || ''); } catch (e) {} }
+function takeCatalogueNotice() {
+  const m = sessionStorage.getItem('ds_catalogue_notice');
+  sessionStorage.removeItem('ds_catalogue_notice');
+  return m || '';
+}
+
 // Best-effort transactional email — never blocks the action on email failure.
 async function sendEmail(payload) {
   try {
@@ -474,7 +483,7 @@ window.statBlockHTML = statBlockHTML;
 // CSP (which is what protects this site from injected script), markup emits
 // data-action="fn('arg')" and one delegated handler dispatches it against an
 // explicit allowlist — no eval, and only these names can ever run.
-const DS_ACTIONS = ['addDashboardEvent', 'removeVenueMenuItem', 'uploadVenueMenuFiles', 'saveSupplierEmail', 'sendListingDigest', 'sendSupplierConfirmations', 'addDashboardEventRow', 'addDashboardItem', 'adminAddEventFromForm', 'bulkImportEvents', 'closeProductEdit', 'dsDashboardImageRemove', 'dsDashboardImageUpload', 'fetchMissingImages', 'fillSampleTemplate', 'importInventory', 'moderateEvent', 'removeDashboardEvent', 'removeDashboardEventRow', 'removeDashboardItem', 'removeVenueGalleryImage', 'runLinkCheck', 'uploadVenueGalleryImages', 'saveDashboardEventRow', 'saveDashboardEvents', 'saveDashboardItems', 'saveDashboardProfile', 'saveProductEdit', 'signOutNow', 'startCheckout'];
+const DS_ACTIONS = ['addDashboardEvent', 'removeVenueMenuItem', 'uploadVenueMenuFiles', 'saveSupplierEmail', 'sendListingDigest', 'sendSupplierConfirmations', 'syncLocalItems', 'discardLocalItems', 'addDashboardEventRow', 'addDashboardItem', 'adminAddEventFromForm', 'bulkImportEvents', 'closeProductEdit', 'dsDashboardImageRemove', 'dsDashboardImageUpload', 'fetchMissingImages', 'fillSampleTemplate', 'importInventory', 'moderateEvent', 'removeDashboardEvent', 'removeDashboardEventRow', 'removeDashboardItem', 'removeVenueGalleryImage', 'runLinkCheck', 'uploadVenueGalleryImages', 'saveDashboardEventRow', 'saveDashboardEvents', 'saveDashboardItems', 'saveDashboardProfile', 'saveProductEdit', 'signOutNow', 'startCheckout'];
 function runDsAction(expr) {
   // Zero-argument actions ("signOutNow") and calls with arguments
   // ("startCheckout('merchant_enhanced')") both have to work. The first version
@@ -2319,7 +2328,7 @@ function addDashboardItem() {
   renderBusinessDashboardPage();
 }
 
-function saveDashboardItems() {
+async function saveDashboardItems() {
   var s = storage.getDashboardState();
   if (!s) return;
   var c = s[s.activeRole || 'merchant'];
@@ -2337,7 +2346,85 @@ function saveDashboardItems() {
     if (!next.status) next.status = 'Pending';
     return next;
   });
+  // Persist the edit. This used to write localStorage only and say nothing, so a
+  // corrected price reverted on the next page load — the same class of lie as the
+  // import merge.
+  var saved = 0, failed = 0, firstErr = '';
+  const isUuid = v => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(v || ''));
+  for (const it of c.items) {
+    if (!it.fromDb || !isUuid(it.id)) continue;
+    const { error } = await sb.from('drinks').update({ name: it.name, price: it.price }).eq('id', it.id);
+    if (error) { failed++; if (!firstErr) firstErr = error.message; } else saved++;
+  }
   storage.setDashboardState(s);
+  if (failed) {
+    setCatalogueNotice(`<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">${saved} listing(s) saved, <strong>${failed} failed</strong> — ${safe(String(firstErr).slice(0, 180))}</div>`);
+  } else if (saved) {
+    setCatalogueNotice(`<div class="notice">${saved} listing(s) updated.</div>`);
+  }
+  renderBusinessDashboardPage();
+}
+
+// Push rows that only exist in this browser into the database as pending
+// submissions. This is the recovery path for an import whose writes failed (and
+// for the local-only rows left behind by the old merge).
+async function syncLocalItems() {
+  var s = storage.getDashboardState();
+  if (!s) return;
+  var role = s.activeRole || 'merchant';
+  var c = s[role];
+  if (!c || !Array.isArray(c.unsynced) || !c.unsynced.length) return;
+  var notice = document.getElementById('sync-local-notice');
+  if (notice) notice.innerHTML = '<div class="notice">Saving ' + c.unsynced.length + ' item(s)…</div>';
+  var user = storage.getCurrentUser();
+  var userId = null;
+  try { userId = (await sb.auth.getUser()).data?.user?.id || null; } catch (e) {}
+  if (!userId) {
+    if (notice) notice.innerHTML = '<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Sign in again before saving — no session was found.</div>';
+    return;
+  }
+  const normKey = v => String(v || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
+  const remaining = [];
+  var ok = 0, failed = 0, firstErr = '';
+  for (const it of c.unsynced.slice()) {
+    const base = {
+      price: it.price || '',
+      availability: it.availability || 'In stock',
+      type: it.type || 'Wine',
+      varietal: it.varietal || '',
+      origin: it.origin || '',
+      image: it.image || ''
+    };
+    if (it.description) base.description = it.description;
+    if (it.abv) base.abv = it.abv;
+    if (it.buy_url) base.buy_url = it.buy_url;
+    const { error } = await sb.from('drinks').insert({
+      name: String(it.name || '').trim() || 'Untitled product',
+      ...base,
+      status: 'pending',
+      submitted_by: userId,
+      supplier_name: c.listingName || user.name || ''
+    });
+    if (error) { failed++; remaining.push(Object.assign({}, it, { reason: error.message })); if (!firstErr) firstErr = error.message; }
+    else ok++;
+  }
+  c.unsynced = remaining;
+  storage.setDashboardState(s);
+  setCatalogueNotice(ok
+    ? `<div class="notice">${ok} item(s) sent for approval${failed ? `, <strong style="color:#ffd0e2;">${failed} still failed</strong> — ${safe(String(firstErr).slice(0, 180))}` : ''}.</div>`
+    : `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Nothing saved — ${safe(String(firstErr || 'the database refused every row').slice(0, 180))}</div>`);
+  renderBusinessDashboardPage();
+}
+
+function discardLocalItems() {
+  var s = storage.getDashboardState();
+  if (!s) return;
+  var c = s[s.activeRole || 'merchant'];
+  if (!c || !Array.isArray(c.unsynced) || !c.unsynced.length) return;
+  if (!confirm('Discard ' + c.unsynced.length + ' unsaved item(s)? They are not on the site, so they cannot be recovered afterwards. Your spreadsheet is the source of truth.')) return;
+  c.unsynced = [];
+  storage.setDashboardState(s);
+  setCatalogueNotice('<div class="notice">Unsaved rows discarded.</div>');
   renderBusinessDashboardPage();
 }
 
@@ -2744,7 +2831,12 @@ async function importInventory() {
       }
     }
     // Update existing rows by name, insert only new ones. Track failures honestly.
+    // Only rows the database ACCEPTED may enter the local cache: merging every CSV
+    // row regardless is what made a 22-row import look saved while 20 rows had
+    // never been written (Bin 852, 11 Nov).
     let updated = 0, inserted = 0, failed = 0;
+    const okItems = [];
+    const badItems = [];
     for (const item of items) {
       const existingId = existingByName[normName(item.name)];
       const base = { price: item.price, availability: item.availability || 'In stock', type: item.type || 'Wine', varietal: item.varietal || '', origin: item.origin || '', image: item.image || '' };
@@ -2760,16 +2852,33 @@ async function importInventory() {
       let error;
       if (existingId) {
         ({ error } = await sb.from('drinks').update(base).eq('id', existingId));
-        if (error) failed++; else updated++;
+        if (error) { failed++; badItems.push({ item: item, error: error.message }); }
+        else { updated++; okItems.push(Object.assign({}, item, { id: existingId })); }
       } else {
-        ({ error } = await sb.from('drinks').insert({ name: item.name, ...base, status: 'pending', submitted_by: userId, supplier_name: config.listingName || user.name || '' }));
-        if (error) failed++; else inserted++;
+        const { error: insErr, data: insData } = await sb.from('drinks')
+          .insert({ name: item.name, ...base, status: 'pending', submitted_by: userId, supplier_name: config.listingName || user.name || '' })
+          .select('id, status');
+        const insRow = Array.isArray(insData) ? insData[0] : insData;
+        error = insErr;
+        if (error) { failed++; badItems.push({ item: item, error: error.message }); }
+        else { inserted++; okItems.push(Object.assign({}, item, { id: insRow && insRow.id, status: (insRow && insRow.status) || 'pending' })); }
       }
     }
-    // Merge into local items WITHOUT duplicating (keyed by normalized name).
+    // Merge only what the database accepted, keyed by normalised name.
     const merged = {};
-    ((config.items || []).concat(items)).forEach(it => { merged[normName(it.name)] = it; });
+    ((config.items || []).concat(okItems)).forEach(it => { merged[normName(it.name)] = it; });
     config.items = Object.values(merged);
+    // Rejected rows are kept, but named for what they are: rows that exist only
+    // in this browser. They are shown in their own panel with a retry, instead of
+    // silently inflating the catalogue.
+    if (badItems.length) {
+      const parked = (config.unsynced || []).slice();
+      const seen = new Set(parked.map(x => normName(x.name)));
+      badItems.forEach(b => {
+        if (!seen.has(normName(b.item.name))) { parked.push(Object.assign({}, b.item, { reason: b.error || 'rejected by the database' })); seen.add(normName(b.item.name)); }
+      });
+      config.unsynced = parked;
+    }
     storage.setDashboardState(state);
     const withImg = items.filter(it => it.image).length;
     const imgNote = !withImg ? ' · no image URLs detected (check the Image column)'
@@ -2781,7 +2890,8 @@ async function importInventory() {
       setNotice(`<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Nothing was saved — all <strong>${failed}</strong> row(s) were rejected by the database. Your catalogue below is unchanged. Please send us this message so we can check your plan limit.</div>`);
       return;
     }
-    setNotice(`<div class="notice">Imported <strong>${items.length}</strong> rows — <strong>${updated}</strong> updated, <strong>${inserted}</strong> new${imgNote}${failNote}.</div>`);
+    const reason = badItems.length ? safe((badItems[0].error || 'rejected').slice(0, 200)) : '';
+    setNotice(`<div class="notice">Imported <strong>${items.length}</strong> rows — <strong>${updated}</strong> updated, <strong>${inserted}</strong> new${imgNote}${failNote}.${badItems.length ? `<br><span class="muted">${badItems.length} row(s) were refused by the database and are <strong>not saved</strong>. They are listed under “Not saved yet” below so you can retry them. First error: ${reason}</span>` : ''}</div>`);
 
     // One email for the whole import, not one per row.
     if (inserted || updated) {
@@ -2908,22 +3018,34 @@ async function renderBusinessDashboardPage() {
     const merchantCfg = state.merchant || (state.merchant = { items: [] });
     if (!Array.isArray(merchantCfg.items)) merchantCfg.items = [];
     const normKey = s => String(s || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
-    const merged = {};
-    merchantCfg.items.forEach(it => { merged[normKey(it.name)] = it; });
-    (mine || []).forEach(d => {
-      // DB row wins over any matching local copy, and carries its real status
-      // (pending / approved) so the supplier sees exactly what is going on.
-      merged[normKey(d.name)] = {
-        id: d.id,
-        name: d.name || '',
-        price: d.price || '',
-        image: d.image || '',        // product thumbnails in the analytics panel
-        availability: d.availability || 'In stock',
-        status: d.status || 'pending',
-        fromDb: true
-      };
-    });
-    merchantCfg.items = Object.values(merged);
+    const dbRows = (mine || []).map(d => ({
+      id: d.id,
+      name: d.name || '',
+      price: d.price || '',
+      image: d.image || '',        // product thumbnails in the analytics panel
+      availability: d.availability || 'In stock',
+      status: d.status || 'pending',
+      fromDb: true
+    }));
+    const dbNames = new Set(dbRows.map(d => normKey(d.name)));
+    // A local row the database does not have is NOT a listing. It is a row whose
+    // write never landed. The table used to render it anyway, so a supplier saw 22
+    // products while the site held 2 (Bin 852, 11 Nov 2026). Park those rows in
+    // their own list, shown in their own panel with a retry.
+    const localOnly = merchantCfg.items.filter(it => !it.fromDb && !dbNames.has(normKey(it.name)));
+    merchantCfg.items = dbRows;
+    if (localOnly.length) {
+      const parked = (merchantCfg.unsynced || []).slice();
+      const seen = new Set(parked.map(x => normKey(x.name)));
+      localOnly.forEach(it => {
+        if (!seen.has(normKey(it.name))) { parked.push(it); seen.add(normKey(it.name)); }
+      });
+      merchantCfg.unsynced = parked;
+    }
+    if (dbNames.size) {
+      // Anything that does exist in the database is no longer "not saved".
+      merchantCfg.unsynced = (merchantCfg.unsynced || []).filter(x => !dbNames.has(normKey(x.name)));
+    }
     if (!(mine || []).length && (state.listingCount || 0) > 0) {
       catalogueLoadNote = `<div class="notice" style="background:rgba(255,193,7,.08);border-color:rgba(255,193,7,.18);color:#ffd27d;">Your plan shows <strong>${state.listingCount}</strong> listing(s) but none were returned for this login. They were most likely submitted under a different account — contact us and we will re-link them to your profile.</div>`;
     }
@@ -3144,6 +3266,19 @@ async function renderBusinessDashboardPage() {
           <div class="container">
             <div class="section-head"><div><span class="eyebrow">Pricing & availability</span><h2>${role === 'merchant' ? 'Manage stock visibility and current pricing.' : 'Manage offers, ticketing, tables, and availability.'}</h2></div></div>
             ${role === 'merchant' ? catalogueLoadNote : ''}
+            ${takeCatalogueNotice()}
+            ${(config.unsynced && config.unsynced.length) ? `
+            <div class="panel" style="margin-bottom:18px;border-color:rgba(255,193,7,.28);">
+              <span class="eyebrow">Not saved yet</span>
+              <h3 style="margin:10px 0;">${config.unsynced.length} item(s) exist only in this browser</h3>
+              <p class="muted" style="margin-bottom:12px;">These rows never reached the database, so they are not on the site and nobody can approve them. They are the shortfall from an import whose writes were refused — press <strong>Save these to database</strong> to send them into moderation now.</p>
+              <div class="muted" style="display:grid;gap:6px;font-size:.85rem;margin-bottom:14px;">${config.unsynced.slice(0, 25).map(x => `<span>• ${safe(x.name || '(no name)')}${x.price ? ` — ${safe(x.price)}` : ''}${x.reason ? ` <span style="color:#ffd27d;">(${safe(String(x.reason).slice(0, 90))})</span>` : ''}</span>`).join('')}${config.unsynced.length > 25 ? `<span class="muted">…and ${config.unsynced.length - 25} more</span>` : ''}</div>
+              <div class="inline-actions">
+                <button class="btn btn-primary" type="button" data-action="syncLocalItems()">Save these to database</button>
+                <button class="btn btn-ghost" type="button" data-action="discardLocalItems()">Discard them</button>
+              </div>
+              <div id="sync-local-notice"></div>
+            </div>` : ''}
             <div class="dashboard-table-wrap">
               <div class="dashboard-table-head"><div>${listingLabels[0]}</div><div>${listingLabels[1]}</div><div>${listingLabels[2]}</div><div>${listingLabels[3]}</div></div>
               <div id="dashboard-items">${config.items.length ? config.items.map((item, index) => `
@@ -4495,6 +4630,20 @@ async function renderAdminDashboardPage() {
     <section class="section-tight">
       <div class="container">
         <div class="panel">
+          <span class="eyebrow">Supplier submissions</span>
+          <h2 style="margin:14px 0;">What each supplier has actually sent</h2>
+          <p class="muted" style="margin-bottom:16px;">Every inventory row grouped by supplier with its moderation state. If a supplier's dashboard shows more items than this table, those extra rows never reached the database — they are sitting in that supplier's browser and the dashboard now shows them under “Not saved yet”.</p>
+          <div class="admin-table">
+            <div class="admin-table-head" style="grid-template-columns:2fr 90px 100px 100px 90px 1fr;"><div>Supplier</div><div>Pending</div><div>Approved</div><div>Rejected</div><div>Total</div><div>Last submission</div></div>
+            <div id="admin-supplier-submissions"><div class="notice">Loading…</div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section-tight">
+      <div class="container">
+        <div class="panel">
           <span class="eyebrow">Curate an event</span>
           <h2 style="margin:14px 0;">Add an event to the site</h2>
           <p class="muted" style="margin-bottom:16px;">Events you add here go live immediately — no approval step.</p>
@@ -4613,6 +4762,7 @@ async function renderAdminDashboardPage() {
 
   // Load pending inventory, pending events, leads, and product manager
   loadPendingItems();
+  loadAdminSupplierSubmissions();
   loadPendingEvents();
   loadAdminLeads();
   loadProductManager();
@@ -4626,6 +4776,50 @@ async function renderAdminDashboardPage() {
 // Reads public.admin_listing_health() (migration 081): dead rows first, then
 // oldest confirmation. This is the 24-hour worklist, so it sorts by what is
 // most broken rather than by name.
+// Per-supplier view of what actually exists in the database. The pending queue
+// only shows rows that made it in; this is how an admin sees the difference
+// between "waiting for approval" and "never arrived".
+async function loadAdminSupplierSubmissions() {
+  const holder = document.getElementById('admin-supplier-submissions');
+  if (!holder) return;
+  try {
+    const { data, error } = await sb.from('drinks').select('supplier_name,status,created_at').order('created_at', { ascending: false }).limit(5000);
+    if (error) { holder.innerHTML = '<div class="notice">Could not load submissions: ' + safe(error.message) + '</div>'; return; }
+    const groups = {};
+    (data || []).forEach(r => {
+      const raw = String(r.supplier_name || '').trim();
+      const key = raw ? raw.toLowerCase() : '(no supplier name)';
+      const g = groups[key] || (groups[key] = { label: raw || '(no supplier name)', pending: 0, approved: 0, rejected: 0, total: 0, last: null });
+      g.total++;
+      if (r.status === 'approved') g.approved++;
+      else if (r.status === 'rejected') g.rejected++;
+      else g.pending++;
+      // Keep the most common spelling, and the newest timestamp.
+      if (raw && raw.length > (g.label || '').length && g.label.toLowerCase() === key) g.label = raw;
+      if (r.created_at && (!g.last || r.created_at > g.last)) g.last = r.created_at;
+    });
+    const rows = Object.values(groups).sort((a, b) => b.pending - a.pending || b.total - a.total);
+    if (!rows.length) { holder.innerHTML = '<div class="notice">No inventory rows yet.</div>'; return; }
+    const totals = rows.reduce((t, r) => ({ p: t.p + r.pending, a: t.a + r.approved, j: t.j + r.rejected, n: t.n + r.total }), { p: 0, a: 0, j: 0, n: 0 });
+    holder.innerHTML = rows.map(r => {
+      const when = r.last ? new Date(r.last).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '—';
+      const style = 'grid-template-columns:2fr 90px 100px 100px 90px 1fr;' + (r.pending ? '' : 'opacity:.72;');
+      return `<div class="admin-table-row" style="${style}">
+        <div><strong>${safe(r.label)}</strong></div>
+        <div>${r.pending ? `<span class="status-badge status-pending">${r.pending}</span>` : '0'}</div>
+        <div>${r.approved}</div>
+        <div>${r.rejected}</div>
+        <div>${r.total}</div>
+        <div class="muted">${when}</div>
+      </div>`;
+    }).join('') + `<div class="admin-table-row" style="grid-template-columns:2fr 90px 100px 100px 90px 1fr;font-weight:600;border-top:1px solid var(--border-strong);">
+        <div>All suppliers</div><div>${totals.p}</div><div>${totals.a}</div><div>${totals.j}</div><div>${totals.n}</div><div></div>
+      </div>`;
+  } catch (e) {
+    holder.innerHTML = '<div class="notice">Could not load submissions: ' + safe(e.message) + '</div>';
+  }
+}
+
 async function loadAdminHealth() {
   const box = $('#admin-health');
   if (!box) return;
