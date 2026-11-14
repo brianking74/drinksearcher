@@ -609,10 +609,10 @@ function navHTML(active = '', user) {
   const links = [
     ['index.html','Home'],
     ['drinks.html','Drinks'],
+    ['suppliers.html','Suppliers'],
     dsFeature('venues') ? ['bars-restaurants.html','Bars & Restaurants'] : null,
     dsFeature('events') ? ['events.html','Events'] : null,
     ['blog.html','Blog'],
-    ['pricing.html','Pricing'],
     ].filter(Boolean);
   const authActions = user
     ? `<a class="btn btn-ghost btn-small" href="account.html">My Account</a>`
@@ -5403,6 +5403,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     venues: 'Bars & Restaurants',
     suppliers: 'Suppliers',
     drinks: 'Drinks',
+    blog: 'Blog',
     events: 'Events',
     pricing: 'Pricing',
     lead: '',
