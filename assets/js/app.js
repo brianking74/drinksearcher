@@ -483,7 +483,7 @@ window.statBlockHTML = statBlockHTML;
 // CSP (which is what protects this site from injected script), markup emits
 // data-action="fn('arg')" and one delegated handler dispatches it against an
 // explicit allowlist — no eval, and only these names can ever run.
-const DS_ACTIONS = ['addDashboardEvent', 'removeVenueMenuItem', 'uploadVenueMenuFiles', 'saveSupplierEmail', 'sendListingDigest', 'sendSupplierConfirmations', 'syncLocalItems', 'discardLocalItems', 'addDashboardEventRow', 'addDashboardItem', 'adminAddEventFromForm', 'bulkImportEvents', 'closeProductEdit', 'dsDashboardImageRemove', 'dsDashboardImageUpload', 'fetchMissingImages', 'fillSampleTemplate', 'importInventory', 'moderateEvent', 'removeDashboardEvent', 'removeDashboardEventRow', 'removeDashboardItem', 'removeVenueGalleryImage', 'runLinkCheck', 'uploadVenueGalleryImages', 'saveDashboardEventRow', 'saveDashboardEvents', 'saveDashboardItems', 'saveDashboardProfile', 'saveProductEdit', 'signOutNow', 'startCheckout'];
+const DS_ACTIONS = ['addDashboardEvent', 'removeVenueMenuItem', 'uploadVenueMenuFiles', 'saveSupplierEmail', 'sendListingDigest', 'sendSupplierConfirmations', 'syncLocalItems', 'discardLocalItems', 'addDashboardEventRow', 'addDashboardItem', 'adminAddEventFromForm', 'bulkImportEvents', 'closeProductEdit', 'dsDashboardImageRemove', 'dsDashboardImageUpload', 'fetchMissingImages', 'fillSampleTemplate', 'importInventory', 'moderateEvent', 'removeDashboardEvent', 'removeDashboardEventRow', 'removeDashboardItem', 'removeVenueGalleryImage', 'runLinkCheck', 'uploadVenueGalleryImages', 'saveDashboardEventRow', 'saveDashboardEvents', 'saveDashboardItems', 'saveDashboardProfile', 'saveProductEdit', 'setPmFilter', 'signOutNow', 'startCheckout'];
 function runDsAction(expr) {
   // Zero-argument actions ("signOutNow") and calls with arguments
   // ("startCheckout('merchant_enhanced')") both have to work. The first version
@@ -4147,9 +4147,10 @@ async function moderateItem(id, status, index) {
 
 const PM_DRINK_TYPES = ['Red Wine','White Wine','Rosé Wine','Champagne','Sparkling','Fortified Wine','Whisky','Tequila','Mezcal','Sake','Spirit','Gin','Vodka','Rum','Cognac','Beer','No & low'];
 
-async function loadProductManager() {
+async function loadProductManager(keepScroll) {
   const holder = $('#admin-product-manager');
   if (!holder) return;
+  const y = keepScroll ? window.scrollY : null;
   const filter = queryParam('pm') || 'all';
   try {
     const { data: items, error } = await sb.from('drinks').select('*').order('name');
@@ -4167,14 +4168,30 @@ async function loadProductManager() {
 
     holder.innerHTML = `
       <div class="admin-toolbar" style="margin-bottom:14px;flex-wrap:wrap;">
-        <button class="toggle-pill ${filter==='all'?'active':''}" data-action="location.search='?pm=all'">All (${counts.all})</button>
-        <button class="toggle-pill ${filter==='approved'?'active':''}" data-action="location.search='?pm=approved'">Approved (${counts.approved})</button>
-        <button class="toggle-pill ${filter==='pending'?'active':''}" data-action="location.search='?pm=pending'">Pending (${counts.pending})</button>
-        <button class="toggle-pill ${filter==='rejected'?'active':''}" data-action="location.search='?pm=rejected'">Rejected (${counts.rejected})</button>
-        <button class="toggle-pill ${filter==='noimage'?'active':''}" data-action="location.search='?pm=noimage'">No image (${counts.noimage})</button>
+        ${[['all','All'],['approved','Approved'],['pending','Pending'],['rejected','Rejected'],['noimage','No image']].map(([k, label]) =>
+          `<button class="toggle-pill ${filter===k?'active':''}" type="button" data-action="setPmFilter('${k}')">${label} (${counts[k] || 0})</button>`).join('')}
         ${missing.length ? `<button class="btn btn-primary btn-small" style="margin-left:auto;" data-action="fetchMissingImages()">Fetch images (${missing.length})</button>` : ''}
       </div>
-      ${!filtered.length ? '<div class="notice">No products match this filter.</div>' : `
+      ${filter === 'noimage' ? `<p class="muted" style="margin:-4px 0 16px;font-size:.85rem;">Paste an image URL and press Save, or press Upload to send a file to Cloudinary. Each save drops the row from this list, so you can work straight down it. <strong>${counts.noimage}</strong> product(s) have no image.</p>` : ''}
+      ${!filtered.length ? '<div class="notice">No products match this filter.</div>' : filter === 'noimage' ? `
+      <div class="admin-table">
+        <div class="admin-table-head" style="grid-template-columns:56px 2fr 1fr 1.6fr 170px;"><div></div><div>Product</div><div>Supplier</div><div>Image URL</div><div></div></div>
+        ${filtered.map(item => `
+          <div class="admin-table-row" style="grid-template-columns:56px 2fr 1fr 1.6fr 170px;align-items:center;">
+            <div>${item.image ? `<img src="${safe(dsImage(item.image))}" alt="" style="width:44px;height:44px;object-fit:cover;border-radius:6px;" />` : '<div style="width:44px;height:44px;border:1px dashed var(--border-strong);border-radius:6px;"></div>'}</div>
+            <div><strong>${safe(item.name)}</strong>
+              <div class="muted" style="font-size:.75rem;">
+                <a href="https://www.google.com/search?tbm=isch&q=${encodeURIComponent((item.name || '') + ' ' + (item.supplier_name || ''))}" target="_blank" rel="noopener">find image</a>${(item.type || item.varietal) ? ' · ' + [item.type, item.varietal].filter(Boolean).map(safe).join(' · ') : ''}
+              </div>
+            </div>
+            <div class="muted" style="font-size:.82rem;">${safe(item.supplier_name || '—')}</div>
+            <div><input class="input" data-pm-imginput="${safe(item.id)}" placeholder="https://…" style="width:100%;font-size:.78rem;" /></div>
+            <div style="display:flex;gap:6px;">
+              <button class="btn btn-secondary btn-small" type="button" data-pm-upload="${safe(item.id)}">Upload</button>
+              <button class="btn btn-primary btn-small" type="button" data-pm-saveimg="${safe(item.id)}">Save</button>
+            </div>
+          </div>`).join('')}
+      </div>` : `
       <div class="admin-table">
         <div class="admin-table-head" style="grid-template-columns:2fr 1fr 110px 90px 96px;"><div>Product</div><div>Supplier</div><div>Price</div><div>Status</div><div></div></div>
         ${filtered.map(item => `
@@ -4184,7 +4201,7 @@ async function loadProductManager() {
             <div>${safe(item.price || '—')}</div>
             <div><span class="status-badge status-${(item.status||'pending').toLowerCase()}">${item.status||'Pending'}</span></div>
             <div>
-              <select class="select" style="font-size:.72rem;padding:5px 6px;width:100%;" onchange="if(this.value){productManagerAction('${item.id.replace(/'/g,"\\'")}',this.value);}">
+              <select class="select" data-pm-id="${safe(item.id)}" style="font-size:.72rem;padding:5px 6px;width:100%;">
                 <option value="">⋯</option>
                 <option value="approve">Approve</option>
                 <option value="reject">Reject</option>
@@ -4196,9 +4213,118 @@ async function loadProductManager() {
           </div>`).join('')}
       </div>`}
     `;
+    // The row dropdown used an inline onchange, which the CSP (script-src 'self')
+    // blocks outright, so every action in the product manager was dead. Bind it
+    // from script instead, and drive the image workbench from data attributes.
+    holder.onchange = (ev) => {
+      const sel = ev.target.closest('select[data-pm-id]');
+      if (!sel) return;
+      const action = sel.value;
+      sel.value = '';
+      if (action) productManagerAction(sel.dataset.pmId, action);
+    };
+    holder.onclick = (ev) => {
+      const saveBtn = ev.target.closest('[data-pm-saveimg]');
+      if (saveBtn) {
+        ev.preventDefault();
+        const id = saveBtn.dataset.pmSaveimg;
+        const input = holder.querySelector(`[data-pm-imginput="${id}"]`);
+        saveProductImage(id, input ? input.value.trim() : '');
+        return;
+      }
+      const upBtn = ev.target.closest('[data-pm-upload]');
+      if (upBtn) {
+        ev.preventDefault();
+        pickProductImageFile(upBtn.dataset.pmUpload, upBtn);
+      }
+    };
   } catch (e) {
     holder.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Could not load products: ${safe(e.message)}</div>`;
   }
+  if (y != null) window.scrollTo(0, y);
+}
+
+// Filters used to be data-action="location.search='?pm=noimage'" — not a function
+// name, so the allowlist rejected it and no tab did anything.
+function setPmFilter(filter) {
+  const url = new URL(window.location.href);
+  const f = String(filter || 'all');
+  if (f === 'all') url.searchParams.delete('pm'); else url.searchParams.set('pm', f);
+  window.history.replaceState({}, '', url.pathname + url.search + url.hash);
+  loadProductManager();
+}
+
+async function saveProductImage(id, url) {
+  const notice = $('#admin-pm-notice');
+  const clean = String(url || '').trim();
+  if (!clean) {
+    if (notice) notice.innerHTML = '<div class="notice" style="background:rgba(255,193,7,.08);border-color:rgba(255,193,7,.18);color:#ffd27d;">Paste an image URL or press Upload first.</div>';
+    return;
+  }
+  if (!/^https?:\/\//i.test(clean)) {
+    if (notice) notice.innerHTML = '<div class="notice" style="background:rgba(255,193,7,.08);border-color:rgba(255,193,7,.18);color:#ffd27d;">That is not a URL — it needs to start with https://</div>';
+    return;
+  }
+  if (notice) notice.innerHTML = '<div class="notice">Saving image…</div>';
+  const { error } = await sb.from('drinks').update({ image: clean }).eq('id', id);
+  if (error) {
+    if (notice) notice.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Failed: ${safe(error.message)}</div>`;
+    return;
+  }
+  if (notice) notice.innerHTML = '<div class="notice">Image saved.</div>';
+  loadProductManager(true);
+}
+
+// Upload through the same signed Edge Function the rest of the admin uses. A
+// pasted third-party URL renders only because dsImage() proxies it through
+// Cloudinary's fetch API, so an uploaded Cloudinary file is the reliable path.
+async function dsAdminUploadImage(file) {
+  const dataUri = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+  const session = await sb.auth.getSession();
+  const token = (session && session.data && session.data.session && session.data.session.access_token) || '';
+  if (!token) throw new Error('Please sign in again.');
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/upload-image`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + token },
+    body: JSON.stringify({ slot: 'drinks', file: dataUri })
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error((body && body.error) || 'Upload failed');
+  return body.url;
+}
+
+function pickProductImageFile(id, btn) {
+  const notice = $('#admin-pm-notice');
+  const fileInput = document.createElement('input');
+  fileInput.type = 'file';
+  fileInput.accept = 'image/png,image/jpeg,image/webp,image/gif';
+  fileInput.style.display = 'none';
+  fileInput.onchange = async () => {
+    const file = fileInput.files && fileInput.files[0];
+    if (fileInput.parentNode) fileInput.parentNode.removeChild(fileInput);
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      if (notice) notice.innerHTML = '<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Image too large (max 10MB).</div>';
+      return;
+    }
+    const label = btn ? btn.textContent : '';
+    if (btn) { btn.disabled = true; btn.textContent = 'Uploading…'; }
+    try {
+      const url = await dsAdminUploadImage(file);
+      if (btn) { btn.disabled = false; btn.textContent = label; }
+      await saveProductImage(id, url);
+    } catch (err) {
+      if (btn) { btn.disabled = false; btn.textContent = label; }
+      if (notice) notice.innerHTML = `<div class="notice" style="background:rgba(255,46,126,.08);border-color:rgba(255,46,126,.18);color:#ffd0e2;">Upload failed: ${safe(err.message)}</div>`;
+    }
+  };
+  document.body.appendChild(fileInput);
+  fileInput.click();
 }
 
 async function productManagerAction(id, action) {
