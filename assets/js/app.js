@@ -124,7 +124,7 @@ async function sendEventStatusEmail(eventId, status) {
 let _currentUser = null;
 // Listing-cap snapshot for the dashboard (limit + live server count), refreshed
 // on every dashboard render so the "add another row" guard reflects reality.
-let _listingCap = { limit: 10, count: 0 };
+let _listingCap = { limit: window.dsFreeListingLimit ? window.dsFreeListingLimit() : 25, count: 0 };
 
 async function hydrateCurrentUser() {
   try { _currentUser = await dsAuth.getCurrentUser(); } catch { _currentUser = null; }
@@ -987,7 +987,7 @@ async function renderHomepage() {
 
     <section class="section" id="join-trade">
       <div class="container grid grid-2">
-        <div class="panel"><span class="eyebrow">For drinks suppliers</span><h3 style="margin:14px 0;">Reach buyers already searching for what you stock.</h3><p class="muted">Start with a free directory listing, list your first 10 products for free, and upgrade when you want stronger visibility.</p><div class="inline-actions" style="margin-top:18px;"><a class="btn btn-primary btn-small" href="pricing.html">View pricing</a><a class="btn btn-ghost btn-small" href="list-your-business.html?type=merchant">List as supplier</a></div></div>
+        <div class="panel"><span class="eyebrow">For drinks suppliers</span><h3 style="margin:14px 0;">Reach buyers already searching for what you stock.</h3><p class="muted">Start with a free directory listing, list your first 25 products for free, and upgrade when you want stronger visibility.</p><div class="inline-actions" style="margin-top:18px;"><a class="btn btn-primary btn-small" href="pricing.html">View pricing</a><a class="btn btn-ghost btn-small" href="list-your-business.html?type=merchant">List as supplier</a></div></div>
         ${dsFeature('venues') ? `<div class="panel"><span class="eyebrow">For bar owners</span><h3 style="margin:14px 0;">Get discovered by locals and visitors looking for their next favorite spot.</h3><p class="muted">Create a free venue profile, add booking links, promote events, and feature your bar on neighbourhood discovery lists.</p><div class="inline-actions" style="margin-top:18px;"><a class="btn btn-secondary btn-small" href="pricing.html">Venue pricing</a><a class="btn btn-ghost btn-small" href="list-your-business.html?type=venue">Claim venue</a></div></div>` : ''}
       </div>
     </section>
@@ -1533,11 +1533,11 @@ async function renderPricingPage() {
           <article class="price-card">
             <span class="badge gold">Starter</span>
             <h3>Merchant Starter</h3>
-            <p class="muted">Free company profile and your first 10 products.</p>
+            <p class="muted">Free company profile and your first 25 products.</p>
             <div class="price"><span class="amount">HK$0</span><span class="price-period">/ month</span></div>
             <ul class="feature-list">
               <li>Free company profile</li>
-              <li>10 product listings</li>
+              <li>25 product listings</li>
               <li>Website and contact details</li>
               <li>Standard supplier directory placement</li>
               <li>Click insights: monthly snapshot email</li>
@@ -2809,7 +2809,7 @@ async function importInventory() {
     }
     // Listing cap applies to NEW items only (re-imports of existing names update, not add).
     const newItems = items.filter(it => !existingByName[normName(it.name)]);
-    const limit = (state.listingLimit != null) ? state.listingLimit : 10;
+    const limit = (state.listingLimit != null) ? state.listingLimit : dsFreeListingLimit();
     const used = (state.listingCount != null) ? state.listingCount : (config.items || []).length;
     if (newItems.length > Math.max(0, limit - used)) {
       setNotice(`<div class="notice" style="background:rgba(255,193,7,.08);border-color:rgba(255,193,7,.18);color:#ffd27d;">Your plan allows ${limit} listings (${Math.max(0, limit - used)} left), but this import adds ${newItems.length} new item(s). Re-importing existing products updates them without counting against your limit. <a class="text-gold" href="pricing.html">Upgrade</a> to add more items.</div>`);
@@ -3000,7 +3000,7 @@ async function renderBusinessDashboardPage() {
     state.gifted = !!(sub && sub.gifted);
     state.compInterval = (sub && sub.comp_interval) || null;
     state.compRenewsAt = (sub && sub.current_period_end) || null;
-    state.listingLimit = (sub && sub.listing_limit != null) ? sub.listing_limit : 10;
+    state.listingLimit = (sub && sub.listing_limit != null) ? sub.listing_limit : dsFreeListingLimit();
     state.listingCount = await countMyListings();
   } catch (e) {
     state.directoryTier = state.directoryTier || 'standard';
@@ -3072,7 +3072,7 @@ async function renderBusinessDashboardPage() {
     const isEnhanced = state.directoryTier === 'enhanced' || state.directoryTier === 'featured' || state.directoryTier === 'premium';
     const planNames = { merchant_starter: 'Merchant Starter', merchant_enhanced: 'Merchant Enhanced', merchant_premium: 'Merchant Premium', venue_starter: 'Venue Starter', venue_enhanced: 'Venue Enhanced', venue_enhanced_events: 'Venue Enhanced + Events' };
     const planName = planNames[state.plan] || (role === 'venue' ? 'Venue Starter' : 'Merchant Starter');
-    const listingLimit = (state.listingLimit != null) ? state.listingLimit : 10;
+    const listingLimit = (state.listingLimit != null) ? state.listingLimit : dsFreeListingLimit();
     const listingsUsed = (state.listingCount != null) ? state.listingCount : 0;
     const atListingLimit = role === 'merchant' && listingsUsed >= listingLimit;
     const tierRank = { standard: 0, enhanced: 1, featured: 2, premium: 3 };
@@ -3220,7 +3220,7 @@ async function renderBusinessDashboardPage() {
                 </div>
                 <div class="small-note" style="margin-top:16px;">${state.compInterval
                   ? 'This plan is comped by DrinkSearcher. It renews automatically — no payment is taken and there is nothing to cancel.'
-                  : (isEnhanced ? 'Events and Website scan are included. Manage billing via Stripe.' : 'Your free plan includes your profile and up to 10 product listings. Upgrade to unlock Events, Website scan, and more.')}</div>
+                  : (isEnhanced ? 'Events and Website scan are included. Manage billing via Stripe.' : 'Your free plan includes your profile and up to 25 product listings. Upgrade to unlock Events, Website scan, and more.')}</div>
                 <div class="inline-actions" style="margin-top:18px;">
                   <a class="btn ${isEnhanced ? 'btn-ghost' : 'btn-primary'}" href="pricing.html">${isEnhanced ? 'Manage plan' : 'Upgrade plan'}</a>
                 </div>
@@ -3698,7 +3698,7 @@ async function renderBusinessDashboardPage() {
       const descTrimmed = descWasWords > 50;
       // Same plan cap the sheet import enforces — otherwise this form is a way
       // around a paid listing limit.
-      const limit = (state.listingLimit != null) ? state.listingLimit : 10;
+      const limit = (state.listingLimit != null) ? state.listingLimit : dsFreeListingLimit();
       const used = (state.listingCount != null) ? state.listingCount : (config.items || []).length;
       if (used + added >= limit) {
         say('<div class="notice" style="background:rgba(255,193,7,.08);border-color:rgba(255,193,7,.18);color:#ffd27d;">Your plan allows ' + limit + ' listings. <a class="text-gold" href="pricing.html">Upgrade</a> to add more items.</div>');
@@ -3842,7 +3842,7 @@ async function removeDashboardEventRow(id) {
 function adminPlanCatalog() {
   return {
     merchant: {
-      'merchant-starter': { name: 'Merchant Starter', dbPlan: 'merchant_starter', monthly: 'HK$0', annual: 'HK$0', listings: 10, directoryTier: 'standard', founding: false },
+      'merchant-starter': { name: 'Merchant Starter', dbPlan: 'merchant_starter', monthly: 'HK$0', annual: 'HK$0', listings: 25, directoryTier: 'standard', founding: false },
       'merchant-enhanced': { name: 'Merchant Enhanced', dbPlan: 'merchant_enhanced', monthly: 'HK$380', annual: 'HK$3,800', listings: 100, directoryTier: 'enhanced', founding: true },
       'merchant-premium': { name: 'Merchant Premium', dbPlan: 'merchant_premium', monthly: 'HK$2,480', annual: 'HK$24,720', listings: null, directoryTier: 'premium', founding: false }
     },

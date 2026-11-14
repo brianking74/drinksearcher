@@ -343,7 +343,7 @@ async function fetchMySubscription() {
 async function getMyListingLimit() {
   const sub = await fetchMySubscription();
   if (!sub) return 10; // free tier default
-  return (sub.listing_limit === null || sub.listing_limit === undefined) ? 10 : sub.listing_limit;
+  return (sub.listing_limit === null || sub.listing_limit === undefined) ? (window.dsFreeListingLimit ? window.dsFreeListingLimit() : 25) : sub.listing_limit;
 }
 
 async function countMyListings() {

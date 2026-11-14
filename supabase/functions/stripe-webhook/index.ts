@@ -22,7 +22,7 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "
 
 // plan slug -> entitlement mapping (single source of truth for paid tiers)
 const ENTITLEMENTS: Record<string, { listing_limit: number | null; directory_tier: string }> = {
-  merchant_starter:      { listing_limit: 10,   directory_tier: "standard" },
+  merchant_starter:      { listing_limit: 25,   directory_tier: "standard" },
   merchant_enhanced:     { listing_limit: 100,  directory_tier: "enhanced" },
   merchant_premium:      { listing_limit: null, directory_tier: "featured" }, // null = unlimited
   venue_starter:         { listing_limit: 0,    directory_tier: "standard" },

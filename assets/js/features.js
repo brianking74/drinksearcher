@@ -18,7 +18,16 @@
 window.DS_FEATURES = {
   venues: false,   // bars, restaurants, venue directory + venue profiles
   events: false,   // events / calendar
-  guides: true     // editorial guides (the rooftop-bars guide is live content)
+  guides: true,    // editorial guides (the rooftop-bars guide is live content)
+
+  // How many bottles a supplier can list without a paid plan. Kept in step with
+  // enforce_listing_limit() in the database and merchant_starter in
+  // stripe-webhook's ENTITLEMENTS — change all three together.
+  freeListingLimit: 25
+};
+
+window.dsFreeListingLimit = function () {
+  try { return Number(window.DS_FEATURES && window.DS_FEATURES.freeListingLimit) || 25; } catch (e) { return 25; }
 };
 
 window.dsFeature = function (name) {
